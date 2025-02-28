@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ spot.name }} - Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""></script>
+    <style>
+      /* 地図のスタイル */
+      #spot-map {
+        width: 100%;
+        height: 250px;
+        border-radius: 0.75rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <article class="w-full">
+          <!-- Header Section -->
+          <header
+            class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none text-center bg-slate-50 text-neutral-900"
+          >
+            <h1
+              class="flex-1 shrink self-stretch px-12 my-auto w-full basis-0 min-h-[23px] min-w-60"
+            >
+              {{ spot.name }}
+            </h1>
+          </header>
+
+          <!-- Hero Map Section -->
+          <section
+            class="flex items-start px-4 py-3 w-full"
+            aria-label="Spot location map"
+          >
+            <div id="spot-map" class="w-full rounded-xl aspect-[1.78] min-w-60"></div>
+          </section>
+
+          <!-- Business Info Section -->
+          <section
+            class="flex justify-between items-start px-4 py-3 w-full bg-slate-50"
+            aria-label="Business information"
+          >
+            <div class="flex gap-4 items-start w-44">
+              <div
+                class="flex flex-col flex-1 shrink justify-center items-start w-full basis-0"
+              >
+                <h2
+                  class="max-w-full text-base font-medium text-neutral-900 w-[134px]"
+                >
+                  {{ spot.name }}
+                </h2>
+                <p class="max-w-full text-sm text-slate-500 w-[134px]">
+                  {{ spot.category or "Bubble Tea Store" }}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Photos Section -->
+          <section aria-label="Photo gallery">
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              Photos
+            </h2>
+            <div class="p-4 w-full">
+              {% if photos and photos|length > 0 %}
+              <div class="flex flex-wrap gap-3">
+                {% for photo in photos %}
+                <div class="w-[173px]">
+                  <img
+                    src="{{ url_for('static', filename=photo.photo_url) }}"
+                    alt="{{ spot.name }} photo {{ loop.index }}"
+                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                  />
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="flex flex-1 gap-3 size-full">
+                <div class="w-[173px]">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/435c1a8c3da50cd5e582b6fd0814a4a3f3c3b50ef3cf8a010ac0205cee4f32f9?placeholderIfAbsent=true"
+                    alt="{{ spot.name }} photo 1"
+                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                  />
+                </div>
+                <div class="w-[173px]">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/b37c325af37ea799d306ee72897a50a638463c4b30b305522dd879bac2dc2b3d?placeholderIfAbsent=true"
+                    alt="{{ spot.name }} photo 2"
+                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-1 gap-3 mt-3 size-full">
+                <div class="w-[173px]">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c4b6eceea17bf421958ffab803902982674183dbd0877d7757c20a985ff83966?placeholderIfAbsent=true"
+                    alt="{{ spot.name }} photo 3"
+                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                  />
+                </div>
+                <div class="w-[173px]">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/6b633b68e920d2d541c15dfbc0f06ca6e1a326e984e57cf41fc1f7a9a6582368?placeholderIfAbsent=true"
+                    alt="{{ spot.name }} photo 4"
+                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-1 gap-3 mt-3 size-full">
+                <div class="w-[173px]">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/9ab3a9e19601a6fbae85bb5cb862feb82c6e10be66aa383278ad837da1f60916?placeholderIfAbsent=true"
+                    alt="{{ spot.name }} photo 5"
+                    class="object-contain flex-1 w-full rounded-xl aspect-square"
+                  />
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </section>
+
+          <!-- Details Section -->
+          <section aria-label="Booking details">
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900"
+            >
+              Details
+            </h2>
+
+            <!-- Booking.com Details -->
+            <article
+              class="flex gap-4 items-center px-4 py-3 w-full bg-slate-50"
+            >
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/84944c1def9ac6fe8cdcddc26dbd5fcdc7e1ec4701a8ccece74cbd6a2b688715?placeholderIfAbsent=true"
+                alt="Booking.com logo"
+                class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+              />
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[230px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900 w-[230px]"
+                >
+                  Booking.com
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm text-slate-500 w-[230px]"
+                >
+                  Price: $50, Availability: 5 rooms left
+                </p>
+              </div>
+            </article>
+
+            <!-- Rakuten Travel Details 1 -->
+            <article
+              class="flex gap-4 items-center px-4 py-3 w-full bg-slate-50"
+            >
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/532d34cb618a990f64da51d78f6168753a428877874b771849ef370903a1d740?placeholderIfAbsent=true"
+                alt="Rakuten Travel logo"
+                class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+              />
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[236px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[236px]"
+                >
+                  Rakuten Travel
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm text-slate-500 w-[236px]"
+                >
+                  Price: $45, Availability: 10 rooms left
+                </p>
+              </div>
+            </article>
+
+            <!-- Rakuten Travel Details 2 -->
+            <article
+              class="flex gap-4 items-center px-4 py-3 w-full bg-slate-50"
+            >
+              <img
+                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/532d34cb618a990f64da51d78f6168753a428877874b771849ef370903a1d740?placeholderIfAbsent=true"
+                alt="Rakuten Travel logo"
+                class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+              />
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[236px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[236px]"
+                >
+                  Rakuten Travel
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm text-slate-500 w-[236px]"
+                >
+                  Price: $45, Availability: 10 rooms left
+                </p>
+              </div>
+            </article>
+          </section>
+        </article>
+
+        <footer class="w-full">
+          <div class="flex w-full bg-slate-50 min-h-5"></div>
+        </footer>
+      </div>
+    </main>
+
+    <!-- 地図ユーティリティJSの読み込み -->
+    <script src="{{ url_for('static', filename='js/map-utils.js') }}"></script>
+    
+    <!-- スポット詳細ページの地図初期化 -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // スポットの緯度経度
+        const spotData = {
+          "name": "{{ spot.name }}",
+          "location": "{{ spot.location or '' }}",
+          {% if spot.latitude %}"lat": {{ spot.latitude }},{% else %}"lat": null,{% endif %}
+          {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %}
+        };
+        
+        // 地図の初期化
+        let mapOptions = {};
+        if (spotData.lat && spotData.lng) {
+          mapOptions = { center: [spotData.lat, spotData.lng], zoom: 15 };
+        }
+        
+        const map = initMap('spot-map', mapOptions);
+        
+        // スポットの位置にマーカーを追加
+        if (spotData.lat && spotData.lng) {
+          const marker = addMarker(map, spotData.lat, spotData.lng);
+          marker.bindPopup(`<b>${spotData.name}</b><br>${spotData.location}`).openPopup();
+        } else {
+          // 位置情報がない場合は住所から取得を試みる
+          if (spotData.location) {
+            geocodeAddress(spotData.location).then(result => {
+              if (result) {
+                map.setView([result.lat, result.lng], 15);
+                const marker = addMarker(map, result.lat, result.lng);
+                marker.bindPopup(`<b>${spotData.name}</b><br>${spotData.location}`).openPopup();
+              }
+            });
+          }
+        }
+      });
+    </script>
+  </body>
+</html> 

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom styles if needed */
+      body {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #f8fafc;
+      }
+    </style>
+  </head>
+  <body>
+    <form
+      class="mx-auto w-full bg-white max-w-[480px]"
+      aria-labelledby="login-title"
+      method="POST"
+      action="{{ url_for('auth.login') }}"
+    >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <main class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <header
+          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+        >
+          <div class="flex items-center self-stretch my-auto w-12 min-h-12">
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/6476c7ec33ff8e8603d6d249dde13d9eea6db7e29c0f742b558352e652eda1ce?placeholderIfAbsent=true"
+              alt="Back"
+              class="object-contain self-stretch my-auto w-6 aspect-square"
+            />
+          </div>
+        </header>
+
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <h1
+          id="login-title"
+          class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none text-neutral-900"
+        >
+          Log in to your account
+        </h1>
+
+        <div class="flex gap-4 items-end px-4 py-3 w-full text-base">
+          <div class="flex-1 shrink w-full basis-0 min-w-40">
+            <label
+              for="email"
+              class="block pb-2 w-full font-medium whitespace-nowrap text-neutral-900"
+            >
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="Email address"
+              class="overflow-hidden self-stretch p-4 w-full rounded-xl bg-slate-200 min-h-14 text-slate-500"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="flex gap-4 items-end px-4 py-3 w-full">
+          <div class="flex-1 shrink w-full basis-0 min-w-40">
+            <label
+              for="password"
+              class="block pb-2 w-full text-base font-medium whitespace-nowrap text-neutral-900"
+            >
+              Password
+            </label>
+            <div class="flex flex-1 rounded-xl size-full">
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Password"
+                class="overflow-hidden flex-1 shrink self-start py-4 pr-2 pl-4 text-base whitespace-nowrap rounded-l-xl basis-0 bg-slate-200 min-h-14 min-w-60 text-slate-500"
+                required
+              />
+              <button
+                type="button"
+                id="togglePassword"
+                aria-label="Toggle password visibility"
+                class="flex justify-center items-center pr-4 w-10 h-full rounded-r-xl bg-slate-200"
+              >
+                <img
+                  src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/9f2bb61548f387d62cfad430325b21402f699407c48697169d45e0c455fcb361?placeholderIfAbsent=true"
+                  alt=""
+                  class="object-contain flex-1 shrink self-stretch my-auto w-6 aspect-square basis-0"
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-4 pt-1 pb-3 w-full">
+          <a href="#" class="text-sm text-slate-500 hover:text-slate-700">
+            Forgot password?
+          </a>
+        </div>
+
+        <div
+          class="flex items-start px-4 py-3 w-full text-sm font-bold text-center text-slate-50"
+        >
+          <button
+            type="submit"
+            class="flex overflow-hidden flex-1 shrink justify-center items-center px-4 w-full bg-blue-500 rounded-xl basis-0 max-w-[480px] min-h-10 min-w-[84px] hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Log In
+          </button>
+        </div>
+
+        <div class="px-4 pt-1 pb-3 w-full text-sm text-center text-slate-500">
+          Don't have an account?
+          <a href="{{ url_for('auth.signup') }}" class="text-blue-500 hover:text-blue-600"> Sign up </a>
+        </div>
+
+        <div class="flex w-full bg-slate-50 min-h-5"></div>
+      </main>
+    </form>
+
+    <script>
+      // Password visibility toggle functionality
+      document
+        .getElementById("togglePassword")
+        .addEventListener("click", function () {
+          const passwordInput = document.getElementById("password");
+          const type =
+            passwordInput.getAttribute("type") === "password"
+              ? "text"
+              : "password";
+          passwordInput.setAttribute("type", type);
+        });
+    </script>
+  </body>
+</html>

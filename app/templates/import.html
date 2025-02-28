@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Import Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom styles for toggle switch animation */
+      .peer:checked + div > div {
+        transform: translateX(20px);
+      }
+
+      /* Smooth transition for toggle switch */
+      div[class*="transition-transform"] {
+        transition-duration: 300ms;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* Focus styles for better accessibility */
+      input:focus + div {
+        outline: 2px solid rgb(14 165 233);
+        outline-offset: 2px;
+      }
+
+      /* Hover effects for buttons */
+      button:hover {
+        opacity: 0.9;
+      }
+
+      /* Active state for buttons */
+      button:active {
+        transform: scale(0.98);
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50">
+    <div class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <header
+          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+        >
+          <h1
+            class="flex-1 shrink self-stretch pl-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-neutral-900"
+          >
+            Import Management
+          </h1>
+          <div class="flex items-center self-stretch my-auto w-12">
+            <div
+              class="flex overflow-hidden gap-2 justify-center items-center self-stretch my-auto w-6 rounded-xl max-w-[480px] min-h-12"
+            >
+              <div class="flex-1 shrink self-stretch my-auto w-full basis-0">
+                <img
+                  src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/df0b719c7898128e23b3744643012bc20d65e71dad19ee383e8aa6feadd0e7db?placeholderIfAbsent=true"
+                  alt="Settings"
+                  class="object-contain flex-1 w-full aspect-square"
+                />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main>
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none min-h-[47px] text-neutral-900"
+            >
+              Automated Imports
+            </h2>
+
+            <div
+              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto min-w-60 w-[291px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900 w-[291px]"
+                >
+                  Instagram
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[291px]"
+                >
+                  Connect your Instagram account to import posts from your feed
+                </p>
+              </div>
+              <label
+                class="relative inline-block self-stretch my-auto w-[51px]"
+              >
+                <input type="checkbox" class="sr-only peer" />
+                <div
+                  class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
+                >
+                  <div
+                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform peer-checked:translate-x-5"
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <div
+              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto min-w-60 w-[291px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[291px]"
+                >
+                  Google Maps
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[291px]"
+                >
+                  Import photos and information about your spot from Google Maps
+                </p>
+              </div>
+              <label
+                class="relative inline-block self-stretch my-auto w-[51px]"
+              >
+                <input type="checkbox" class="sr-only peer" />
+                <div
+                  class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
+                >
+                  <div
+                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform peer-checked:translate-x-5"
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <div
+              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto min-w-60 w-[291px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900 w-[291px]"
+                >
+                  Yelp
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[291px]"
+                >
+                  Import photos and information about your spot from Yelp
+                </p>
+              </div>
+              <label
+                class="relative inline-block self-stretch my-auto w-[51px]"
+              >
+                <input type="checkbox" class="sr-only peer" />
+                <div
+                  class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
+                >
+                  <div
+                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform peer-checked:translate-x-5"
+                  ></div>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none min-h-[47px] text-neutral-900"
+            >
+              Manual Imports
+            </h2>
+
+            <div
+              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[213px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[213px]"
+                >
+                  Upload Photos
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[213px]"
+                >
+                  Manually upload photos for your spot
+                </p>
+              </div>
+              <button
+                class="self-stretch my-auto text-base font-medium text-center text-black w-[129px] hover:text-sky-600 focus:outline-none focus:text-sky-600"
+              >
+                Start Importing &gt;
+              </button>
+            </div>
+
+            <div
+              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[213px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[213px]"
+                >
+                  Add content
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[213px]"
+                >
+                  Create new content for your spot
+                </p>
+              </div>
+              <button
+                class="self-stretch my-auto text-base font-medium text-center text-black w-[129px] hover:text-sky-600 focus:outline-none focus:text-sky-600"
+              >
+                Start Importing &gt;
+              </button>
+            </div>
+          </section>
+
+          <footer
+            class="mt-40 w-full text-base font-bold text-center text-slate-50"
+          >
+            <div class="flex items-start px-4 py-3 w-full">
+              <button
+                class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-sky-500 rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+              >
+                <span class="overflow-hidden self-stretch my-auto w-[111px]">
+                  Save Changes
+                </span>
+              </button>
+            </div>
+            <div class="flex w-full bg-slate-50 min-h-5"></div>
+          </footer>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

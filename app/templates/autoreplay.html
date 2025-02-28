@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Replies Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom styles for toggle switch animation */
+      input[type="checkbox"] + div div {
+        transition: transform 0.2s ease-in-out;
+      }
+
+      input[type="checkbox"]:checked + div div {
+        transform: translateX(20px);
+      }
+
+      input[type="checkbox"] + div {
+        transition: background-color 0.2s ease-in-out;
+      }
+
+      input[type="checkbox"]:checked + div {
+        background-color: #e5e7eb;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-neutral-50 min-h-[844px]">
+        <main>
+          <!-- Header Section -->
+          <header
+            class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-neutral-50"
+          >
+            <h1
+              class="flex-1 shrink self-stretch pl-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-zinc-900"
+            >
+              Auto replies
+            </h1>
+            <div class="flex items-center self-stretch my-auto w-12">
+              <div
+                class="flex overflow-hidden gap-2 justify-center items-center self-stretch my-auto w-6 rounded-xl max-w-[480px] min-h-12"
+              >
+                <div class="flex-1 shrink self-stretch my-auto w-full basis-0">
+                  <img
+                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/20e1fd6572a70a815a17293da1430fc6e3d3a5f405e185a27bae2bbb38b980af?placeholderIfAbsent=true"
+                    alt="Settings icon"
+                    class="object-contain flex-1 w-full aspect-square"
+                  />
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <!-- Response Location Section -->
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900"
+            >
+              対応する場所
+            </h2>
+
+            <!-- Instagram DMs Toggle -->
+            <div
+              class="flex gap-10 justify-between items-center px-4 py-3.5 w-full bg-neutral-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[114px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-zinc-900 w-[114px]"
+                >
+                  Instagram DMs
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm whitespace-nowrap text-zinc-700 w-[114px]"
+                >
+                  Off
+                </p>
+              </div>
+              <label class="self-stretch my-auto w-[51px]">
+                <input type="checkbox" class="hidden" />
+                <div
+                  class="flex p-0.5 bg-gray-100 rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
+                >
+                  <div
+                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px]"
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Instagram Comments Toggle -->
+            <div
+              class="flex gap-10 justify-between items-center px-4 py-3.5 w-full bg-neutral-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[163px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-zinc-900 w-[163px]"
+                >
+                  Instagram comments
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm whitespace-nowrap text-zinc-700 w-[163px]"
+                >
+                  Off
+                </p>
+              </div>
+              <label class="self-stretch my-auto w-[51px]">
+                <input type="checkbox" class="hidden" />
+                <div
+                  class="flex p-0.5 bg-gray-100 rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
+                >
+                  <div
+                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px]"
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <!-- YouTube Comments Toggle -->
+            <div
+              class="flex gap-10 justify-between items-center px-4 py-3.5 w-full bg-neutral-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[152px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-zinc-900 w-[152px]"
+                >
+                  YouTube comments
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm whitespace-nowrap text-zinc-700 w-[152px]"
+                >
+                  On
+                </p>
+              </div>
+              <label class="self-stretch my-auto w-[51px]">
+                <input type="checkbox" checked class="hidden" />
+                <div
+                  class="flex p-0.5 bg-gray-100 rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
+                >
+                  <div
+                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] translate-x-[20px]"
+                  ></div>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <!-- Reply Template Section -->
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900"
+            >
+              返信テンプレート
+            </h2>
+            <div
+              class="flex gap-4 items-end px-4 py-3 w-full text-base font-medium whitespace-nowrap text-zinc-900"
+            >
+              <div class="flex-1 shrink w-full basis-0 min-w-40">
+                <label for="message" class="block pb-2 w-full">Message</label>
+                <textarea
+                  id="message"
+                  class="flex flex-1 py-4 w-full bg-gray-100 rounded-xl min-h-36 resize-none"
+                ></textarea>
+              </div>
+            </div>
+          </section>
+
+          <!-- Save Button Section -->
+          <footer
+            class="mt-44 w-full text-base font-bold text-center text-zinc-900"
+          >
+            <div class="flex items-start px-4 py-3 w-full">
+              <button
+                class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-gray-100 rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:bg-gray-200 transition-colors"
+              >
+                <span class="overflow-hidden self-stretch my-auto w-[108px]">
+                  Save changes
+                </span>
+              </button>
+            </div>
+            <div class="flex w-full bg-neutral-50 min-h-5"></div>
+          </footer>
+        </main>
+      </div>
+    </header>
+  </body>
+</html>

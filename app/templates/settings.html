@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <main class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <header
+          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+        >
+          <a
+            href="{{ url_for('profile.mypage') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="Back"
+          >
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/530ba24044e6e74956375eb77fc1ebcc5351550489918a61b691830e0ea84a92?placeholderIfAbsent=true"
+              alt="Back"
+              class="object-contain self-stretch my-auto w-6 aspect-square"
+            />
+          </a>
+          <h1
+            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+          >
+            Settings
+          </h1>
+        </header>
+
+        <nav>
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              アカウント
+            </h2>
+            <ul>
+              <li>
+                <a
+                  href="#"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    メールアドレス・パスワードの変更
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a8942ef94de70f6be86076b32f21fb7eeb55e9fc6f63cbd4335d85d1d53e854a?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    SNS連携
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c648220a638e85c52c230d08f607e4a1e3ed340de4f369a4cce758dd5c9d1ccb?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              自動化機能
+            </h2>
+            <ul>
+              <li>
+                <a
+                  href="#"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    スポットのインポート
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/ecb4aff9060ebdaad64b081bde998253773947cedb7eab5639c90c9f0cb94153?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    コメント・DMの対応
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/e2759add37cb2c553b2cac5916c67c783f8dd8bd9d2fbbf6819f40e569cadd46?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              その他
+            </h2>
+            <ul>
+              <li>
+                <a
+                  href="#"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    サポート
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/596804d915d05d8babf4f0758c7a5adf7f3053b8d1440c2fd3f91c8f3971db31?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    特商法
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/7ef95a677b9b348e5274a3237f9503f793b4ae6e041eea9df5206d26e5624f8d?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <div class="flex w-full bg-slate-50 min-h-5"></div>
+        </nav>
+      </div>
+    </main>
+  </body>
+</html>

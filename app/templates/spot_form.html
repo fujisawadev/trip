@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% if is_edit %}Edit Spot - {{ spot.name }}{% else %}Add New Spot{% endif %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""></script>
+    <!-- Leaflet Control Geocoder -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <style>
+      /* 地図のスタイル */
+      #location-map {
+        width: 100%;
+        height: 250px;
+        border-radius: 0.75rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <!-- Top Navigation -->
+        <nav
+          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+        >
+          <a
+            href="{{ url_for('profile.mypage') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="Back"
+          >
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/cbcfb374e6f9cf26c845989c39cf840095e94415ef262142766df01f141cd5e1?placeholderIfAbsent=true"
+              alt="Back"
+              class="object-contain self-stretch my-auto w-6 aspect-square"
+            />
+          </a>
+          <h1
+            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
+          >
+            {% if is_edit %}Edit Spot{% else %}Add New Spot{% endif %}
+          </h1>
+        </nav>
+
+        <!-- Spot Form -->
+        <form 
+          action="{% if is_edit %}{{ url_for('spot.edit_spot', spot_id=spot.id) }}{% else %}{{ url_for('spot.add_spot') }}{% endif %}" 
+          method="POST" 
+          enctype="multipart/form-data"
+          class="flex flex-col gap-6 p-4 w-full"
+        >
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <!-- 緯度経度の隠しフィールド -->
+          <input type="hidden" id="latitude" name="latitude" value="{% if is_edit %}{{ spot.latitude or '' }}{% endif %}">
+          <input type="hidden" id="longitude" name="longitude" value="{% if is_edit %}{{ spot.longitude or '' }}{% endif %}">
+          
+          <!-- Spot Name -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="spotName" class="text-sm font-medium text-neutral-900">Spot Name</label>
+            <input
+              type="text"
+              id="spotName"
+              name="spotName"
+              required
+              value="{% if is_edit %}{{ spot.name }}{% endif %}"
+              placeholder="Enter spot name"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Spot Location -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="location" class="text-sm font-medium text-neutral-900">Location</label>
+            <input
+              type="text"
+              id="location"
+              name="location"
+              value="{% if is_edit %}{{ spot.location }}{% endif %}"
+              placeholder="Enter location"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button 
+              type="button" 
+              id="search-location" 
+              class="px-4 py-2 mt-1 text-sm font-medium text-white bg-blue-500 rounded-xl hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Search Location
+            </button>
+          </div>
+
+          <!-- Location Map -->
+          <div class="flex flex-col gap-2 w-full">
+            <label class="text-sm font-medium text-neutral-900">Map Location</label>
+            <p class="text-xs text-slate-500 mb-2">Click on the map to set the location or drag the marker to adjust.</p>
+            <div id="location-map" class="w-full rounded-xl"></div>
+          </div>
+
+          <!-- Spot Category -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="category" class="text-sm font-medium text-neutral-900">Category</label>
+            <input
+              type="text"
+              id="category"
+              name="category"
+              value="{% if is_edit %}{{ spot.category }}{% endif %}"
+              placeholder="Enter category"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Spot Description -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="description" class="text-sm font-medium text-neutral-900">Description</label>
+            <textarea
+              id="description"
+              name="description"
+              rows="4"
+              placeholder="Enter spot description"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >{% if is_edit %}{{ spot.description }}{% endif %}</textarea>
+          </div>
+
+          <!-- Current Photos (編集時のみ表示) -->
+          {% if is_edit and spot.photos and spot.photos|length > 0 %}
+          <div class="flex flex-col gap-2 w-full">
+            <label class="text-sm font-medium text-neutral-900">Current Photos</label>
+            <div class="flex flex-wrap gap-2 w-full">
+              {% for photo in spot.photos %}
+                <div class="preview-item">
+                  <img
+                    src="{{ url_for('static', filename=photo.photo_url) }}"
+                    alt="{{ spot.name }} photo {{ loop.index }}"
+                  />
+                  <div class="remove-btn" data-photo-id="{{ photo.id }}">×</div>
+                  <input type="hidden" name="existing_photos" value="{{ photo.id }}">
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Spot Photos -->
+          <div class="flex flex-col gap-2 w-full">
+            <label class="text-sm font-medium text-neutral-900">{% if is_edit %}Add New Photos{% else %}Photos{% endif %}</label>
+            <div class="flex flex-col gap-3 w-full">
+              <div class="relative">
+                <input
+                  type="file"
+                  id="photos"
+                  name="photos"
+                  multiple
+                  accept="image/*"
+                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div
+                  class="flex justify-center items-center px-4 py-3 w-full bg-white rounded-xl border border-dashed border-slate-300 min-h-[100px]"
+                  id="drop-area"
+                >
+                  <div class="flex flex-col items-center text-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="w-8 h-8 text-slate-400 mb-2"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                      />
+                    </svg>
+                    <p class="text-sm text-slate-500">
+                      Drag & drop photos or <span class="text-blue-500">browse</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div
+                id="preview-container"
+                class="flex flex-wrap gap-2 w-full"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Active Status -->
+          <div class="flex justify-between items-center w-full">
+            <span class="text-base font-medium text-neutral-900">Active Status</span>
+            <label
+              class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
+              role="switch"
+            >
+              <input type="checkbox" name="is_active" class="toggle-switch sr-only" {% if not is_edit or (is_edit and spot.is_active) %}checked{% endif %} />
+              <span
+                class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform duration-200"
+              ></span>
+            </label>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            class="flex justify-center items-center px-4 w-full bg-blue-500 text-white rounded-xl min-h-12 mt-4"
+          >
+            <span class="text-base font-medium">{% if is_edit %}Save Changes{% else %}Add Spot{% endif %}</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <style>
+      .toggle-switch:checked + .toggle-slider {
+        transform: translateX(20px);
+      }
+      .preview-item {
+        position: relative;
+        width: 80px;
+        height: 80px;
+      }
+      .preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+      .remove-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        cursor: pointer;
+      }
+    </style>
+
+    <!-- 地図ユーティリティJSの読み込み -->
+    <script src="{{ url_for('static', filename='js/map-utils.js') }}"></script>
+
+    <script>
+      // File upload preview
+      const fileInput = document.getElementById('photos');
+      const previewContainer = document.getElementById('preview-container');
+      const dropArea = document.getElementById('drop-area');
+      
+      // Handle file selection
+      fileInput.addEventListener('change', handleFiles);
+      
+      // Drag and drop functionality
+      dropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropArea.classList.add('border-blue-500');
+      });
+      
+      dropArea.addEventListener('dragleave', () => {
+        dropArea.classList.remove('border-blue-500');
+      });
+      
+      dropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropArea.classList.remove('border-blue-500');
+        if (e.dataTransfer.files.length) {
+          fileInput.files = e.dataTransfer.files;
+          handleFiles();
+        }
+      });
+      
+      function handleFiles() {
+        const files = fileInput.files;
+        
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (!file.type.startsWith('image/')) continue;
+          
+          const reader = new FileReader();
+          
+          reader.onload = function(e) {
+            const previewItem = document.createElement('div');
+            previewItem.className = 'preview-item';
+            
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.alt = 'Preview';
+            
+            const removeBtn = document.createElement('div');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.addEventListener('click', function() {
+              previewItem.remove();
+              // Note: This doesn't actually remove the file from the input
+              // In a real app, you'd need to handle this properly
+            });
+            
+            previewItem.appendChild(img);
+            previewItem.appendChild(removeBtn);
+            previewContainer.appendChild(previewItem);
+          };
+          
+          reader.readAsDataURL(file);
+        }
+      }
+      
+      // Remove existing photo functionality
+      document.querySelectorAll('.remove-btn[data-photo-id]').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const photoId = this.dataset.photoId;
+          const previewItem = this.closest('.preview-item');
+          
+          // Add a hidden input to mark this photo for deletion
+          const deleteInput = document.createElement('input');
+          deleteInput.type = 'hidden';
+          deleteInput.name = 'delete_photos';
+          deleteInput.value = photoId;
+          document.querySelector('form').appendChild(deleteInput);
+          
+          // Hide the preview item
+          previewItem.style.display = 'none';
+        });
+      });
+
+      // 地図関連の処理
+      document.addEventListener('DOMContentLoaded', function() {
+        const locationInput = document.getElementById('location');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const searchButton = document.getElementById('search-location');
+        
+        // 初期位置（東京）
+        let initialLat = 35.6812;
+        let initialLng = 139.7671;
+        let initialZoom = 13;
+        
+        // 編集時は既存の位置情報を使用
+        const spotData = {
+          {% if is_edit %}
+          "isEdit": true,
+          {% if spot.latitude %}"lat": {{ spot.latitude }},{% else %}"lat": null,{% endif %}
+          {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %}
+          {% else %}
+          "isEdit": false,
+          "lat": null,
+          "lng": null
+          {% endif %}
+        };
+        
+        if (spotData.isEdit && spotData.lat && spotData.lng) {
+          initialLat = spotData.lat;
+          initialLng = spotData.lng;
+          initialZoom = 15;
+        }
+        
+        // 地図の初期化
+        const map = initMap('location-map', {
+          center: [initialLat, initialLng],
+          zoom: initialZoom
+        });
+        
+        // ジオコーディングコントロールを追加
+        L.Control.geocoder({
+          defaultMarkGeocode: false
+        }).on('markgeocode', function(e) {
+          const latlng = e.geocode.center;
+          updateMarkerAndInputs(latlng.lat, latlng.lng, e.geocode.name);
+          map.fitBounds(e.geocode.bbox);
+        }).addTo(map);
+        
+        // マーカーを作成
+        let marker = null;
+        
+        // 編集時は既存の位置情報でマーカーを表示
+        if (latitudeInput.value && longitudeInput.value) {
+          marker = addMarker(map, parseFloat(latitudeInput.value), parseFloat(longitudeInput.value), {
+            draggable: true
+          });
+          
+          // マーカードラッグ時の処理
+          marker.on('dragend', function(e) {
+            const latlng = e.target.getLatLng();
+            updateInputs(latlng.lat, latlng.lng);
+            
+            // 逆ジオコーディングで住所を取得
+            reverseGeocode(latlng.lat, latlng.lng).then(result => {
+              if (result) {
+                locationInput.value = result.address;
+              }
+            });
+          });
+        }
+        
+        // 地図クリック時の処理
+        map.on('click', function(e) {
+          const latlng = e.latlng;
+          updateMarkerAndInputs(latlng.lat, latlng.lng);
+          
+          // 逆ジオコーディングで住所を取得
+          reverseGeocode(latlng.lat, latlng.lng).then(result => {
+            if (result) {
+              locationInput.value = result.address;
+            }
+          });
+        });
+        
+        // 検索ボタンクリック時の処理
+        searchButton.addEventListener('click', function() {
+          const address = locationInput.value;
+          if (address) {
+            geocodeAddress(address).then(result => {
+              if (result) {
+                updateMarkerAndInputs(result.lat, result.lng, result.displayName);
+                map.setView([result.lat, result.lng], 15);
+              } else {
+                alert('Location not found. Please try a different address.');
+              }
+            });
+          }
+        });
+        
+        // マーカーと入力フィールドを更新する関数
+        function updateMarkerAndInputs(lat, lng, address = null) {
+          updateInputs(lat, lng);
+          
+          if (address) {
+            locationInput.value = address;
+          }
+          
+          if (marker) {
+            marker.setLatLng([lat, lng]);
+          } else {
+            marker = addMarker(map, lat, lng, {
+              draggable: true
+            });
+            
+            // マーカードラッグ時の処理
+            marker.on('dragend', function(e) {
+              const latlng = e.target.getLatLng();
+              updateInputs(latlng.lat, latlng.lng);
+              
+              // 逆ジオコーディングで住所を取得
+              reverseGeocode(latlng.lat, latlng.lng).then(result => {
+                if (result) {
+                  locationInput.value = result.address;
+                }
+              });
+            });
+          }
+        }
+        
+        // 入力フィールドを更新する関数
+        function updateInputs(lat, lng) {
+          latitudeInput.value = lat;
+          longitudeInput.value = lng;
+        }
+      });
+    </script>
+  </body>
+</html> 

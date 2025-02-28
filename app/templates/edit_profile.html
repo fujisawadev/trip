@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <div class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <!-- Top Navigation -->
+        <nav
+          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+        >
+          <a
+            href="{{ url_for('profile.mypage') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="Back"
+          >
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/cbcfb374e6f9cf26c845989c39cf840095e94415ef262142766df01f141cd5e1?placeholderIfAbsent=true"
+              alt="Back"
+              class="object-contain self-stretch my-auto w-6 aspect-square"
+            />
+          </a>
+          <h1
+            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
+          >
+            Edit Profile
+          </h1>
+        </nav>
+
+        <!-- Edit Profile Form -->
+        <form 
+          action="{{ url_for('profile.edit_profile') }}" 
+          method="POST" 
+          enctype="multipart/form-data"
+          class="flex flex-col gap-6 p-4 w-full"
+        >
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <!-- Profile Picture -->
+          <div class="flex flex-col items-center gap-4 w-full">
+            <div class="relative w-24 h-24">
+              <img
+                src="{{ url_for('static', filename=user.profile_pic_url) if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
+                alt="Profile"
+                class="object-cover w-full h-full rounded-full"
+                id="profile-preview"
+              />
+              <label
+                for="profile_pic"
+                class="absolute bottom-0 right-0 flex justify-center items-center w-8 h-8 bg-blue-500 rounded-full cursor-pointer"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-4 h-4 text-white"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21h-9.5A2.25 2.25 0 014 18.75V8.25A2.25 2.25 0 016.25 6H8"
+                  />
+                </svg>
+                <input
+                  type="file"
+                  id="profile_pic"
+                  name="profile_pic"
+                  accept="image/*"
+                  class="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
+          <!-- Username -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="username" class="text-sm font-medium text-neutral-900">Username</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              required
+              value="{{ user.username }}"
+              placeholder="Enter username"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Email -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="email" class="text-sm font-medium text-neutral-900">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              value="{{ user.email }}"
+              placeholder="Enter email"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Bio -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="bio" class="text-sm font-medium text-neutral-900">Bio</label>
+            <textarea
+              id="bio"
+              name="bio"
+              rows="4"
+              placeholder="Tell us about yourself"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >{{ user.bio }}</textarea>
+          </div>
+
+          <!-- Social Media Accounts -->
+          <div class="flex flex-col gap-4 w-full">
+            <h2 class="text-base font-medium text-neutral-900">Social Media Accounts</h2>
+            
+            <!-- Instagram -->
+            <div class="flex flex-col gap-2 w-full">
+              <label for="instagram" class="text-sm font-medium text-neutral-900">Instagram</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">@</span>
+                <input
+                  type="text"
+                  id="instagram"
+                  name="instagram"
+                  value="{{ social_accounts.instagram if social_accounts and social_accounts.instagram }}"
+                  placeholder="username"
+                  class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            
+            <!-- Twitter -->
+            <div class="flex flex-col gap-2 w-full">
+              <label for="twitter" class="text-sm font-medium text-neutral-900">Twitter</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">@</span>
+                <input
+                  type="text"
+                  id="twitter"
+                  name="twitter"
+                  value="{{ social_accounts.twitter if social_accounts and social_accounts.twitter }}"
+                  placeholder="username"
+                  class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            
+            <!-- TikTok -->
+            <div class="flex flex-col gap-2 w-full">
+              <label for="tiktok" class="text-sm font-medium text-neutral-900">TikTok</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">@</span>
+                <input
+                  type="text"
+                  id="tiktok"
+                  name="tiktok"
+                  value="{{ social_accounts.tiktok if social_accounts and social_accounts.tiktok }}"
+                  placeholder="username"
+                  class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            
+            <!-- YouTube -->
+            <div class="flex flex-col gap-2 w-full">
+              <label for="youtube" class="text-sm font-medium text-neutral-900">YouTube</label>
+              <input
+                type="text"
+                id="youtube"
+                name="youtube"
+                value="{{ social_accounts.youtube if social_accounts and social_accounts.youtube }}"
+                placeholder="Channel URL"
+                class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            class="flex justify-center items-center px-4 w-full bg-blue-500 text-white rounded-xl min-h-12 mt-4"
+          >
+            <span class="text-base font-medium">Save Changes</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Profile picture preview
+      const profileInput = document.getElementById('profile_pic');
+      const profilePreview = document.getElementById('profile-preview');
+      
+      profileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+          const reader = new FileReader();
+          
+          reader.onload = function(e) {
+            profilePreview.src = e.target.result;
+          };
+          
+          reader.readAsDataURL(this.files[0]);
+        }
+      });
+    </script>
+  </body>
+</html> 

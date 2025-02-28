@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""></script>
+    <style>
+        body {
+            background-color: #f8fafc;
+        }
+        /* 地図のスタイル */
+        #map {
+            width: 100%;
+            height: 250px;
+            border-radius: 0.75rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50">
+    <header class="mx-auto w-full bg-white max-w-[480px]">
+        <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+            <div class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
+                <div class="flex shrink-0 self-stretch my-auto w-12 h-12"></div>
+                <div class="flex-1 shrink self-stretch pr-12 my-auto basis-0 min-w-60">
+                    <h1>Profile</h1>
+                </div>
+            </div>
+
+            <main>
+                <section class="profile-info flex justify-center items-center p-4 w-full text-2xl font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
+                    <div class="flex flex-col justify-center items-center self-stretch my-auto w-32">
+                        <img
+                            src="{{ url_for('static', filename='default_profile.jpg') if not user.profile_image else url_for('static', filename=user.profile_image) }}"
+                            alt="Profile picture of {{ user.username }}"
+                            class="object-contain overflow-hidden w-full rounded-xl aspect-square min-h-32"
+                        />
+                        <h2 class="mt-4 w-[74px]">{{ user.username }}</h2>
+                    </div>
+                </section>
+
+                <section class="bio px-4 pt-1 pb-3 w-full text-base leading-6 text-center text-neutral-900">
+                    <p>{{ user.bio if user.bio else "No bio provided." }}</p>
+                </section>
+
+                <section class="favorite-spots">
+                    <h2 class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none min-h-[60px] text-neutral-900">Favorite Spots</h2>
+
+                    <!-- 地図表示エリア -->
+                    <div class="flex items-start px-4 py-3 w-full">
+                        <div id="map" class="w-full rounded-xl aspect-[1.78] min-w-60"></div>
+                    </div>
+
+                    <div class="flex flex-col justify-center px-4 py-3 w-full">
+                        <div class="w-full min-h-12 min-w-40">
+                            <div class="flex flex-1 rounded-xl size-full">
+                                <div class="flex justify-center items-center pl-4 w-10 h-full rounded-xl bg-slate-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </div>
+                                <input
+                                    type="search"
+                                    placeholder="Search spots"
+                                    class="flex overflow-hidden flex-1 shrink items-center py-2 pr-4 pl-2 h-full text-base rounded-none basis-0 bg-slate-200 min-w-60 text-slate-500"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <nav class="flex gap-3 items-start py-3 pr-4 pl-3 w-full overflow-x-auto">
+                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 9l7-7 7 7v11a2 2 0 01-2 2H7a2 2 0 01-2-2V9z" />
+                            </svg>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Hiking</span>
+                        </div>
+                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                            </svg>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Movies</span>
+                        </div>
+                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Cooking</span>
+                        </div>
+                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Dogs</span>
+                        </div>
+                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                            </svg>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Roadtrip</span>
+                        </div>
+                    </nav>
+
+                    <section class="location-cards">
+                        {% if spots and spots|length > 0 %}
+                            {% for spot in spots %}
+                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]">
+                                <a href="{{ url_for('public.spot_detail', spot_id=spot.id) }}" class="flex gap-4 items-center w-full">
+                                    <img
+                                        src="{{ url_for('static', filename=spot.photos[0].image_path) if spot.photos and spot.photos|length > 0 else url_for('static', filename='default_profile.jpg') }}"
+                                        alt="{{ spot.name }}"
+                                        class="object-contain overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                                    />
+                                    <div class="flex flex-col justify-center self-stretch my-auto w-[85px]">
+                                        <h3 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900">
+                                            {{ spot.name }}
+                                        </h3>
+                                        <p class="overflow-hidden text-sm text-slate-500">
+                                            {{ spot.location }}
+                                        </p>
+                                    </div>
+                                </a>
+                            </article>
+                            {% endfor %}
+                        {% else %}
+                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]">
+                                <div class="flex flex-col justify-center self-stretch my-auto w-full text-center">
+                                    <p class="text-slate-500">No spots added yet</p>
+                                </div>
+                            </article>
+                        {% endif %}
+                    </section>
+                </section>
+            </main>
+            
+            <footer class="w-full py-6 text-center text-gray-500 text-sm">
+                <p>&copy; 2024 Trip. All rights reserved.</p>
+            </footer>
+        </div>
+    </header>
+
+    <!-- 地図ユーティリティJSの読み込み -->
+    <script src="{{ url_for('static', filename='js/map-utils.js') }}"></script>
+    
+    <!-- プロフィールページの地図初期化 -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // 地図の初期化
+        const map = initMap('map');
+        
+        // スポットデータの配列
+        const spots = [
+          {% for spot in spots %}
+            {
+              "id": {{ spot.id }},
+              "name": "{{ spot.name }}",
+              "location": "{{ spot.location or '' }}",
+              {% if spot.latitude %}"lat": {{ spot.latitude }},{% else %}"lat": null,{% endif %}
+              {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %}
+            }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ];
+        
+        // マーカーの配列
+        const markers = [];
+        
+        // スポットごとにマーカーを追加
+        spots.forEach(spot => {
+          if (spot.lat && spot.lng) {
+            const marker = addMarker(map, spot.lat, spot.lng);
+            marker.bindPopup(`<b>${spot.name}</b><br>${spot.location}`);
+            markers.push(marker);
+          }
+        });
+        
+        // マーカーがある場合は、すべてのマーカーが見えるようにビューを調整
+        if (markers.length > 0) {
+          showMarkersAndFitBounds(map, markers);
+        }
+      });
+    </script>
+</body>
+</html> 

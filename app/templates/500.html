@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>サーバーエラー - 500エラー</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-slate-50">
+    <main class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <header
+          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+        >
+          <a
+            href="{{ url_for('main.index') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="戻る"
+          >
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/810ec6bcf7b28155afaf52f63a50260e8ebc3ea22519f275a82a9a0a42a6a842?placeholderIfAbsent=true"
+              alt="戻るアイコン"
+              class="object-contain self-stretch my-auto w-6 aspect-square"
+            />
+          </a>
+          <h1
+            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-neutral-900"
+          >
+            500 エラー
+          </h1>
+        </header>
+
+        <section class="flex flex-col items-center justify-center p-8 text-center">
+          <div class="text-9xl font-bold text-gray-300 mb-4">500</div>
+          <h2 class="text-2xl font-bold text-neutral-900 mb-4">サーバーエラーが発生しました</h2>
+          <p class="text-slate-500 mb-8">
+            申し訳ありませんが、サーバーで問題が発生しました。しばらくしてからもう一度お試しください。
+          </p>
+          <a
+            href="{{ url_for('main.index') }}"
+            class="px-6 py-3 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600"
+          >
+            トップページに戻る
+          </a>
+        </section>
+      </div>
+    </main>
+  </body>
+</html> 

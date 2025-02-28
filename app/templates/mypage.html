@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Profile Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .toggle-switch:checked + .toggle-slider {
+        transform: translateX(20px);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <!-- Top Navigation -->
+        <nav
+          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+        >
+          <a
+            href="{{ url_for('auth.logout') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="Logout"
+          >
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/cbcfb374e6f9cf26c845989c39cf840095e94415ef262142766df01f141cd5e1?placeholderIfAbsent=true"
+              alt="Logout"
+              class="object-contain self-stretch my-auto w-6 aspect-square"
+            />
+          </a>
+          <h1
+            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
+          >
+            My Page
+          </h1>
+        </nav>
+
+        <!-- User Profile Section -->
+        <section class="flex items-start p-4 w-full font-bold text-neutral-900">
+          <div class="flex-1 shrink w-full basis-0 min-w-60">
+            <div
+              class="flex gap-4 items-start w-full text-2xl leading-none whitespace-nowrap"
+            >
+              <img
+                src="{{ url_for('static', filename=user.profile_pic_url) if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
+                alt="Profile"
+                class="object-contain shrink-0 rounded-xl aspect-square w-[58px]"
+              />
+              <h2 class="min-h-[58px] w-[74px]">{{ user.username }}</h2>
+            </div>
+            <a
+              href="{{ url_for('profile.edit_profile') }}"
+              class="flex overflow-hidden justify-center items-center px-4 mt-4 w-full text-sm text-center rounded-xl bg-slate-200 min-h-10 min-w-[84px]"
+            >
+              <span class="overflow-hidden self-stretch my-auto w-[75px]"
+                >Edit Profile</span
+              >
+            </a>
+          </div>
+        </section>
+
+        <!-- My Spots Section -->
+        <section class="my-spots">
+          <h2
+            class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none min-h-[60px] text-neutral-900"
+          >
+            My Spots
+          </h2>
+
+          <div class="flex justify-between items-center px-4 py-3 w-full">
+            <!-- Add New Spot Button -->
+            <a
+              href="{{ url_for('spot.add_spot') }}"
+              class="flex overflow-hidden flex-1 shrink justify-center items-center px-4 w-full bg-blue-500 rounded-xl basis-0 max-w-[480px] min-h-10 min-w-[84px]"
+            >
+              <span class="overflow-hidden self-stretch my-auto w-[95px]"
+                >Add new spot</span
+              >
+            </a>
+          </div>
+
+          <!-- Spots List -->
+          <div class="spots-list">
+            {% if spots %}
+              {% for spot in spots %}
+                <article
+                  class="flex gap-10 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+                >
+                  <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center self-stretch my-auto">
+                    {% if spot.photos and spot.photos|length > 0 %}
+                      <img
+                        src="{{ url_for('static', filename=spot.photos[0].photo_url) }}"
+                        alt="{{ spot.name }}"
+                        class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                      />
+                    {% else %}
+                      <div class="shrink-0 self-stretch my-auto w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center">
+                        <span class="text-slate-400 text-xs">No Image</span>
+                      </div>
+                    {% endif %}
+                    <div
+                      class="flex flex-col justify-center self-stretch my-auto w-[121px]"
+                    >
+                      <h4
+                        class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[121px]"
+                      >
+                        {{ spot.name }}
+                      </h4>
+                      <p
+                        class="overflow-hidden max-w-full text-sm text-slate-500 w-[121px]"
+                      >
+                        {{ spot.location }}
+                      </p>
+                    </div>
+                  </a>
+                  <div class="self-stretch my-auto w-[51px]">
+                    <label
+                      class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
+                      role="switch"
+                    >
+                      <input type="checkbox" class="toggle-switch sr-only" {% if spot.is_active %}checked{% endif %} data-spot-id="{{ spot.id }}" />
+                      <span
+                        class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform duration-200"
+                      ></span>
+                    </label>
+                  </div>
+                </article>
+              {% endfor %}
+            {% else %}
+              <div class="px-4 py-8 text-center text-slate-500">
+                スポットがまだありません。「Add new spot」ボタンからスポットを追加してください。
+              </div>
+            {% endif %}
+          </div>
+        </section>
+
+        <!-- Settings Button -->
+        <section class="px-4 py-6">
+          <a
+            href="{{ url_for('profile.settings') }}"
+            class="flex overflow-hidden justify-center items-center px-4 w-full bg-slate-200 rounded-xl min-h-10"
+          >
+            <span class="text-sm font-medium text-neutral-900">Settings</span>
+          </a>
+        </section>
+      </div>
+    </header>
+
+    <script>
+      // Toggle switch functionality
+      document.querySelectorAll('.toggle-switch').forEach(toggle => {
+        toggle.addEventListener('change', function() {
+          const spotId = this.dataset.spotId;
+          if (spotId) {
+            // トグル操作中はクリックを無効化
+            this.disabled = true;
+            // トグルスイッチの状態を視覚的に更新
+            const slider = this.nextElementSibling;
+            if (this.checked) {
+              slider.style.transform = 'translateX(20px)';
+            } else {
+              slider.style.transform = 'translateX(0)';
+            }
+            // リダイレクト
+            window.location.href = "{{ url_for('spot.toggle_spot', spot_id=0) }}".replace('0', spotId);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
