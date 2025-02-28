@@ -23,6 +23,47 @@
             height: 250px;
             border-radius: 0.75rem;
         }
+        /* スポット詳細モーダルの地図 */
+        #spot-map-modal {
+            width: 100%;
+            height: 250px;
+            border-radius: 0.75rem;
+        }
+        /* モーダルのスタイル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background-color: #f8fafc;
+            margin: 10vh auto 0;
+            max-width: 480px;
+            width: 100%;
+            border-radius: 0.75rem 0.75rem 0 0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        body.modal-open {
+            overflow: hidden;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-slate-50">
@@ -113,7 +154,7 @@
                         {% if spots and spots|length > 0 %}
                             {% for spot in spots %}
                             <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]">
-                                <a href="{{ url_for('public.spot_detail', spot_id=spot.id) }}" class="flex gap-4 items-center w-full">
+                                <div class="spot-card flex gap-4 items-center w-full cursor-pointer" data-spot-id="{{ spot.id }}">
                                     <img
                                         src="{{ url_for('static', filename=spot.photos[0].image_path) if spot.photos and spot.photos|length > 0 else url_for('static', filename='default_profile.jpg') }}"
                                         alt="{{ spot.name }}"
@@ -127,7 +168,7 @@
                                             {{ spot.location }}
                                         </p>
                                     </div>
-                                </a>
+                                </div>
                             </article>
                             {% endfor %}
                         {% else %}
@@ -146,6 +187,23 @@
             </footer>
         </div>
     </header>
+
+    <!-- スポット詳細モーダル -->
+    <div id="spot-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div id="modal-content-container">
+                <!-- モーダルコンテンツがここに動的に読み込まれます -->
+                <div class="flex justify-center items-center p-10">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 地図ユーティリティJSの読み込み -->
     <script src="{{ url_for('static', filename='js/map-utils.js') }}"></script>
@@ -184,6 +242,229 @@
         // マーカーがある場合は、すべてのマーカーが見えるようにビューを調整
         if (markers.length > 0) {
           showMarkersAndFitBounds(map, markers);
+        }
+
+        // モーダル関連の処理
+        const modal = document.getElementById('spot-modal');
+        const modalContent = document.getElementById('modal-content-container');
+        const modalClose = document.querySelector('.modal-close');
+        
+        // モーダルを閉じる処理
+        modalClose.addEventListener('click', function() {
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        });
+        
+        // 背景クリックでモーダルを閉じる
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+            }
+        });
+        
+        // スポットカードクリック時の処理
+        document.querySelectorAll('.spot-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const spotId = this.dataset.spotId;
+                
+                // モーダルを表示
+                modal.style.display = 'block';
+                document.body.classList.add('modal-open');
+                
+                // スポット詳細データを取得
+                fetch(`/api/spots/${spotId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // モーダルにスポット詳細を表示
+                        renderSpotDetail(data);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching spot details:', error);
+                        modalContent.innerHTML = `
+                            <div class="p-10 text-center">
+                                <p class="text-red-500">エラーが発生しました。再度お試しください。</p>
+                            </div>
+                        `;
+                    });
+            });
+        });
+        
+        // スポット詳細をモーダルにレンダリングする関数
+        function renderSpotDetail(spot) {
+            modalContent.innerHTML = `
+                <article class="w-full">
+                    <!-- Header Section -->
+                    <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none text-center bg-slate-50 text-neutral-900">
+                        <h1 class="flex-1 shrink self-stretch px-12 my-auto w-full basis-0 min-h-[23px] min-w-60">
+                            ${spot.name}
+                        </h1>
+                    </header>
+
+                    <!-- Hero Map Section -->
+                    <section class="flex items-start px-4 py-3 w-full" aria-label="Spot location map">
+                        <div id="spot-map-modal" class="w-full rounded-xl aspect-[1.78] min-w-60"></div>
+                    </section>
+
+                    <!-- Business Info Section -->
+                    <section class="flex justify-between items-start px-4 py-3 w-full bg-slate-50" aria-label="Business information">
+                        <div class="flex gap-4 items-start w-44">
+                            <div class="flex flex-col flex-1 shrink justify-center items-start w-full basis-0">
+                                <h2 class="max-w-full text-base font-medium text-neutral-900 w-[134px]">
+                                    ${spot.name}
+                                </h2>
+                                <p class="max-w-full text-sm text-slate-500 w-[134px]">
+                                    ${spot.category || "Bubble Tea Store"}
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Photos Section -->
+                    <section aria-label="Photo gallery">
+                        <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900">
+                            Photos
+                        </h2>
+                        <div class="p-4 w-full">
+                            ${renderPhotos(spot.photos)}
+                        </div>
+                    </section>
+
+                    <!-- Details Section -->
+                    <section aria-label="Booking details">
+                        <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900">
+                            Details
+                        </h2>
+                        ${renderBookingDetails()}
+                    </section>
+                </article>
+            `;
+            
+            // モーダル内の地図を初期化
+            initModalMap(spot);
+        }
+        
+        // 写真ギャラリーをレンダリングする関数
+        function renderPhotos(photos) {
+            if (photos && photos.length > 0) {
+                let html = '<div class="flex flex-wrap gap-3">';
+                photos.forEach((photo, index) => {
+                    html += `
+                        <div class="w-[173px]">
+                            <img
+                                src="${photo.photo_url}"
+                                alt="Spot photo ${index + 1}"
+                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                            />
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                return html;
+            } else {
+                // デフォルト画像を表示
+                return `
+                    <div class="flex flex-1 gap-3 size-full">
+                        <div class="w-[173px]">
+                            <img
+                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/435c1a8c3da50cd5e582b6fd0814a4a3f3c3b50ef3cf8a010ac0205cee4f32f9?placeholderIfAbsent=true"
+                                alt="Spot photo 1"
+                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                            />
+                        </div>
+                        <div class="w-[173px]">
+                            <img
+                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/b37c325af37ea799d306ee72897a50a638463c4b30b305522dd879bac2dc2b3d?placeholderIfAbsent=true"
+                                alt="Spot photo 2"
+                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                            />
+                        </div>
+                    </div>
+                    <div class="flex flex-1 gap-3 mt-3 size-full">
+                        <div class="w-[173px]">
+                            <img
+                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c4b6eceea17bf421958ffab803902982674183dbd0877d7757c20a985ff83966?placeholderIfAbsent=true"
+                                alt="Spot photo 3"
+                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                            />
+                        </div>
+                        <div class="w-[173px]">
+                            <img
+                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/6b633b68e920d2d541c15dfbc0f06ca6e1a326e984e57cf41fc1f7a9a6582368?placeholderIfAbsent=true"
+                                alt="Spot photo 4"
+                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                            />
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // 予約詳細をレンダリングする関数
+        function renderBookingDetails() {
+            return `
+                <!-- Booking.com Details -->
+                <article class="flex gap-4 items-center px-4 py-3 w-full bg-slate-50">
+                    <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/84944c1def9ac6fe8cdcddc26dbd5fcdc7e1ec4701a8ccece74cbd6a2b688715?placeholderIfAbsent=true"
+                        alt="Booking.com logo"
+                        class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                    />
+                    <div class="flex flex-col justify-center self-stretch my-auto w-[230px]">
+                        <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900 w-[230px]">
+                            Booking.com
+                        </h3>
+                        <p class="overflow-hidden max-w-full text-sm text-slate-500 w-[230px]">
+                            Price: $50, Availability: 5 rooms left
+                        </p>
+                    </div>
+                </article>
+
+                <!-- Rakuten Travel Details -->
+                <article class="flex gap-4 items-center px-4 py-3 w-full bg-slate-50">
+                    <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/532d34cb618a990f64da51d78f6168753a428877874b771849ef370903a1d740?placeholderIfAbsent=true"
+                        alt="Rakuten Travel logo"
+                        class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                    />
+                    <div class="flex flex-col justify-center self-stretch my-auto w-[236px]">
+                        <h3 class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[236px]">
+                            Rakuten Travel
+                        </h3>
+                        <p class="overflow-hidden max-w-full text-sm text-slate-500 w-[236px]">
+                            Price: $45, Availability: 10 rooms left
+                        </p>
+                    </div>
+                </article>
+            `;
+        }
+        
+        // モーダル内の地図を初期化する関数
+        function initModalMap(spot) {
+            setTimeout(() => {
+                // 地図の初期化
+                let mapOptions = {};
+                if (spot.latitude && spot.longitude) {
+                    mapOptions = { center: [spot.latitude, spot.longitude], zoom: 15 };
+                }
+                
+                const modalMap = initMap('spot-map-modal', mapOptions);
+                
+                // スポットの位置にマーカーを追加
+                if (spot.latitude && spot.longitude) {
+                    const marker = addMarker(modalMap, spot.latitude, spot.longitude);
+                    marker.bindPopup(`<b>${spot.name}</b><br>${spot.location || ''}`).openPopup();
+                } else if (spot.location) {
+                    // 位置情報がない場合は住所から取得を試みる
+                    geocodeAddress(spot.location).then(result => {
+                        if (result) {
+                            modalMap.setView([result.lat, result.lng], 15);
+                            const marker = addMarker(modalMap, result.lat, result.lng);
+                            marker.bindPopup(`<b>${spot.name}</b><br>${spot.location}`).openPopup();
+                        }
+                    });
+                }
+            }, 100); // 少し遅延させてDOMが確実に準備できるようにする
         }
       });
     </script>

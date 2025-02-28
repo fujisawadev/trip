@@ -42,11 +42,12 @@ def create_app():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # ルートの登録
-    from app.routes import main, auth, spot, profile, public
+    from app.routes import main, auth, spot, profile, public, api
     app.register_blueprint(main.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(spot.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(public.public_bp)
+    app.register_blueprint(api.api_bp)
     
     return app 
