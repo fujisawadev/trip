@@ -27,21 +27,10 @@
         
         <!-- Top Navigation -->
         <nav
-          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+          class="flex justify-center items-center px-4 pt-4 pb-2 w-full bg-slate-50"
         >
-          <a
-            href="{{ url_for('auth.logout') }}"
-            class="flex items-center self-stretch my-auto w-12 min-h-12"
-            aria-label="Logout"
-          >
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/cbcfb374e6f9cf26c845989c39cf840095e94415ef262142766df01f141cd5e1?placeholderIfAbsent=true"
-              alt="Logout"
-              class="object-contain self-stretch my-auto w-6 aspect-square"
-            />
-          </a>
           <h1
-            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
+            class="text-lg font-bold leading-none text-center text-neutral-900"
           >
             My Page
           </h1>
@@ -54,7 +43,7 @@
               class="flex gap-4 items-start w-full text-2xl leading-none whitespace-nowrap"
             >
               <img
-                src="{{ url_for('static', filename=user.profile_pic_url) if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
+                src="{{ user.profile_pic_url if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
                 alt="Profile"
                 class="object-cover shrink-0 rounded-xl aspect-square w-[58px]"
               />
