@@ -80,9 +80,9 @@
                 <section class="profile-info flex justify-center items-center p-4 w-full text-2xl font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
                     <div class="flex flex-col justify-center items-center self-stretch my-auto w-32">
                         <img
-                            src="{{ url_for('static', filename='default_profile.jpg') if not user.profile_image else url_for('static', filename=user.profile_image) }}"
+                            src="{{ url_for('static', filename='default_profile.jpg') if not user.profile_pic_url else user.profile_pic_url }}"o
                             alt="Profile picture of {{ user.username }}"
-                            class="object-contain overflow-hidden w-full rounded-xl aspect-square min-h-32"
+                            class="object-cover overflow-hidden w-full rounded-xl aspect-square min-h-32"
                         />
                         <h2 class="mt-4 w-[74px]">{{ user.username }}</h2>
                     </div>
@@ -156,9 +156,9 @@
                             <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]">
                                 <div class="spot-card flex gap-4 items-center w-full cursor-pointer" data-spot-id="{{ spot.id }}">
                                     <img
-                                        src="{{ url_for('static', filename=spot.photos[0].image_path) if spot.photos and spot.photos|length > 0 else url_for('static', filename='default_profile.jpg') }}"
+                                        src="{{ spot.photos[0].photo_url if spot.photos and spot.photos|length > 0 else url_for('static', filename='default_profile.jpg') }}"
                                         alt="{{ spot.name }}"
-                                        class="object-contain overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                                        class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
                                     />
                                     <div class="flex flex-col justify-center self-stretch my-auto w-[85px]">
                                         <h3 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900">
@@ -354,7 +354,7 @@
                             <img
                                 src="${photo.photo_url}"
                                 alt="Spot photo ${index + 1}"
-                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                                class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
                             />
                         </div>
                     `;
@@ -369,7 +369,7 @@
                             <img
                                 src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/435c1a8c3da50cd5e582b6fd0814a4a3f3c3b50ef3cf8a010ac0205cee4f32f9?placeholderIfAbsent=true"
                                 alt="Spot photo 1"
-                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                                class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
                             />
                         </div>
                         <div class="w-[173px]">

@@ -26,7 +26,7 @@ def get_spot(spot_id):
         'photos': [
             {
                 'id': photo.id,
-                'photo_url': photo.image_path
+                'photo_url': photo.photo_url
             } for photo in spot.photos
         ]
     }

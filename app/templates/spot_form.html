@@ -148,8 +148,9 @@
               {% for photo in spot.photos %}
                 <div class="preview-item">
                   <img
-                    src="{{ url_for('static', filename=photo.photo_url) }}"
-                    alt="{{ spot.name }} photo {{ loop.index }}"
+                    src="{{ photo.photo_url }}"
+                    alt="Spot photo"
+                    class="w-full h-full object-cover rounded-lg"
                   />
                   <div class="remove-btn" data-photo-id="{{ photo.id }}">×</div>
                   <input type="hidden" name="existing_photos" value="{{ photo.id }}">

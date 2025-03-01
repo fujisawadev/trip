@@ -79,9 +79,9 @@
                 {% for photo in photos %}
                 <div class="w-[173px]">
                   <img
-                    src="{{ url_for('static', filename=photo.photo_url) }}"
+                    src="{{ photo.photo_url }}"
                     alt="{{ spot.name }} photo {{ loop.index }}"
-                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                    class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
                   />
                 </div>
                 {% endfor %}
@@ -92,14 +92,14 @@
                   <img
                     src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/435c1a8c3da50cd5e582b6fd0814a4a3f3c3b50ef3cf8a010ac0205cee4f32f9?placeholderIfAbsent=true"
                     alt="{{ spot.name }} photo 1"
-                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                    class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
                   />
                 </div>
                 <div class="w-[173px]">
                   <img
                     src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/b37c325af37ea799d306ee72897a50a638463c4b30b305522dd879bac2dc2b3d?placeholderIfAbsent=true"
                     alt="{{ spot.name }} photo 2"
-                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                    class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
                   />
                 </div>
               </div>
@@ -108,14 +108,14 @@
                   <img
                     src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c4b6eceea17bf421958ffab803902982674183dbd0877d7757c20a985ff83966?placeholderIfAbsent=true"
                     alt="{{ spot.name }} photo 3"
-                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                    class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
                   />
                 </div>
                 <div class="w-[173px]">
                   <img
                     src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/6b633b68e920d2d541c15dfbc0f06ca6e1a326e984e57cf41fc1f7a9a6582368?placeholderIfAbsent=true"
                     alt="{{ spot.name }} photo 4"
-                    class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
+                    class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
                   />
                 </div>
               </div>
@@ -124,7 +124,7 @@
                   <img
                     src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/9ab3a9e19601a6fbae85bb5cb862feb82c6e10be66aa383278ad837da1f60916?placeholderIfAbsent=true"
                     alt="{{ spot.name }} photo 5"
-                    class="object-contain flex-1 w-full rounded-xl aspect-square"
+                    class="object-cover flex-1 w-full rounded-xl aspect-square"
                   />
                 </div>
               </div>
@@ -147,7 +147,7 @@
               <img
                 src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/84944c1def9ac6fe8cdcddc26dbd5fcdc7e1ec4701a8ccece74cbd6a2b688715?placeholderIfAbsent=true"
                 alt="Booking.com logo"
-                class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                class="object-cover shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
               />
               <div
                 class="flex flex-col justify-center self-stretch my-auto w-[230px]"
@@ -172,7 +172,7 @@
               <img
                 src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/532d34cb618a990f64da51d78f6168753a428877874b771849ef370903a1d740?placeholderIfAbsent=true"
                 alt="Rakuten Travel logo"
-                class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                class="object-cover shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
               />
               <div
                 class="flex flex-col justify-center self-stretch my-auto w-[236px]"
@@ -197,7 +197,7 @@
               <img
                 src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/532d34cb618a990f64da51d78f6168753a428877874b771849ef370903a1d740?placeholderIfAbsent=true"
                 alt="Rakuten Travel logo"
-                class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                class="object-cover shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
               />
               <div
                 class="flex flex-col justify-center self-stretch my-auto w-[236px]"
