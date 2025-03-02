@@ -51,7 +51,8 @@ def place_details():
     headers = {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'displayName,formattedAddress,location,types,photos'
+        'X-Goog-FieldMask': 'displayName,formattedAddress,location,types,photos',
+        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
     }
     
     print(f"Calling Google Places API v1 Details with URL: {url}")
@@ -170,11 +171,13 @@ def places_autocomplete():
     headers = {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'suggestions.placePrediction.structuredFormat.mainText.text,suggestions.placePrediction.structuredFormat.secondaryText.text,suggestions.placePrediction.placeId'
+        'X-Goog-FieldMask': 'suggestions.placePrediction.structuredFormat.mainText.text,suggestions.placePrediction.structuredFormat.secondaryText.text,suggestions.placePrediction.placeId',
+        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
     }
     
     data = {
-        'input': query
+        'input': query,
+        'languageCode': 'ja'  # 日本語を指定
     }
     
     print(f"Calling Google Places API v1 with URL: {url}")
