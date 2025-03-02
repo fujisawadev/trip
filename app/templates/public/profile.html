@@ -156,7 +156,7 @@
                             <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]">
                                 <div class="spot-card flex gap-4 items-center w-full cursor-pointer" data-spot-id="{{ spot.id }}">
                                     <img
-                                        src="{{ spot.photos[0].photo_url if spot.photos and spot.photos|length > 0 else url_for('static', filename='default_profile.jpg') }}"
+                                        src="{% if spot.photos and spot.photos|length > 0 %}{{ spot.photos[0].photo_url }}{% elif spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None' %}{{ url_for('public.photo_proxy', photo_reference=spot.google_photo_reference) }}{% else %}{{ url_for('static', filename='default_profile.jpg') }}{% endif %}"
                                         alt="{{ spot.name }}"
                                         class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
                                     />

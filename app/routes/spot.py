@@ -1,5 +1,7 @@
 import os
 import uuid
+import json
+import requests
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -10,11 +12,41 @@ from app.models.photo import Photo
 
 bp = Blueprint('spot', __name__)
 
+# Google Places API Key
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', "AIzaSyD1eKEJje0XpgVnRXCdeKPDzdZTrnlVjFc")
+
 # 許可するファイル拡張子
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Google Photo ReferenceからCDN URLを取得する関数
+def get_cdn_url_from_reference(photo_reference):
+    """Google Photo ReferenceからCDN URLを取得する"""
+    if not photo_reference or photo_reference == 'null' or photo_reference == 'None':
+        return None
+    
+    try:
+        # skipHttpRedirect=trueを指定してJSONレスポンスを取得
+        photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}&skipHttpRedirect=true"
+        
+        response = requests.get(photo_url, timeout=5)
+        
+        if response.status_code == 200:
+            try:
+                # JSONレスポンスを解析
+                data = response.json()
+                
+                # photoUriフィールドがあるか確認
+                if 'photoUri' in data:
+                    return data['photoUri']
+            except:
+                pass
+    except Exception as e:
+        print(f"CDN URL取得エラー: {str(e)}")
+    
+    return None
 
 @bp.route('/add-spot', methods=['GET', 'POST'])
 @login_required
@@ -31,6 +63,12 @@ def add_spot():
         latitude = request.form.get('latitude', '')
         longitude = request.form.get('longitude', '')
         
+        # Google Places API関連の情報を取得
+        google_place_id = request.form.get('google_place_id', '')
+        formatted_address = request.form.get('formatted_address', '')
+        types = request.form.get('types', '')
+        google_photo_reference = request.form.get('google_photo_reference', '')  # 写真参照情報を取得
+        
         # 入力チェック
         if not name:
             flash('スポット名を入力してください。', 'danger')
@@ -45,30 +83,106 @@ def add_spot():
             category=category,
             is_active=is_active,
             latitude=float(latitude) if latitude else None,
-            longitude=float(longitude) if longitude else None
+            longitude=float(longitude) if longitude else None,
+            google_place_id=google_place_id,
+            formatted_address=formatted_address,
+            types=types,
+            google_photo_reference=google_photo_reference  # 写真参照情報を設定
         )
         db.session.add(spot)
-        db.session.flush()  # IDを取得するためにフラッシュ
+        db.session.flush()
+        
+        # Google Places APIから写真参照情報を取得して保存
+        if google_place_id:
+            # フォームから送信された写真参照情報を使用
+            if google_photo_reference:
+                # Google Photo ReferenceからCDN URLを取得
+                cdn_url = get_cdn_url_from_reference(google_photo_reference)
+                
+                # 最初の写真はフォームから取得したので、photosテーブルに保存
+                photo = Photo(
+                    spot_id=spot.id,
+                    photo_url=cdn_url,  # CDN URLを保存
+                    google_photo_reference=google_photo_reference,
+                    is_google_photo=True
+                )
+                db.session.add(photo)
+            
+            # 2枚目以降の写真を取得する場合のみAPIリクエスト
+            try:
+                # Google Places APIを呼び出す
+                url = f"https://places.googleapis.com/v1/places/{google_place_id}"
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                    'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
+                }
+                
+                api_response = requests.get(url, headers=headers)
+                
+                if api_response.status_code == 200:
+                    data = api_response.json()
+                    
+                    if 'photos' in data and len(data['photos']) > 0:
+                        # 写真参照情報の配列
+                        photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
+                        
+                        # 最初の写真参照情報がフォームから送信されたものと異なる場合は更新
+                        if not google_photo_reference and len(photo_references) > 0:
+                            spot.google_photo_reference = photo_references[0]
+                            
+                            # Google Photo ReferenceからCDN URLを取得
+                            cdn_url = get_cdn_url_from_reference(photo_references[0])
+                            
+                            # 最初の写真をphotosテーブルに保存
+                            photo = Photo(
+                                spot_id=spot.id,
+                                photo_url=cdn_url,  # CDN URLを保存
+                                google_photo_reference=photo_references[0],
+                                is_google_photo=True
+                            )
+                            db.session.add(photo)
+                        
+                        # 2枚目以降の写真を保存（最大4枚）
+                        start_index = 1 if google_photo_reference in photo_references else 0
+                        for i, photo_reference in enumerate(photo_references[start_index:5]):
+                            # 既に保存した写真参照情報と重複しないようにする
+                            if photo_reference != google_photo_reference:
+                                # Google Photo ReferenceからCDN URLを取得
+                                cdn_url = get_cdn_url_from_reference(photo_reference)
+                                
+                                # 写真参照情報をデータベースに保存
+                                photo = Photo(
+                                    spot_id=spot.id,
+                                    photo_url=cdn_url,  # CDN URLを保存
+                                    google_photo_reference=photo_reference,
+                                    is_google_photo=True
+                                )
+                                db.session.add(photo)
+            except Exception as e:
+                print(f"Google Places API写真取得エラー: {str(e)}")
         
         # 写真のアップロード処理
-        if 'photos' in request.files:
-            files = request.files.getlist('photos')
-            for file in files:
-                if file and file.filename != '' and allowed_file(file.filename):
-                    # ユニークなファイル名を生成
-                    filename = secure_filename(file.filename)
-                    unique_filename = f"{uuid.uuid4().hex}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-                    file.save(file_path)
-                    
-                    # データベースに保存するパスは相対パス
-                    relative_path = os.path.join('uploads', unique_filename)
-                    photo = Photo(spot_id=spot.id, photo_url=relative_path)
-                    db.session.add(photo)
+        photos = request.files.getlist('photos')
+        for photo in photos:
+            if photo and allowed_file(photo.filename):
+                filename = secure_filename(photo.filename)
+                # ユニークなファイル名を生成
+                unique_filename = f"{uuid.uuid4().hex}_{filename}"
+                photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                
+                # 写真情報をデータベースに保存
+                photo_url = url_for('static', filename=f'uploads/{unique_filename}')
+                photo_obj = Photo(
+                    spot_id=spot.id,
+                    photo_url=photo_url,
+                    google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
+                    is_google_photo=False
+                )
+                db.session.add(photo_obj)
         
         db.session.commit()
-        
-        flash('スポットが追加されました。', 'success')
+        flash('スポットを追加しました。', 'success')
         return redirect(url_for('profile.mypage'))
     
     return render_template('spot_form.html', is_edit=False)
@@ -77,32 +191,109 @@ def add_spot():
 @login_required
 def edit_spot(spot_id):
     """スポット編集ページ"""
-    spot = Spot.query.filter_by(id=spot_id, user_id=current_user.id).first_or_404()
+    spot = Spot.query.get_or_404(spot_id)
+    
+    # 自分のスポットでない場合はリダイレクト
+    if spot.user_id != current_user.id:
+        flash('他のユーザーのスポットは編集できません。', 'danger')
+        return redirect(url_for('profile.mypage'))
     
     if request.method == 'POST':
-        name = request.form.get('spotName')
-        description = request.form.get('description', '')
-        location = request.form.get('location', '')
-        category = request.form.get('category', '')
-        is_active = 'is_active' in request.form
+        spot.name = request.form.get('spotName')
+        spot.description = request.form.get('description', '')
+        spot.location = request.form.get('location', '')
+        spot.category = request.form.get('category', '')
+        spot.is_active = 'is_active' in request.form
         
-        # 緯度経度情報を取得
+        # 緯度経度情報を更新
         latitude = request.form.get('latitude', '')
         longitude = request.form.get('longitude', '')
-        
-        # 入力チェック
-        if not name:
-            flash('スポット名を入力してください。', 'danger')
-            return render_template('spot_form.html', is_edit=True, spot=spot)
-        
-        # スポット更新
-        spot.name = name
-        spot.description = description
-        spot.location = location
-        spot.category = category
-        spot.is_active = is_active
         spot.latitude = float(latitude) if latitude else None
         spot.longitude = float(longitude) if longitude else None
+        
+        # Google Places API関連の情報を更新
+        old_place_id = spot.google_place_id
+        new_place_id = request.form.get('google_place_id', '')
+        spot.google_place_id = new_place_id
+        spot.formatted_address = request.form.get('formatted_address', '')
+        spot.types = request.form.get('types', '')
+        google_photo_reference = request.form.get('google_photo_reference', '')  # 写真参照情報を取得
+        
+        # 写真参照情報を更新
+        if google_photo_reference:
+            spot.google_photo_reference = google_photo_reference
+        
+        # Google Places IDが変更された場合、新しい写真参照情報を取得
+        if new_place_id and new_place_id != old_place_id:
+            try:
+                # 既存のGoogle写真を削除
+                Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
+                
+                # フォームから送信された写真参照情報を使用
+                if google_photo_reference:
+                    # Google Photo ReferenceからCDN URLを取得
+                    cdn_url = get_cdn_url_from_reference(google_photo_reference)
+                    
+                    # 最初の写真はフォームから取得したので、photosテーブルに保存
+                    photo = Photo(
+                        spot_id=spot.id,
+                        photo_url=cdn_url,  # CDN URLを保存
+                        google_photo_reference=google_photo_reference,
+                        is_google_photo=True
+                    )
+                    db.session.add(photo)
+                
+                # Google Places APIを呼び出す
+                url = f"https://places.googleapis.com/v1/places/{new_place_id}"
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                    'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
+                }
+                
+                api_response = requests.get(url, headers=headers)
+                
+                if api_response.status_code == 200:
+                    data = api_response.json()
+                    
+                    if 'photos' in data and len(data['photos']) > 0:
+                        # 写真参照情報の配列
+                        photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
+                        
+                        # 最初の写真参照情報がフォームから送信されたものと異なる場合は更新
+                        if not google_photo_reference and len(photo_references) > 0:
+                            spot.google_photo_reference = photo_references[0]
+                            
+                            # Google Photo ReferenceからCDN URLを取得
+                            cdn_url = get_cdn_url_from_reference(photo_references[0])
+                            
+                            # 最初の写真をphotosテーブルに保存
+                            photo = Photo(
+                                spot_id=spot.id,
+                                photo_url=cdn_url,  # CDN URLを保存
+                                google_photo_reference=photo_references[0],
+                                is_google_photo=True
+                            )
+                            db.session.add(photo)
+                        
+                        # 2枚目以降の写真を保存（最大4枚）
+                        start_index = 1 if google_photo_reference in photo_references else 0
+                        for i, photo_reference in enumerate(photo_references[start_index:5]):
+                            # 既に保存した写真参照情報と重複しないようにする
+                            if photo_reference != google_photo_reference:
+                                # Google Photo ReferenceからCDN URLを取得
+                                cdn_url = get_cdn_url_from_reference(photo_reference)
+                                
+                                # 写真参照情報をデータベースに保存
+                                photo = Photo(
+                                    spot_id=spot.id,
+                                    photo_url=cdn_url,  # CDN URLを保存
+                                    google_photo_reference=photo_reference,
+                                    is_google_photo=True
+                                )
+                                db.session.add(photo)
+            except Exception as e:
+                print(f"Google Places API写真取得エラー: {str(e)}")
         
         # 削除する写真の処理
         if 'delete_photos' in request.form:
@@ -112,28 +303,33 @@ def edit_spot(spot_id):
                 if photo and photo.spot_id == spot.id:
                     db.session.delete(photo)
         
-        # 写真のアップロード処理
-        if 'photos' in request.files:
-            files = request.files.getlist('photos')
-            for file in files:
-                if file and file.filename != '' and allowed_file(file.filename):
-                    # ユニークなファイル名を生成
-                    filename = secure_filename(file.filename)
-                    unique_filename = f"{uuid.uuid4().hex}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-                    file.save(file_path)
-                    
-                    # データベースに保存するパスは相対パス
-                    relative_path = os.path.join('uploads', unique_filename)
-                    photo = Photo(spot_id=spot.id, photo_url=relative_path)
-                    db.session.add(photo)
+        # 新しい写真のアップロード処理
+        photos = request.files.getlist('photos')
+        for photo in photos:
+            if photo and allowed_file(photo.filename):
+                filename = secure_filename(photo.filename)
+                # ユニークなファイル名を生成
+                unique_filename = f"{uuid.uuid4().hex}_{filename}"
+                photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                
+                # 写真情報をデータベースに保存
+                photo_url = url_for('static', filename=f'uploads/{unique_filename}')
+                photo_obj = Photo(
+                    spot_id=spot.id,
+                    photo_url=photo_url,
+                    google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
+                    is_google_photo=False
+                )
+                db.session.add(photo_obj)
         
         db.session.commit()
-        
-        flash('スポットが更新されました。', 'success')
+        flash('スポット情報を更新しました。', 'success')
         return redirect(url_for('profile.mypage'))
     
-    return render_template('spot_form.html', is_edit=True, spot=spot)
+    # 写真情報を取得
+    photos = Photo.query.filter_by(spot_id=spot_id).all()
+    
+    return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True)
 
 @bp.route('/toggle-spot/<int:spot_id>')
 @login_required

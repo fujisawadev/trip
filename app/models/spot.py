@@ -18,6 +18,13 @@ class Spot(db.Model):
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
     
+    # Google Places API関連のフィールド
+    google_place_id = db.Column(db.String(255), nullable=True)
+    formatted_address = db.Column(db.String(255), nullable=True)
+    types = db.Column(db.Text, nullable=True)  # JSON形式で保存
+    thumbnail_url = db.Column(db.String(255), nullable=True)
+    google_photo_reference = db.Column(db.String(255), nullable=True)  # Google写真参照情報
+    
     # リレーションシップ
     photos = db.relationship('Photo', backref='spot', lazy=True, cascade='all, delete-orphan')
     

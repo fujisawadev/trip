@@ -23,9 +23,66 @@
         height: 250px;
         border-radius: 0.75rem;
       }
+      
+      /* オートコンプリート用のスタイル */
+      .autocomplete-container {
+        position: relative;
+      }
+      
+      .autocomplete-results {
+        position: absolute;
+        z-index: 1000;
+        width: 100%;
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 0.75rem;
+        margin-top: 4px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      
+      .autocomplete-item {
+        padding: 10px 15px;
+        cursor: pointer;
+      }
+      
+      .autocomplete-item:hover {
+        background-color: #f5f5f5;
+      }
+      
+      .hidden {
+        display: none;
+      }
+      
+      .loading-indicator {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      
+      @keyframes spin {
+        0% { transform: translateY(-50%) rotate(0deg); }
+        100% { transform: translateY(-50%) rotate(360deg); }
+      }
     </style>
   </head>
   <body>
+    <!-- スポットデータをdata属性として埋め込む -->
+    <div id="spot-data" 
+      data-is-edit="{% if is_edit %}true{% else %}false{% endif %}"
+      data-latitude="{% if is_edit and spot.latitude %}{{ spot.latitude }}{% endif %}"
+      data-longitude="{% if is_edit and spot.longitude %}{{ spot.longitude }}{% endif %}">
+    </div>
+    
     <div class="mx-auto w-full bg-white max-w-[480px]">
       <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
         <!-- フラッシュメッセージ -->
@@ -73,19 +130,29 @@
           <!-- 緯度経度の隠しフィールド -->
           <input type="hidden" id="latitude" name="latitude" value="{% if is_edit %}{{ spot.latitude or '' }}{% endif %}">
           <input type="hidden" id="longitude" name="longitude" value="{% if is_edit %}{{ spot.longitude or '' }}{% endif %}">
+          <input type="hidden" id="google_place_id" name="google_place_id" value="{% if is_edit %}{{ spot.google_place_id or '' }}{% endif %}">
+          <input type="hidden" id="formatted_address" name="formatted_address" value="{% if is_edit %}{{ spot.formatted_address or '' }}{% endif %}">
+          <input type="hidden" id="types" name="types" value="{% if is_edit %}{{ spot.types or '' }}{% endif %}">
+          <input type="hidden" id="thumbnail_url" name="thumbnail_url" value="{% if is_edit %}{{ spot.thumbnail_url or '' }}{% endif %}">
+          <input type="hidden" id="google_photo_reference" name="google_photo_reference" value="{% if is_edit %}{{ spot.google_photo_reference or '' }}{% endif %}">
           
           <!-- Spot Name -->
           <div class="flex flex-col gap-2 w-full">
             <label for="spotName" class="text-sm font-medium text-neutral-900">Spot Name</label>
-            <input
-              type="text"
-              id="spotName"
-              name="spotName"
-              required
-              value="{% if is_edit %}{{ spot.name }}{% endif %}"
-              placeholder="Enter spot name"
-              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div class="autocomplete-container">
+              <input
+                type="text"
+                id="spotName"
+                name="spotName"
+                required
+                value="{% if is_edit %}{{ spot.name }}{% endif %}"
+                placeholder="Enter spot name"
+                class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autocomplete="off"
+              />
+              <div id="loading-indicator" class="loading-indicator hidden"></div>
+              <div id="autocomplete-results" class="autocomplete-results hidden"></div>
+            </div>
           </div>
 
           <!-- Spot Location -->
@@ -346,6 +413,155 @@
         });
       });
 
+      // Google Places Autocomplete
+      document.addEventListener('DOMContentLoaded', function() {
+        const spotNameInput = document.getElementById('spotName');
+        const autocompleteResults = document.getElementById('autocomplete-results');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const locationInput = document.getElementById('location');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const googlePlaceIdInput = document.getElementById('google_place_id');
+        const formattedAddressInput = document.getElementById('formatted_address');
+        const typesInput = document.getElementById('types');
+        const thumbnailUrlInput = document.getElementById('thumbnail_url');
+        const categoryInput = document.getElementById('category');
+        
+        let debounceTimer;
+        
+        // 入力イベントのハンドリング
+        spotNameInput.addEventListener('input', function() {
+          const query = this.value.trim();
+          
+          // 3文字未満の場合は候補表示しない
+          if (query.length < 3) {
+            autocompleteResults.classList.add('hidden');
+            return;
+          }
+          
+          // ローディングインジケータを表示
+          loadingIndicator.classList.remove('hidden');
+          
+          // debounce処理（入力が落ち着いてから検索実行）
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetchPlaceSuggestions(query);
+          }, 300);
+        });
+        
+        // 候補取得関数
+        function fetchPlaceSuggestions(query) {
+          fetch(`/api/places/autocomplete?query=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+              // ローディングインジケータを非表示
+              loadingIndicator.classList.add('hidden');
+              displaySuggestions(data);
+            })
+            .catch(error => {
+              console.error('Error fetching place suggestions:', error);
+              // ローディングインジケータを非表示
+              loadingIndicator.classList.add('hidden');
+            });
+        }
+        
+        // 候補表示関数
+        function displaySuggestions(suggestions) {
+          autocompleteResults.innerHTML = '';
+          
+          if (suggestions.length === 0) {
+            autocompleteResults.classList.add('hidden');
+            return;
+          }
+          
+          suggestions.forEach(suggestion => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            
+            // メインテキストとセカンダリテキストを表示
+            const mainText = document.createElement('div');
+            mainText.className = 'font-medium';
+            mainText.textContent = suggestion.description;
+            
+            const secondaryText = document.createElement('div');
+            secondaryText.className = 'text-sm text-gray-500';
+            secondaryText.textContent = suggestion.secondary_text || '';
+            
+            item.appendChild(mainText);
+            item.appendChild(secondaryText);
+            
+            item.addEventListener('click', () => {
+              selectPlace(suggestion.place_id);
+            });
+            
+            autocompleteResults.appendChild(item);
+          });
+          
+          autocompleteResults.classList.remove('hidden');
+        }
+        
+        // 候補選択関数
+        function selectPlace(placeId) {
+          // ローディングインジケータを表示
+          loadingIndicator.classList.remove('hidden');
+          
+          fetch(`/api/places/details?place_id=${placeId}`)
+            .then(response => response.json())
+            .then(data => {
+              // ローディングインジケータを非表示
+              loadingIndicator.classList.add('hidden');
+              
+              // フォームに詳細情報を入力
+              spotNameInput.value = data.name;
+              locationInput.value = data.formatted_address;
+              latitudeInput.value = data.latitude;
+              longitudeInput.value = data.longitude;
+              googlePlaceIdInput.value = data.place_id;
+              formattedAddressInput.value = data.formatted_address;
+              
+              // カテゴリ情報があれば設定
+              if (data.types && data.types.length > 0) {
+                // typesをJSON文字列として保存
+                typesInput.value = JSON.stringify(data.types);
+                
+                // 最初のタイプをカテゴリとして使用（アンダースコアをスペースに変換）
+                categoryInput.value = data.types[0].replace(/_/g, ' ');
+              }
+              
+              // サムネイル画像URLがあれば設定
+              if (data.thumbnail_url) {
+                thumbnailUrlInput.value = data.thumbnail_url;
+              }
+              
+              // 写真参照情報があれば設定
+              if (data.photo_reference) {
+                document.getElementById('google_photo_reference').value = data.photo_reference;
+              }
+              
+              // 地図を更新
+              if (window.map && data.latitude && data.longitude) {
+                updateMarkerAndInputs(data.latitude, data.longitude);
+                map.setView([data.latitude, data.longitude], 15);
+              }
+              
+              // 候補リストを非表示
+              autocompleteResults.classList.add('hidden');
+            })
+            .catch(error => {
+              console.error('Error fetching place details:', error);
+              // ローディングインジケータを非表示
+              loadingIndicator.classList.add('hidden');
+            });
+        }
+        
+        // クリックイベントのハンドリング（候補リスト以外をクリックしたら候補を非表示）
+        document.addEventListener('click', function(e) {
+          if (!autocompleteResults.contains(e.target) && e.target !== spotNameInput) {
+            autocompleteResults.classList.add('hidden');
+          }
+        });
+      });
+      
       // 地図関連の処理
       document.addEventListener('DOMContentLoaded', function() {
         const locationInput = document.getElementById('location');
@@ -358,22 +574,16 @@
         let initialLng = 139.7671;
         let initialZoom = 13;
         
-        // 編集時は既存の位置情報を使用
-        const spotData = {
-          {% if is_edit %}
-          "isEdit": true,
-          {% if spot.latitude %}"lat": {{ spot.latitude }},{% else %}"lat": null,{% endif %}
-          {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %}
-          {% else %}
-          "isEdit": false,
-          "lat": null,
-          "lng": null
-          {% endif %}
-        };
+        // スポットデータをdata属性から取得
+        const spotDataElement = document.getElementById('spot-data');
+        const isEdit = spotDataElement.dataset.isEdit === 'true';
+        const spotLat = spotDataElement.dataset.latitude ? parseFloat(spotDataElement.dataset.latitude) : null;
+        const spotLng = spotDataElement.dataset.longitude ? parseFloat(spotDataElement.dataset.longitude) : null;
         
-        if (spotData.isEdit && spotData.lat && spotData.lng) {
-          initialLat = spotData.lat;
-          initialLng = spotData.lng;
+        // 編集時は既存の位置情報を使用
+        if (isEdit && spotLat && spotLng) {
+          initialLat = spotLat;
+          initialLng = spotLng;
           initialZoom = 15;
         }
         

@@ -75,4 +75,11 @@ def user_profile(username):
     """ユーザープロフィールページ"""
     user = User.query.filter_by(username=username).first_or_404()
     spots = Spot.query.filter_by(user_id=user.id).all()
-    return render_template('public/profile.html', user=user, spots=spots) 
+    
+    # Google Maps API Keyをconfigとして渡す
+    from app.routes.public import GOOGLE_MAPS_API_KEY
+    
+    return render_template('public/profile.html', 
+                          user=user, 
+                          spots=spots, 
+                          config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY}) 
