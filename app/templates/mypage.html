@@ -9,11 +9,43 @@
       .toggle-switch:checked + .toggle-slider {
         transform: translateX(20px);
       }
+      .toggle-switch:checked + .toggle-slider {
+        background-color: #3b82f6; /* bg-blue-500 */
+      }
+      .toggle-switch:checked ~ .toggle-bg {
+        background-color: #93c5fd; /* bg-blue-300 */
+      }
+      /* グローバルナビゲーション用のスタイル */
+      .global-nav {
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0;
+        width: 100%;
+      }
+      .nav-item svg {
+        margin-bottom: 4px;
+      }
+      body {
+        padding-bottom: 70px; /* ナビゲーションの高さ分の余白を追加 */
+        background-color: white; /* 背景色を白に戻す */
+        min-height: 100vh;
+      }
+      .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 70px); /* 画面の高さからナビゲーションの高さを引いた分 */
+        background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
+      }
     </style>
   </head>
   <body>
-    <header class="mx-auto w-full bg-white max-w-[480px]">
-      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+    <header class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
         <!-- フラッシュメッセージ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -27,67 +59,112 @@
         
         <!-- Top Navigation -->
         <nav
-          class="flex justify-center items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+          class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50"
         >
+          <div class="w-10"></div> <!-- 左側の空白スペース（バランス用） -->
           <h1
-            class="text-lg font-bold leading-none text-center text-neutral-900"
+            class="text-lg font-bold text-center text-neutral-900"
           >
-            My Page
+            ページ管理
           </h1>
+          <a
+            href="{{ url_for('public.profile', user_id=user.id) }}"
+            class="flex items-center text-blue-500 hover:text-blue-700"
+          >
+            <span class="text-sm mr-1">プレビュー</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </a>
         </nav>
+
+        <!-- Global Navigation は削除 -->
 
         <!-- User Profile Section -->
         <section class="flex items-start p-4 w-full font-bold text-neutral-900">
           <div class="flex-1 shrink w-full basis-0 min-w-60">
             <div
-              class="flex gap-4 items-start w-full text-2xl leading-none whitespace-nowrap"
+              class="flex justify-between items-center w-full text-2xl leading-none whitespace-nowrap"
             >
-              <img
-                src="{{ user.profile_pic_url if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
-                alt="Profile"
-                class="object-cover shrink-0 rounded-xl aspect-square w-[58px]"
-              />
-              <h2 class="min-h-[58px] w-[74px]">{{ user.username }}</h2>
-            </div>
-            <a
-              href="{{ url_for('profile.edit_profile') }}"
-              class="flex overflow-hidden justify-center items-center px-4 mt-4 w-full text-sm text-center rounded-xl bg-slate-200 min-h-10 min-w-[84px]"
-            >
-              <span class="overflow-hidden self-stretch my-auto w-[75px]"
-                >Edit Profile</span
+              <div class="flex gap-4 items-center">
+                <img
+                  src="{{ user.profile_pic_url if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
+                  alt="Profile"
+                  class="object-cover shrink-0 rounded-xl aspect-square w-[58px]"
+                />
+                <h2 class="w-[74px]">{{ user.username }}</h2>
+              </div>
+              <a
+                href="{{ url_for('profile.edit_profile') }}"
+                class="text-slate-500 hover:text-slate-700 flex items-center"
               >
-            </a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </a>
+            </div>
           </div>
         </section>
 
         <!-- My Spots Section -->
         <section class="my-spots">
-          <h2
-            class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none min-h-[60px] text-neutral-900"
-          >
-            My Spots
-          </h2>
-
-          <div class="flex justify-between items-center px-4 py-3 w-full">
-            <!-- Add New Spot Button -->
-            <a
-              href="{{ url_for('spot.add_spot') }}"
-              class="flex overflow-hidden flex-1 shrink justify-center items-center px-4 w-full bg-blue-500 rounded-xl basis-0 max-w-[480px] min-h-10 min-w-[84px]"
+          <div class="flex justify-between items-center px-4 pt-5 pb-3 w-full h-[40px]">
+            <h2
+              id="spots-heading-display"
+              class="text-2xl font-bold leading-none text-neutral-900 cursor-pointer"
+              onclick="toggleHeadingEdit()"
             >
-              <span class="overflow-hidden self-stretch my-auto w-[95px]"
-                >Add new spot</span
+              {{ user.spots_heading or 'Favorite Spots' }}
+            </h2>
+            <button
+              id="edit-heading-btn"
+              type="button"
+              class="edit-heading-btn text-slate-500 hover:text-slate-700 flex items-center"
+              onclick="toggleHeadingEdit()"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- 見出し編集フォーム (初期状態は非表示) -->
+          <div id="spots-heading-form" class="px-4 pb-3 hidden h-[40px]">
+            <form id="heading-edit-form" action="{{ url_for('profile.update_spots_heading') }}" method="POST" class="flex gap-2 items-center">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input
+                type="text"
+                name="spots_heading"
+                id="spots-heading-input"
+                value="{{ user.spots_heading or 'Favorite Spots' }}"
+                class="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                maxlength="50"
+                required
               >
-            </a>
+              <button
+                type="submit"
+                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+              >
+                保存
+              </button>
+              <button
+                type="button"
+                class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition"
+                onclick="toggleHeadingEdit()"
+              >
+                キャンセル
+              </button>
+            </form>
           </div>
 
-          <!-- Spots List -->
-          <div class="spots-list">
+          <div class="spots-list mt-6">
             {% if spots %}
               {% for spot in spots %}
                 <article
-                  class="flex gap-10 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+                  class="flex justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
                 >
-                  <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center self-stretch my-auto">
+                  <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center self-stretch my-auto mr-2 overflow-hidden" style="max-width: calc(100% - 60px);">
                     {% if spot.photos and spot.photos|length > 0 %}
                       <img
                         src="{{ spot.photos[0].photo_url }}"
@@ -100,28 +177,28 @@
                       </div>
                     {% endif %}
                     <div
-                      class="flex flex-col justify-center self-stretch my-auto w-[121px]"
+                      class="flex flex-col justify-center self-stretch my-auto min-w-0 flex-shrink"
                     >
                       <h4
-                        class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[121px]"
+                        class="overflow-hidden text-base font-medium text-neutral-900 whitespace-nowrap text-ellipsis"
                       >
                         {{ spot.name }}
                       </h4>
                       <p
-                        class="overflow-hidden max-w-full text-sm text-slate-500 w-[121px]"
+                        class="overflow-hidden text-sm text-slate-500 whitespace-nowrap text-ellipsis"
                       >
                         {{ spot.location }}
                       </p>
                     </div>
                   </a>
-                  <div class="self-stretch my-auto w-[51px]">
+                  <div class="self-stretch my-auto w-[51px] flex-shrink-0">
                     <label
-                      class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
+                      class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer toggle-bg transition-colors duration-200 {% if spot.is_active %}bg-blue-300{% endif %}"
                       role="switch"
                     >
                       <input type="checkbox" class="toggle-switch sr-only" {% if spot.is_active %}checked{% endif %} data-spot-id="{{ spot.id }}" />
                       <span
-                        class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform duration-200"
+                        class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-all duration-200 {% if spot.is_active %}bg-blue-500{% endif %}"
                       ></span>
                     </label>
                   </div>
@@ -129,23 +206,30 @@
               {% endfor %}
             {% else %}
               <div class="px-4 py-8 text-center text-slate-500">
-                スポットがまだありません。「Add new spot」ボタンからスポットを追加してください。
+                スポットがまだありません。下部の「新規スポット」ボタンからスポットを追加してください。
               </div>
             {% endif %}
           </div>
         </section>
-
-        <!-- Settings Button -->
-        <section class="px-4 py-6">
-          <a
-            href="{{ url_for('profile.settings') }}"
-            class="flex overflow-hidden justify-center items-center px-4 w-full bg-slate-200 rounded-xl min-h-10"
-          >
-            <span class="text-sm font-medium text-neutral-900">Settings</span>
-          </a>
-        </section>
       </div>
     </header>
+
+    <!-- 固定フッターナビゲーション -->
+    <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
+      <a href="{{ url_for('spot.add_spot') }}" class="nav-item text-slate-500 hover:text-slate-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        <span class="text-xs">新規スポット</span>
+      </a>
+      <a href="{{ url_for('profile.settings') }}" class="nav-item text-slate-500 hover:text-slate-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span class="text-xs">設定</span>
+      </a>
+    </nav>
 
     <script>
       // Toggle switch functionality
@@ -157,15 +241,69 @@
             this.disabled = true;
             // トグルスイッチの状態を視覚的に更新
             const slider = this.nextElementSibling;
+            const label = this.closest('label');
             if (this.checked) {
               slider.style.transform = 'translateX(20px)';
+              slider.classList.add('bg-blue-500');
+              label.classList.add('bg-blue-300');
             } else {
               slider.style.transform = 'translateX(0)';
+              slider.classList.remove('bg-blue-500');
+              label.classList.remove('bg-blue-300');
             }
             // リダイレクト
             window.location.href = "{{ url_for('spot.toggle_spot', spot_id=0) }}".replace('0', spotId);
           }
         });
+      });
+
+      // 見出し編集機能
+      function toggleHeadingEdit() {
+        const displayElement = document.getElementById('spots-heading-display');
+        const formElement = document.getElementById('spots-heading-form');
+        const inputElement = document.getElementById('spots-heading-input');
+        const editButton = document.getElementById('edit-heading-btn');
+        
+        if (formElement.classList.contains('hidden')) {
+          // 表示要素を非表示にし、フォームを表示
+          displayElement.classList.add('hidden');
+          editButton.classList.add('hidden');
+          formElement.classList.remove('hidden');
+          // 入力フィールドにフォーカスを当てる
+          inputElement.focus();
+          // 入力フィールドの内容を全選択
+          inputElement.select();
+        } else {
+          // フォームを非表示にし、表示要素を表示
+          formElement.classList.add('hidden');
+          displayElement.classList.remove('hidden');
+          editButton.classList.remove('hidden');
+          // 入力内容をリセット（キャンセル時）
+          inputElement.value = displayElement.textContent.trim();
+        }
+      }
+
+      // フォーム送信前のバリデーション
+      document.getElementById('heading-edit-form').addEventListener('submit', function(e) {
+        const inputElement = document.getElementById('spots-heading-input');
+        const value = inputElement.value.trim();
+        
+        if (!value) {
+          e.preventDefault();
+          alert('見出しを入力してください');
+          inputElement.focus();
+          return false;
+        }
+        
+        // 最大文字数チェック（念のため）
+        if (value.length > 50) {
+          e.preventDefault();
+          alert('見出しは50文字以内で入力してください');
+          inputElement.focus();
+          return false;
+        }
+        
+        return true;
       });
     </script>
   </body>
