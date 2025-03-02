@@ -21,6 +21,28 @@ def mypage():
     spots = Spot.query.filter_by(user_id=current_user.id).all()
     return render_template('mypage.html', user=current_user, spots=spots)
 
+@bp.route('/update-spots-heading', methods=['POST'])
+@login_required
+def update_spots_heading():
+    """スポット見出しの更新"""
+    spots_heading = request.form.get('spots_heading', '').strip()
+    
+    # 入力値の検証
+    if not spots_heading:
+        flash('見出しを入力してください', 'danger')
+        return redirect(url_for('profile.mypage'))
+    
+    if len(spots_heading) > 50:
+        flash('見出しは50文字以内で入力してください', 'danger')
+        return redirect(url_for('profile.mypage'))
+    
+    # 見出しを更新
+    current_user.spots_heading = spots_heading
+    db.session.commit()
+    
+    flash('見出しを更新しました', 'success')
+    return redirect(url_for('profile.mypage'))
+
 @bp.route('/edit-profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():

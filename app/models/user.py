@@ -15,6 +15,7 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(128), nullable=False)
     profile_pic_url = db.Column(db.String(255), nullable=True, default='default_profile.jpg')
     bio = db.Column(db.Text, nullable=True)
+    spots_heading = db.Column(db.String(50), nullable=True, default='Favorite Spots')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -22,7 +23,7 @@ class User(db.Model, UserMixin):
     spots = db.relationship('Spot', backref='user', lazy=True, cascade='all, delete-orphan')
     social_accounts = db.relationship('SocialAccount', backref='user', lazy=True, cascade='all, delete-orphan')
     
-    def __init__(self, username, email, password=None, bio=None, profile_pic_url=None):
+    def __init__(self, username, email, password=None, bio=None, profile_pic_url=None, spots_heading='Favorite Spots'):
         self.username = username
         self.email = email
         if password:
@@ -30,6 +31,7 @@ class User(db.Model, UserMixin):
         self.bio = bio
         if profile_pic_url:
             self.profile_pic_url = profile_pic_url
+        self.spots_heading = spots_heading
     
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
