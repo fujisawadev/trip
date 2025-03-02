@@ -604,12 +604,18 @@
         // スポット詳細をモーダルにレンダリングする関数
         function renderSpotDetail(spot) {
             modalContent.innerHTML = `                <article class="w-full">
-                    <!-- Header Section -->
-                    <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none text-center bg-slate-50 text-neutral-900">
-                        <h1 class="flex-1 shrink self-stretch px-12 my-auto w-full basis-0 min-h-[23px] min-w-60">
-                            ${spot.name}
-                        </h1>
+                    <!-- Header Section with Close Button -->
+                    <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none bg-slate-50 text-neutral-900 relative">
+                        <h1 class="flex-1 text-center opacity-0"><!-- スポット名を非表示にするが、スペースは維持 --></h1>
+                        <div class="modal-close absolute right-4 top-4 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
                     </header>
+
+                    <!-- 余白を追加 -->
+                    <div class="h-4"></div>
 
                     <!-- Hero Map Section -->
                     <section class="flex items-start px-4 py-3 w-full" aria-label="Spot location map">
@@ -618,12 +624,12 @@
 
                     <!-- Business Info Section -->
                     <section class="flex justify-between items-start px-4 py-3 w-full bg-slate-50" aria-label="Business information">
-                        <div class="flex gap-4 items-start w-44">
-                            <div class="flex flex-col flex-1 shrink justify-center items-start w-full basis-0">
-                                <h2 class="max-w-full text-base font-medium text-neutral-900 w-[134px]">
+                        <div class="flex gap-4 items-start w-full">
+                            <div class="flex flex-col flex-1 shrink justify-center items-start w-full">
+                                <h2 class="text-base font-medium text-neutral-900 w-full">
                                     ${spot.name}
                                 </h2>
-                                <p class="max-w-full text-sm text-slate-500 w-[134px]">
+                                <p class="text-sm text-slate-500">
                                     ${spot.category || "Bubble Tea Store"}
                                 </p>
                             </div>
@@ -746,6 +752,9 @@
                         </p>
                     </div>
                 </article>
+
+                <!-- Footer Space -->
+                <div class="w-full py-8 bg-slate-50"></div>
             `;
         }
         
@@ -774,6 +783,15 @@
                         }
                     });
                 }
+                
+                // モーダル内の閉じるボタンにイベントリスナーを追加
+                const modalCloseButtons = document.querySelectorAll('.modal-close');
+                modalCloseButtons.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        modal.style.display = 'none';
+                        document.body.classList.remove('modal-open');
+                    });
+                });
             }, 100); // 少し遅延させてDOMが確実に準備できるようにする
         }
         
