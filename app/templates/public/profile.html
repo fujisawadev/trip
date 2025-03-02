@@ -64,6 +64,55 @@
         body.modal-open {
             overflow: hidden;
         }
+        /* 地図フィルターボタンのスタイル */
+        .map-filter-control {
+            background: none;
+            border: none;
+            position: absolute !important;
+            top: 10px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 1000;
+            width: auto !important;
+            margin: 0 !important;
+        }
+        .map-filter-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 8px 16px;
+            color: #1e293b;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            min-width: 140px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+        .map-filter-button:hover {
+            background-color: #f8fafc;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .map-filter-button.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .map-filter-button.active:hover {
+            background-color: #2563eb;
+        }
+        @media (max-width: 480px) {
+            .map-filter-button {
+                padding: 10px 12px;
+                font-size: 13px;
+                min-width: 130px;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-slate-50">
@@ -72,7 +121,7 @@
             <div class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
                 <div class="flex shrink-0 self-stretch my-auto w-12 h-12"></div>
                 <div class="flex-1 shrink self-stretch pr-12 my-auto basis-0 min-w-60">
-                    <h1>Profile</h1>
+                    <!-- 「Profile」という文字を削除 -->
                 </div>
             </div>
 
@@ -96,88 +145,78 @@
                     <h2 class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none min-h-[60px] text-neutral-900">Favorite Spots</h2>
 
                     <!-- 地図表示エリア -->
-                    <div class="flex items-start px-4 py-3 w-full">
+                    <div class="flex items-start px-4 py-2 w-full">
                         <div id="map" class="w-full rounded-xl aspect-[1.78] min-w-60"></div>
                     </div>
 
-                    <div class="flex flex-col justify-center px-4 py-3 w-full">
+                    <div class="flex flex-col justify-center px-4 py-2 w-full">
                         <div class="w-full min-h-12 min-w-40">
-                            <div class="flex flex-1 rounded-xl size-full">
-                                <div class="flex justify-center items-center pl-4 w-10 h-full rounded-xl bg-slate-200">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </div>
+                            <div class="flex flex-1 rounded-xl size-full bg-slate-200 overflow-hidden">
                                 <input
                                     type="search"
                                     placeholder="Search spots"
-                                    class="flex overflow-hidden flex-1 shrink items-center py-2 pr-4 pl-2 h-full text-base rounded-none basis-0 bg-slate-200 min-w-60 text-slate-500"
+                                    class="flex overflow-hidden flex-1 shrink items-center py-2 pl-4 pr-2 h-full text-base bg-transparent min-w-60 text-slate-500 focus:outline-none"
                                 />
+                                <button type="button" class="flex justify-center items-center w-10 h-full my-auto self-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <nav class="flex gap-3 items-start py-3 pr-4 pl-3 w-full overflow-x-auto">
-                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
+                    <nav class="flex gap-3 items-start py-2 pr-4 pl-3 w-full overflow-x-auto">
+                        <div class="category-filter flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-blue-500 text-white min-h-8 cursor-pointer" data-category="all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-white">All</span>
+                        </div>
+                        {% set categories = [] %}
+                        {% for spot in spots %}
+                            {% if spot.category and spot.category not in categories %}
+                                {% set _ = categories.append(spot.category) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for category in categories %}
+                        <div class="category-filter flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8 cursor-pointer" data-category="{{ category }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 9l7-7 7 7v11a2 2 0 01-2 2H7a2 2 0 01-2-2V9z" />
                             </svg>
-                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Hiking</span>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">{{ category }}</span>
                         </div>
-                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                            </svg>
-                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Movies</span>
-                        </div>
-                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Cooking</span>
-                        </div>
-                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
-                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Dogs</span>
-                        </div>
-                        <div class="flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                            </svg>
-                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">Roadtrip</span>
-                        </div>
+                        {% endfor %}
                     </nav>
 
-                    <section class="location-cards">
+                    <section class="location-cards pt-1">
                         {% if spots and spots|length > 0 %}
                             {% for spot in spots %}
-                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]">
-                                <div class="spot-card flex gap-4 items-center w-full cursor-pointer" data-spot-id="{{ spot.id }}">
+                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] spot-article">
+                                <div class="spot-card flex gap-4 items-center w-full cursor-pointer" data-spot-id="{{ spot.id }}" data-category="{{ spot.category or '' }}">
                                     <img
                                         src="{% if spot.photos and spot.photos|length > 0 %}{{ spot.photos[0].photo_url }}{% elif spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None' %}{{ url_for('public.photo_proxy', photo_reference=spot.google_photo_reference) }}{% else %}{{ url_for('static', filename='default_profile.jpg') }}{% endif %}"
                                         alt="{{ spot.name }}"
                                         class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
                                     />
-                                    <div class="flex flex-col justify-center self-stretch my-auto w-[85px]">
-                                        <h3 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900">
+                                    <div class="flex flex-col justify-center self-stretch my-auto flex-1 min-w-0">
+                                        <h3 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900 text-ellipsis">
                                             {{ spot.name }}
                                         </h3>
-                                        <p class="overflow-hidden text-sm text-slate-500">
+                                        <p class="overflow-hidden text-sm whitespace-nowrap text-ellipsis text-slate-500">
                                             {{ spot.location }}
                                         </p>
                                     </div>
                                 </div>
                             </article>
                             {% endfor %}
-                        {% else %}
-                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]">
-                                <div class="flex flex-col justify-center self-stretch my-auto w-full text-center">
-                                    <p class="text-slate-500">No spots added yet</p>
-                                </div>
-                            </article>
                         {% endif %}
+                        <!-- 検索結果が0件の場合のメッセージ -->
+                        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] no-spots-message" style="{% if spots and spots|length > 0 %}display: none;{% endif %}">
+                            <div class="flex flex-col justify-center self-stretch my-auto w-full text-center">
+                                <p class="text-slate-500">{% if spots and spots|length > 0 %}No spots found for the selected criteria{% else %}No spots added yet{% endif %}</p>
+                            </div>
+                        </article>
                     </section>
                 </section>
             </main>
@@ -222,26 +261,144 @@
               "name": "{{ spot.name }}",
               "location": "{{ spot.location or '' }}",
               {% if spot.latitude %}"lat": {{ spot.latitude }},{% else %}"lat": null,{% endif %}
-              {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %}
+              {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %},
+              "category": "{{ spot.category or '' }}"
             }{% if not loop.last %},{% endif %}
           {% endfor %}
         ];
         
-        // マーカーの配列
-        const markers = [];
+        // マーカーオブジェクトの配列（スポットIDと紐付け）
+        const markerObjects = [];
         
-        // スポットごとにマーカーを追加
+        // 地図ベースのフィルタリングが有効かどうかのフラグ
+        let mapFilterActive = false;
+        
+        // カスタム地図コントロールの作成
+        const MapFilterControl = L.Control.extend({
+          options: {
+            position: 'topright' // 位置はCSSで上書きするので何でも良い
+          },
+          
+          onAdd: function(map) {
+            // コントロールのコンテナを作成
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control map-filter-control');
+            const button = L.DomUtil.create('a', 'map-filter-button', container);
+            
+            // Leafletの自動配置を上書きするためにスタイルを直接設定
+            container.style.position = 'absolute';
+            container.style.left = '50%';
+            container.style.transform = 'translateX(-50%)';
+            container.style.marginLeft = '0';
+            container.style.marginRight = '0';
+            
+            button.href = '#';
+            button.title = 'このエリアで絞り込む';
+            button.innerHTML = '<span>このエリアで絞り込む</span>';
+            
+            // クリックイベントの設定
+            L.DomEvent.on(button, 'click', function(e) {
+              L.DomEvent.stopPropagation(e);
+              L.DomEvent.preventDefault(e);
+              
+              // フィルター状態の切り替え
+              mapFilterActive = !mapFilterActive;
+              
+              // ボタンの表示を更新
+              if (mapFilterActive) {
+                button.innerHTML = '<span>エリアフィルター解除</span>';
+                button.classList.add('active');
+              } else {
+                button.innerHTML = '<span>このエリアで絞り込む</span>';
+                button.classList.remove('active');
+              }
+              
+              // フィルタリングを実行
+              filterSpots(currentSearchTerm, currentCategory);
+            });
+            
+            // ズームレベルに応じた表示/非表示の制御
+            map.on('zoomend', function() {
+              const zoomLevel = map.getZoom();
+              if (zoomLevel >= 8) {
+                container.style.display = 'block';
+              } else {
+                container.style.display = 'none';
+                // ズームアウト時にフィルターを解除
+                if (mapFilterActive) {
+                  mapFilterActive = false;
+                  button.innerHTML = '<span>このエリアで絞り込む</span>';
+                  button.classList.remove('active');
+                  filterSpots(currentSearchTerm, currentCategory);
+                }
+              }
+            });
+            
+            // 初期状態の設定
+            if (map.getZoom() < 8) {
+              container.style.display = 'none';
+            }
+            
+            return container;
+          }
+        });
+        
+        // スポットごとにマーカーを作成し、マーカーオブジェクトに格納
         spots.forEach(spot => {
           if (spot.lat && spot.lng) {
             const marker = addMarker(map, spot.lat, spot.lng);
             marker.bindPopup(`<b>${spot.name}</b><br>${spot.location}`);
-            markers.push(marker);
+            
+            // マーカーとスポットを紐付けたオブジェクトを作成
+            markerObjects.push({
+              marker: marker,
+              spotId: spot.id,
+              category: spot.category,
+              visible: true  // 初期状態は表示
+            });
           }
         });
         
-        // マーカーがある場合は、すべてのマーカーが見えるようにビューを調整
-        if (markers.length > 0) {
-          showMarkersAndFitBounds(map, markers);
+        // 地図にフィルターコントロールを追加
+        const mapFilterControl = new MapFilterControl();
+        map.addControl(mapFilterControl);
+        
+        // マーカーの状態をログ出力する関数
+        function logMarkerState(message) {
+          console.log(`===== マーカー状態: ${message} =====`);
+          console.log(`総マーカー数: ${markerObjects.length}`);
+          console.log(`表示中マーカー数: ${markerObjects.filter(obj => obj.visible).length}`);
+          console.log(`地図フィルター: ${mapFilterActive ? '有効' : '無効'}`);
+          
+          // カテゴリ別の表示状況
+          const categoryStats = {};
+          markerObjects.forEach(obj => {
+            const spot = spots.find(s => s.id === obj.spotId);
+            if (spot) {
+              const category = spot.category || 'uncategorized';
+              if (!categoryStats[category]) {
+                categoryStats[category] = { total: 0, visible: 0 };
+              }
+              categoryStats[category].total++;
+              if (obj.visible) {
+                categoryStats[category].visible++;
+              }
+            }
+          });
+          console.log('カテゴリ別状況:', categoryStats);
+        }
+        
+        // 地図の表示範囲を調整する関数
+        function adjustMapView() {
+          const visibleMarkers = markerObjects
+            .filter(obj => obj.visible)
+            .map(obj => obj.marker);
+          
+          if (visibleMarkers.length > 0) {
+            showMarkersAndFitBounds(map, visibleMarkers);
+          } else {
+            // マーカーがない場合はデフォルトビューに戻す（日本全体が見えるように）
+            map.setView([36.5748, 139.2394], 5);
+          }
         }
 
         // モーダル関連の処理
@@ -262,6 +419,148 @@
                 document.body.classList.remove('modal-open');
             }
         });
+        
+        // カテゴリーフィルター関連の処理
+        const categoryFilters = document.querySelectorAll('.category-filter');
+        const searchInput = document.querySelector('input[type="search"]');
+        const searchButton = searchInput.nextElementSibling;
+        
+        // 現在選択されているカテゴリーと検索語を保持する変数
+        let currentCategory = 'all';
+        let currentSearchTerm = '';
+        
+        // カテゴリーフィルターのクリックイベント
+        categoryFilters.forEach(filter => {
+            filter.addEventListener('click', function() {
+                // 現在のカテゴリーを更新
+                currentCategory = this.dataset.category;
+                
+                // 選択状態の視覚的表示を更新
+                categoryFilters.forEach(f => {
+                    if (f.dataset.category === currentCategory) {
+                        f.classList.remove('bg-slate-200');
+                        f.classList.add('bg-blue-500', 'text-white');
+                        // テキストの色も白に変更
+                        const span = f.querySelector('span');
+                        if (span) {
+                            span.classList.remove('text-neutral-900');
+                            span.classList.add('text-white');
+                        }
+                    } else {
+                        f.classList.remove('bg-blue-500', 'text-white');
+                        f.classList.add('bg-slate-200');
+                        // テキストの色を元に戻す
+                        const span = f.querySelector('span');
+                        if (span) {
+                            span.classList.remove('text-white');
+                            span.classList.add('text-neutral-900');
+                        }
+                    }
+                });
+                
+                // スポットをフィルタリング
+                filterSpots(currentSearchTerm, currentCategory);
+            });
+        });
+        
+        // 検索ボタンのクリックイベント
+        searchButton.addEventListener('click', function() {
+            currentSearchTerm = searchInput.value.toLowerCase();
+            filterSpots(currentSearchTerm, currentCategory);
+        });
+        
+        // 検索入力フィールドのEnterキーイベント
+        searchInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                currentSearchTerm = this.value.toLowerCase();
+                filterSpots(currentSearchTerm, currentCategory);
+            }
+        });
+        
+        // スポットをフィルタリングする関数
+        function filterSpots(searchTerm, category) {
+            console.log(`フィルタリング実行: 検索語="${searchTerm}", カテゴリ="${category}", 地図フィルター=${mapFilterActive}`);
+            
+            // 地図の現在の表示範囲を取得
+            const mapBounds = mapFilterActive ? map.getBounds() : null;
+            
+            // すべてのスポットカードを取得
+            const spotCards = document.querySelectorAll('.spot-card');
+            let visibleCount = 0;
+            
+            // マーカーの表示状態をリセット
+            markerObjects.forEach(obj => {
+                obj.visible = false;
+                if (map.hasLayer(obj.marker)) {
+                    map.removeLayer(obj.marker);
+                }
+            });
+            
+            logMarkerState('フィルタリング開始');
+            
+            // スポットごとに処理
+            spotCards.forEach((card) => {
+                const spotId = parseInt(card.dataset.spotId);
+                const spot = spots.find(s => s.id === spotId);
+                
+                if (!spot) return;
+                
+                // 検索条件、カテゴリー条件、地図範囲条件の全てに一致するか確認
+                const matchesSearch = !searchTerm || 
+                    spot.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    (spot.location && spot.location.toLowerCase().includes(searchTerm.toLowerCase()));
+                const matchesCategory = category === 'all' || spot.category === category;
+                const matchesMapBounds = !mapFilterActive || 
+                    (spot.lat && spot.lng && mapBounds.contains([spot.lat, spot.lng]));
+                
+                if (matchesSearch && matchesCategory && matchesMapBounds) {
+                    // 条件に一致する場合は表示
+                    card.closest('article').style.display = 'flex';
+                    visibleCount++;
+                    
+                    // 対応するマーカーを表示
+                    const markerObj = markerObjects.find(obj => obj.spotId === spotId);
+                    if (markerObj) {
+                        try {
+                            markerObj.visible = true;
+                            markerObj.marker.addTo(map);
+                        } catch (e) {
+                            console.error(`マーカー表示エラー (スポットID: ${spotId}): ${e.message}`);
+                        }
+                    }
+                } else {
+                    // 条件に一致しない場合は非表示
+                    card.closest('article').style.display = 'none';
+                }
+            });
+            
+            console.log(`表示されるスポット数: ${visibleCount}`);
+            logMarkerState('フィルタリング完了');
+            
+            // 「スポットが見つかりません」メッセージの表示/非表示
+            const noSpotsMessage = document.querySelector('.no-spots-message');
+            
+            if (visibleCount === 0) {
+                // 「スポットが見つかりません」メッセージを表示
+                if (noSpotsMessage) {
+                    noSpotsMessage.style.display = 'flex';
+                    const messageText = spots.length > 0 
+                        ? 'No spots found for the selected criteria' 
+                        : 'No spots added yet';
+                    noSpotsMessage.querySelector('p').textContent = messageText;
+                }
+            } else {
+                // 「スポットが見つかりません」メッセージを非表示
+                if (noSpotsMessage) {
+                    noSpotsMessage.style.display = 'none';
+                }
+            }
+            
+            // 地図の表示範囲を調整（地図フィルターが有効な場合は調整しない）
+            if (!mapFilterActive) {
+                adjustMapView();
+            }
+        }
         
         // スポットカードクリック時の処理
         document.querySelectorAll('.spot-card').forEach(card => {
@@ -292,8 +591,7 @@
         
         // スポット詳細をモーダルにレンダリングする関数
         function renderSpotDetail(spot) {
-            modalContent.innerHTML = `
-                <article class="w-full">
+            modalContent.innerHTML = `                <article class="w-full">
                     <!-- Header Section -->
                     <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none text-center bg-slate-50 text-neutral-900">
                         <h1 class="flex-1 shrink self-stretch px-12 my-auto w-full basis-0 min-h-[23px] min-w-60">
@@ -466,6 +764,9 @@
                 }
             }, 100); // 少し遅延させてDOMが確実に準備できるようにする
         }
+        
+        // ページ読み込み時に初期フィルタリングを実行（全てのスポットを表示）
+        filterSpots('', 'all');
       });
     </script>
 </body>
