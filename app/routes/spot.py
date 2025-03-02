@@ -127,27 +127,32 @@ def add_spot():
                         # 写真参照情報の配列
                         photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
                         
+                        # 既存の写真参照情報を取得
+                        existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
+                        
                         # 最初の写真参照情報がフォームから送信されたものと異なる場合は更新
                         if not google_photo_reference and len(photo_references) > 0:
                             spot.google_photo_reference = photo_references[0]
                             
-                            # Google Photo ReferenceからCDN URLを取得
-                            cdn_url = get_cdn_url_from_reference(photo_references[0])
-                            
-                            # 最初の写真をphotosテーブルに保存
-                            photo = Photo(
-                                spot_id=spot.id,
-                                photo_url=cdn_url,  # CDN URLを保存
-                                google_photo_reference=photo_references[0],
-                                is_google_photo=True
-                            )
-                            db.session.add(photo)
+                            # 既に同じ参照情報の写真が保存されていない場合のみ保存
+                            if photo_references[0] not in existing_references:
+                                # Google Photo ReferenceからCDN URLを取得
+                                cdn_url = get_cdn_url_from_reference(photo_references[0])
+                                
+                                # 最初の写真をphotosテーブルに保存
+                                photo = Photo(
+                                    spot_id=spot.id,
+                                    photo_url=cdn_url,  # CDN URLを保存
+                                    google_photo_reference=photo_references[0],
+                                    is_google_photo=True
+                                )
+                                db.session.add(photo)
                         
                         # 2枚目以降の写真を保存（最大4枚）
                         start_index = 1 if google_photo_reference in photo_references else 0
                         for i, photo_reference in enumerate(photo_references[start_index:5]):
                             # 既に保存した写真参照情報と重複しないようにする
-                            if photo_reference != google_photo_reference:
+                            if photo_reference != google_photo_reference and photo_reference not in existing_references:
                                 # Google Photo ReferenceからCDN URLを取得
                                 cdn_url = get_cdn_url_from_reference(photo_reference)
                                 
@@ -260,27 +265,32 @@ def edit_spot(spot_id):
                         # 写真参照情報の配列
                         photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
                         
+                        # 既存の写真参照情報を取得
+                        existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
+                        
                         # 最初の写真参照情報がフォームから送信されたものと異なる場合は更新
                         if not google_photo_reference and len(photo_references) > 0:
                             spot.google_photo_reference = photo_references[0]
                             
-                            # Google Photo ReferenceからCDN URLを取得
-                            cdn_url = get_cdn_url_from_reference(photo_references[0])
-                            
-                            # 最初の写真をphotosテーブルに保存
-                            photo = Photo(
-                                spot_id=spot.id,
-                                photo_url=cdn_url,  # CDN URLを保存
-                                google_photo_reference=photo_references[0],
-                                is_google_photo=True
-                            )
-                            db.session.add(photo)
+                            # 既に同じ参照情報の写真が保存されていない場合のみ保存
+                            if photo_references[0] not in existing_references:
+                                # Google Photo ReferenceからCDN URLを取得
+                                cdn_url = get_cdn_url_from_reference(photo_references[0])
+                                
+                                # 最初の写真をphotosテーブルに保存
+                                photo = Photo(
+                                    spot_id=spot.id,
+                                    photo_url=cdn_url,  # CDN URLを保存
+                                    google_photo_reference=photo_references[0],
+                                    is_google_photo=True
+                                )
+                                db.session.add(photo)
                         
                         # 2枚目以降の写真を保存（最大4枚）
                         start_index = 1 if google_photo_reference in photo_references else 0
                         for i, photo_reference in enumerate(photo_references[start_index:5]):
                             # 既に保存した写真参照情報と重複しないようにする
-                            if photo_reference != google_photo_reference:
+                            if photo_reference != google_photo_reference and photo_reference not in existing_references:
                                 # Google Photo ReferenceからCDN URLを取得
                                 cdn_url = get_cdn_url_from_reference(photo_reference)
                                 
