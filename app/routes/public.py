@@ -63,14 +63,22 @@ def test_photo_cdn(photo_reference):
 
 @public_bp.route('/u/<int:user_id>')
 def profile(user_id):
-    """公開プロフィールページを表示する"""
+    """公開プロフィールページを表示する（ユーザー名ベースのURLにリダイレクト）"""
     user = User.query.get_or_404(user_id)
+    # ユーザー名ベースのURLにリダイレクト
+    return redirect(url_for('profile.user_profile', username=user.username))
+
+# 新しいユーザー名ベースのルートを追加
+@public_bp.route('/<username>')
+def username_profile(username):
+    """ユーザー名ベースの公開プロフィールページを表示する"""
+    user = User.query.filter_by(username=username).first_or_404()
     
     # ユーザーが作成したスポットを取得
-    spots = Spot.query.filter_by(user_id=user_id, is_active=True).all()
+    spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
     
     # ソーシャルアカウント情報を取得
-    social_accounts = SocialAccount.query.filter_by(user_id=user_id).first()
+    social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
     
     # 写真がないスポットのGoogle Places APIから写真を取得
     google_photos = {}
