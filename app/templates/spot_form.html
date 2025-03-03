@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% if is_edit %}Edit Spot - {{ spot.name }}{% else %}Add New Spot{% endif %}</title>
+    <title>{% if is_edit %}スポットを編集 - {{ spot.name }}{% else %}新規スポット登録{% endif %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -115,7 +115,7 @@
           <h1
             class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
           >
-            {% if is_edit %}Edit Spot{% else %}Add New Spot{% endif %}
+            {% if is_edit %}スポットを編集{% else %}新規スポット登録{% endif %}
           </h1>
           {% if is_edit %}
           <button
@@ -152,7 +152,7 @@
           
           <!-- Spot Name -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="spotName" class="text-sm font-medium text-neutral-900">Spot Name</label>
+            <label for="spotName" class="text-sm font-bold text-neutral-900">スポット名</label>
             <div class="autocomplete-container">
               <input
                 type="text"
@@ -160,7 +160,7 @@
                 name="spotName"
                 required
                 value="{% if is_edit %}{{ spot.name }}{% endif %}"
-                placeholder="Enter spot name"
+                placeholder="スポット名を入力"
                 class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autocomplete="off"
               />
@@ -171,13 +171,13 @@
 
           <!-- Spot Location -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="location" class="text-sm font-medium text-neutral-900">Location</label>
+            <label for="location" class="text-sm font-bold text-neutral-900">場所</label>
             <input
               type="text"
               id="location"
               name="location"
               value="{% if is_edit %}{{ spot.location }}{% endif %}"
-              placeholder="Enter location"
+              placeholder="場所を入力"
               class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button 
@@ -185,58 +185,58 @@
               id="search-location" 
               class="px-4 py-2 mt-1 text-sm font-medium text-white bg-blue-500 rounded-xl hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              Search Location
+              場所を検索
             </button>
           </div>
 
           <!-- Location Map -->
           <div class="flex flex-col gap-2 w-full">
-            <label class="text-sm font-medium text-neutral-900">Map Location</label>
-            <p class="text-xs text-slate-500 mb-2">Click on the map to set the location or drag the marker to adjust.</p>
+            <label class="text-sm font-bold text-neutral-900">地図上の位置</label>
+            <p class="text-xs text-slate-500 mb-2">地図をクリックして位置を設定するか、マーカーをドラッグして位置を調整してください。</p>
             <div id="location-map" class="w-full rounded-xl"></div>
           </div>
 
           <!-- Spot Category -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="category" class="text-sm font-medium text-neutral-900">Category</label>
+            <label for="category" class="text-sm font-bold text-neutral-900">カテゴリー</label>
             <div class="autocomplete-container relative" style="z-index: 9999;">
               <input
                 type="text"
                 id="category"
                 name="category"
                 value="{% if is_edit %}{{ spot.category }}{% endif %}"
-                placeholder="Enter or select category"
+                placeholder="カテゴリーを入力または選択"
                 class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autocomplete="off"
               />
               <div id="category-loading-indicator" class="loading-indicator hidden"></div>
               <div id="category-autocomplete-results" class="autocomplete-results hidden absolute z-[9999] w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-60 overflow-y-auto"></div>
             </div>
-            <p class="text-xs text-slate-500">Type to enter a new category or select from your previous categories</p>
+            <p class="text-xs text-slate-500">新しいカテゴリーを入力するか、過去のカテゴリーから選択してください</p>
           </div>
 
           <!-- Spot Description -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="description" class="text-sm font-medium text-neutral-900">Description</label>
+            <label for="description" class="text-sm font-bold text-neutral-900">説明</label>
             <textarea
               id="description"
               name="description"
               rows="4"
-              placeholder="Enter spot description"
+              placeholder="スポットの説明を入力"
               class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >{% if is_edit %}{{ spot.description }}{% endif %}</textarea>
           </div>
 
-          <!-- Current Photos (編集時のみ表示) -->
+          <!-- Current Photos -->
           {% if is_edit and spot.photos and spot.photos|length > 0 %}
           <div class="flex flex-col gap-2 w-full">
-            <label class="text-sm font-medium text-neutral-900">Current Photos</label>
+            <label class="text-sm font-bold text-neutral-900">現在の写真</label>
             <div class="flex flex-wrap gap-2 w-full">
               {% for photo in spot.photos %}
                 <div class="preview-item">
                   <img
                     src="{{ photo.photo_url }}"
-                    alt="Spot photo"
+                    alt="スポット写真"
                     class="w-full h-full object-cover rounded-lg"
                   />
                   <div class="remove-btn" data-photo-id="{{ photo.id }}">×</div>
@@ -249,7 +249,7 @@
 
           <!-- Spot Photos -->
           <div class="flex flex-col gap-2 w-full">
-            <label class="text-sm font-medium text-neutral-900">{% if is_edit %}Add New Photos{% else %}Photos{% endif %}</label>
+            <label class="text-sm font-bold text-neutral-900">{% if is_edit %}新しい写真を追加{% else %}写真{% endif %}</label>
             <div class="flex flex-col gap-3 w-full">
               <div class="relative">
                 <input
@@ -280,7 +280,7 @@
                       />
                     </svg>
                     <p class="text-sm text-slate-500">
-                      Drag & drop photos or <span class="text-blue-500">browse</span>
+                      写真をドラッグ＆ドロップまたは<span class="text-blue-500">ファイルを選択</span>
                     </p>
                   </div>
                 </div>
@@ -294,7 +294,7 @@
 
           <!-- Active Status -->
           <div class="flex justify-between items-center w-full">
-            <span class="text-base font-medium text-neutral-900">Active Status</span>
+            <span class="text-base font-bold text-neutral-900">公開状態</span>
             <label
               class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
               role="switch"
@@ -311,7 +311,7 @@
             type="submit"
             class="flex justify-center items-center px-4 w-full bg-blue-500 text-white rounded-xl min-h-12 mt-4"
           >
-            <span class="text-base font-medium">{% if is_edit %}Save Changes{% else %}Add Spot{% endif %}</span>
+            <span class="text-base font-medium">{% if is_edit %}変更を保存{% else %}スポットを登録{% endif %}</span>
           </button>
         </form>
       </div>
@@ -729,7 +729,7 @@
                   }
                 });
               } else {
-                alert('Location not found. Please try a different address.');
+                alert('場所が見つかりませんでした。別の住所を試してください。');
               }
             });
           }

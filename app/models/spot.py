@@ -25,6 +25,7 @@ class Spot(db.Model):
     thumbnail_url = db.Column(db.String(255), nullable=True)
     google_photo_reference = db.Column(db.String(255), nullable=True)  # Google写真参照情報
     summary_location = db.Column(db.String(255), nullable=True)  # サマリーロケーション（国、都道府県、市区町村）
+    google_maps_url = db.Column(db.String(255), nullable=True)  # Google Mapsへの直接リンク
     
     # リレーションシップ
     photos = db.relationship('Photo', backref='spot', lazy=True, cascade='all, delete-orphan')

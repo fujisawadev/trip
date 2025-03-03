@@ -654,7 +654,7 @@
                         <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900">
                             もっと見る
                         </h2>
-                        ${renderBookingDetails()}
+                        ${renderBookingDetails(spot)}
                     </section>
                 </article>
             `;
@@ -720,45 +720,155 @@
         }
         
         // 予約詳細をレンダリングする関数
-        function renderBookingDetails() {
-            return `
-                <!-- Booking.com Details -->
-                <article class="flex gap-4 items-center px-4 py-3 w-full bg-slate-50">
+        function renderBookingDetails(spot) {
+            let html = '';
+            
+            // Google Mapsリンク
+            html += `
+                <!-- Google Maps Link -->
+                <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
                     <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/84944c1def9ac6fe8cdcddc26dbd5fcdc7e1ec4701a8ccece74cbd6a2b688715?placeholderIfAbsent=true"
-                        alt="Booking.com logo"
-                        class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                        src="{{ url_for('static', filename='icons/maps/google-maps.svg') }}"
+                        alt="Google Maps logo"
+                        class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
                     />
-                    <div class="flex flex-col justify-center self-stretch my-auto w-[230px]">
-                        <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900 w-[230px]">
-                            Booking.com
+                    <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                        <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
+                            Google Maps
                         </h3>
-                        <p class="overflow-hidden max-w-full text-sm text-slate-500 w-[230px]">
-                            Price: $50, Availability: 5 rooms left
+                        <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                            ルート検索・詳細情報を見る
                         </p>
                     </div>
+                    <a href="${spot.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name)}&query_place_id=${spot.google_place_id || ''}`}" 
+                       target="_blank" 
+                       class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
+                        開く
+                    </a>
                 </article>
-
-                <!-- Rakuten Travel Details -->
-                <article class="flex gap-4 items-center px-4 py-3 w-full bg-slate-50">
-                    <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/532d34cb618a990f64da51d78f6168753a428877874b771849ef370903a1d740?placeholderIfAbsent=true"
-                        alt="Rakuten Travel logo"
-                        class="object-contain shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
-                    />
-                    <div class="flex flex-col justify-center self-stretch my-auto w-[236px]">
-                        <h3 class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[236px]">
-                            Rakuten Travel
-                        </h3>
-                        <p class="overflow-hidden max-w-full text-sm text-slate-500 w-[236px]">
-                            Price: $45, Availability: 10 rooms left
-                        </p>
-                    </div>
-                </article>
-
-                <!-- Footer Space -->
-                <div class="w-full py-8 bg-slate-50"></div>
             `;
+            
+            // アフィリエイトリンク
+            if (spot.affiliate_links && spot.affiliate_links.length > 0) {
+                spot.affiliate_links.forEach(link => {
+                    if (link.is_active) {
+                        // アフィリエイトのアイコンキーがある場合はそれを使用、なければデフォルトアイコン
+                        const iconPath = link.icon_key 
+                            ? `{{ url_for('static', filename='icons/affiliates/${link.icon_key}.svg') }}`
+                            : `{{ url_for('static', filename='icons/affiliates/booking-com.svg') }}`;
+                            
+                        html += `
+                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
+                                <img
+                                    src="${iconPath}"
+                                    alt="${link.platform} logo"
+                                    class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
+                                />
+                                <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                                    <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
+                                        ${link.title || link.platform}
+                                    </h3>
+                                    <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                                        ${link.description || ''}
+                                    </p>
+                                </div>
+                                <a href="${link.url}" 
+                                   target="_blank" 
+                                   class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
+                                    予約
+                                </a>
+                            </article>
+                        `;
+                    }
+                });
+            } else {
+                // デフォルトのアフィリエイトリンク（将来的には削除）
+                html += `
+                    <!-- Booking.com Details -->
+                    <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
+                        <img
+                            src="{{ url_for('static', filename='icons/affiliates/booking-com.svg') }}"
+                            alt="Booking.com logo"
+                            class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
+                        />
+                        <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                            <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
+                                Booking.com
+                            </h3>
+                            <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                                Price: $50, Availability: 5 rooms left
+                            </p>
+                        </div>
+                        <a href="#" 
+                           target="_blank" 
+                           class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
+                            予約
+                        </a>
+                    </article>
+
+                    <!-- Rakuten Travel Details -->
+                    <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
+                        <img
+                            src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}"
+                            alt="Rakuten Travel logo"
+                            class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
+                        />
+                        <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                            <h3 class="overflow-hidden max-w-full text-base font-medium text-neutral-900">
+                                Rakuten Travel
+                            </h3>
+                            <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                                Price: $45, Availability: 10 rooms left
+                            </p>
+                        </div>
+                        <a href="#" 
+                           target="_blank" 
+                           class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
+                            予約
+                        </a>
+                    </article>
+                `;
+            }
+            
+            // SNS投稿
+            if (spot.social_posts && spot.social_posts.length > 0) {
+                const platformIcons = {
+                    'instagram': '{{ url_for("static", filename="icons/social/instagram.svg") }}',
+                    'twitter': '{{ url_for("static", filename="icons/social/twitter.svg") }}',
+                    'tiktok': '{{ url_for("static", filename="icons/social/tiktok.svg") }}',
+                    'youtube': '{{ url_for("static", filename="icons/social/youtube.svg") }}'
+                };
+                
+                spot.social_posts.forEach(post => {
+                    html += `
+                        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
+                            <img
+                                src="${platformIcons[post.platform] || '{{ url_for("static", filename="icons/social/instagram.svg") }}'}"
+                                alt="${post.platform} logo"
+                                class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
+                            />
+                            <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                                <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
+                                    ${post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}の投稿を見る
+                                </h3>
+                                <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                                    ${post.caption ? (post.caption.length > 50 ? post.caption.substring(0, 50) + '...' : post.caption) : ''}
+                                </p>
+                            </div>
+                            <a href="${post.post_url}" 
+                               target="_blank" 
+                               class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
+                                見る
+                            </a>
+                        </article>
+                    `;
+                });
+            }
+
+            // フッタースペース
+            html += `<div class="w-full py-8 bg-slate-50"></div>`;
+            
+            return html;
         }
         
         // モーダル内の地図を初期化する関数

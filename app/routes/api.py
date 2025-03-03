@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, abort
-from app.models import Spot, Photo
+from app.models import Spot, Photo, AffiliateLink, SocialPost
 from sqlalchemy.orm import joinedload
 import requests
 import os
@@ -16,12 +16,26 @@ GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', "AIzaSyD1eKEJje0XpgV
 @api_bp.route('/spots/<int:spot_id>', methods=['GET'])
 def get_spot(spot_id):
     """スポット詳細情報を取得するAPI"""
-    # スポットとそれに関連する写真を一度に取得
-    spot = Spot.query.options(joinedload(Spot.photos)).get_or_404(spot_id)
+    # スポットとそれに関連する写真、アフィリエイトリンク、SNS投稿を一度に取得
+    spot = Spot.query.options(
+        joinedload(Spot.photos),
+        joinedload(Spot.affiliate_links),
+        joinedload(Spot.social_posts)
+    ).get_or_404(spot_id)
     
     # 非公開のスポットの場合は404を返す
     if not spot.is_active:
         abort(404)
+    
+    # Google Maps URLを生成
+    google_maps_url = spot.google_maps_url
+    if not google_maps_url:
+        if spot.google_place_id:
+            google_maps_url = f"https://www.google.com/maps/search/?api=1&query={spot.name}&query_place_id={spot.google_place_id}"
+        elif spot.latitude and spot.longitude:
+            google_maps_url = f"https://www.google.com/maps/search/?api=1&query={spot.latitude},{spot.longitude}"
+        else:
+            google_maps_url = f"https://www.google.com/maps/search/?api=1&query={spot.name}"
     
     # スポットデータをJSON形式で返す
     spot_data = {
@@ -32,15 +46,36 @@ def get_spot(spot_id):
         'category': spot.category,
         'latitude': spot.latitude,
         'longitude': spot.longitude,
+        'google_maps_url': google_maps_url,
         'photos': [
             {
                 'id': photo.id,
                 'photo_url': photo.photo_url
             } for photo in spot.photos
-        ]
+        ],
+        'affiliate_links': [
+            {
+                'id': link.id,
+                'platform': link.platform,
+                'url': link.url,
+                'title': link.title,
+                'description': link.description,
+                'logo_url': link.logo_url,
+                'icon_key': link.icon_key
+            } for link in spot.affiliate_links if link.is_active
+        ] if hasattr(spot, 'affiliate_links') else [],
+        'social_posts': [
+            {
+                'id': post.id,
+                'platform': post.platform,
+                'post_url': post.post_url,
+                'thumbnail_url': post.thumbnail_url,
+                'caption': post.caption
+            } for post in spot.social_posts
+        ] if hasattr(spot, 'social_posts') else []
     }
     
-    return jsonify(spot_data) 
+    return jsonify(spot_data)
 
 @api_bp.route('/places/details', methods=['GET'])
 def place_details():
@@ -460,3 +495,24 @@ def get_user_categories():
     except Exception as e:
         print(f"Error in get_user_categories: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/spots/<int:spot_id>/google-maps-url', methods=['GET'])
+def get_google_maps_url(spot_id):
+    """スポットのGoogle Maps URLを取得するAPI"""
+    spot = Spot.query.get_or_404(spot_id)
+    
+    # 非公開のスポットの場合は404を返す
+    if not spot.is_active:
+        abort(404)
+    
+    # Google Maps URLを生成
+    if spot.google_maps_url:
+        url = spot.google_maps_url
+    elif spot.google_place_id:
+        url = f"https://www.google.com/maps/search/?api=1&query={spot.name}&query_place_id={spot.google_place_id}"
+    elif spot.latitude and spot.longitude:
+        url = f"https://www.google.com/maps/search/?api=1&query={spot.latitude},{spot.longitude}"
+    else:
+        url = f"https://www.google.com/maps/search/?api=1&query={spot.name}"
+    
+    return jsonify({'google_maps_url': url})
