@@ -303,17 +303,45 @@ def toggle_spot(spot_id):
     flash(f'スポット「{spot.name}」を{status}にしました。', 'success')
     return redirect(url_for('profile.mypage'))
 
-@bp.route('/delete-spot/<int:spot_id>')
+@bp.route('/delete-spot/<int:spot_id>', methods=['POST'])
 @login_required
 def delete_spot(spot_id):
-    """スポットを削除する"""
-    spot = Spot.query.filter_by(id=spot_id, user_id=current_user.id).first_or_404()
+    """スポット削除エンドポイント"""
+    spot = Spot.query.get_or_404(spot_id)
     
-    # 関連する写真も削除される（cascade設定済み）
-    db.session.delete(spot)
-    db.session.commit()
+    # 自分のスポットでない場合はリダイレクト
+    if spot.user_id != current_user.id:
+        flash('他のユーザーのスポットは削除できません。', 'danger')
+        return redirect(url_for('profile.mypage'))
     
-    flash(f'スポット「{spot.name}」を削除しました。', 'success')
+    try:
+        # スポットに関連する写真を削除
+        photos = Photo.query.filter_by(spot_id=spot.id).all()
+        for photo in photos:
+            # ユーザーがアップロードした写真の場合、ファイルも削除
+            if not photo.is_google_photo and photo.photo_url:
+                try:
+                    # 静的ファイルのパスを取得
+                    filename = photo.photo_url.split('/')[-1]
+                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except Exception as e:
+                    print(f"写真ファイル削除エラー: {str(e)}")
+            
+            # 写真レコードを削除
+            db.session.delete(photo)
+        
+        # スポットを削除
+        db.session.delete(spot)
+        db.session.commit()
+        
+        flash('スポットを削除しました。', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"スポット削除エラー: {str(e)}")
+        flash('スポットの削除に失敗しました。', 'danger')
+    
     return redirect(url_for('profile.mypage'))
 
 @bp.route('/<spot_id>/<username>')

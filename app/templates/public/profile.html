@@ -126,18 +126,18 @@
             </div>
 
             <main>
-                <section class="profile-info flex justify-center items-center p-4 w-full text-2xl font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
-                    <div class="flex flex-col justify-center items-center self-stretch my-auto w-32">
+                <section class="profile-info flex justify-center items-center px-4 py-2 w-full text-xl font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
+                    <div class="flex flex-col justify-center items-center self-stretch my-auto w-24">
                         <img
                             src="{{ url_for('static', filename='default_profile.jpg') if not user.profile_pic_url else user.profile_pic_url }}"o
                             alt="Profile picture of {{ user.username }}"
-                            class="object-cover overflow-hidden w-full rounded-xl aspect-square min-h-32"
+                            class="object-cover overflow-hidden w-full rounded-full aspect-square min-h-24"
                         />
-                        <h2 class="mt-4 w-[74px]">{{ user.username }}</h2>
+                        <h2 class="mt-2.5 text-center w-full text-lg font-medium">{{ user.username }}</h2>
                     </div>
                 </section>
 
-                <section class="bio px-4 pt-1 pb-3 w-full text-base leading-6 text-center text-neutral-900">
+                <section class="bio px-4 pb-3 w-full text-[15px] leading-5 text-center text-neutral-900">
                     <p>{{ user.bio if user.bio else "No bio provided." }}</p>
                 </section>
 
@@ -154,10 +154,10 @@
                             <div class="flex flex-1 rounded-xl size-full bg-slate-200 overflow-hidden">
                                 <input
                                     type="search"
-                                    placeholder="Search spots"
-                                    class="flex overflow-hidden flex-1 shrink items-center py-2 pl-4 pr-2 h-full text-base bg-transparent min-w-60 text-slate-500 focus:outline-none"
+                                    placeholder="スポットを検索"
+                                    class="flex overflow-hidden flex-1 shrink items-center py-3.5 pl-4 pr-2 h-12 text-base bg-transparent min-w-60 text-slate-500 focus:outline-none"
                                 />
-                                <button type="button" class="flex justify-center items-center w-10 h-full my-auto self-center">
+                                <button type="button" class="flex justify-center items-center w-12 h-12 my-auto self-center">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
@@ -171,7 +171,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
-                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-white">All</span>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-white">すべて</span>
                         </div>
                         {% set categories = [] %}
                         {% for spot in spots %}
@@ -274,7 +274,8 @@
               "location": "{{ spot.location or '' }}",
               {% if spot.latitude %}"lat": {{ spot.latitude }},{% else %}"lat": null,{% endif %}
               {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %},
-              "category": "{{ spot.category or '' }}"
+              "category": "{{ spot.category or '' }}",
+              "description": "{{ spot.description or '' }}"
             }{% if not loop.last %},{% endif %}
           {% endfor %}
         ];
@@ -626,12 +627,14 @@
                     <section class="flex justify-between items-start px-4 py-3 w-full bg-slate-50" aria-label="Business information">
                         <div class="flex gap-4 items-start w-full">
                             <div class="flex flex-col flex-1 shrink justify-center items-start w-full">
-                                <h2 class="text-base font-medium text-neutral-900 w-full">
-                                    ${spot.name}
-                                </h2>
                                 <p class="text-sm text-slate-500">
-                                    ${spot.category || "Bubble Tea Store"}
+                                    ${spot.category || "カテゴリ未設定"}
                                 </p>
+                                ${spot.description ? `
+                                <p class="text-base text-neutral-900 mt-2">
+                                    ${spot.description}
+                                </p>
+                                ` : ''}
                             </div>
                         </div>
                     </section>
