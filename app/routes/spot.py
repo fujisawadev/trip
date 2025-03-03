@@ -87,7 +87,8 @@ def add_spot():
             google_place_id=google_place_id,
             formatted_address=formatted_address,
             types=types,
-            google_photo_reference=google_photo_reference  # 写真参照情報を設定
+            google_photo_reference=google_photo_reference,  # 写真参照情報を設定
+            summary_location=request.form.get('summary_location', '')  # サマリーロケーションを設定
         )
         db.session.add(spot)
         db.session.flush()
@@ -200,6 +201,9 @@ def edit_spot(spot_id):
         # 写真参照情報を更新
         if google_photo_reference:
             spot.google_photo_reference = google_photo_reference
+            
+        # サマリーロケーションを更新
+        spot.summary_location = request.form.get('summary_location', '')
         
         # Google Places IDが変更された場合、新しい写真参照情報を取得
         if new_place_id and new_place_id != old_place_id:

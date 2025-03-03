@@ -59,6 +59,7 @@ def place_details():
     print(f"Headers: {headers}")
     
     try:
+        # GETリクエストを使用
         response = requests.get(url, headers=headers)
         print(f"Response status code: {response.status_code}")
         data = response.json()
@@ -119,6 +120,65 @@ def place_details():
                 place_details['photo_reference'] = photo_reference  # 写真参照情報を追加
                 print(f"Photo URL: {photo_url}")
         
+        # 常にsearchTextエンドポイントを使用して日本語の情報を取得
+        # X-Goog-LanguageCodeヘッダーでは日本語が取得できないため
+        search_url = "https://places.googleapis.com/v1/places:searchText"
+        search_headers = {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.types,places.addressComponents'
+        }
+        search_data = {
+            'textQuery': place_details['name'],  # 英語の名前で検索
+            'languageCode': 'ja',
+            'regionCode': 'jp'
+        }
+        
+        print(f"Calling searchText API with URL: {search_url}")
+        print(f"Search headers: {search_headers}")
+        print(f"Search data: {search_data}")
+        
+        search_response = requests.post(search_url, headers=search_headers, json=search_data)
+        if search_response.status_code == 200:
+            search_data = search_response.json()
+            print(f"Search API response: {search_data}")
+            
+            if 'places' in search_data and len(search_data['places']) > 0:
+                place = search_data['places'][0]
+                place_details['name'] = place.get('displayName', {}).get('text', place_details['name'])
+                place_details['formatted_address'] = place.get('formattedAddress', place_details['formatted_address'])
+                
+                # types情報も更新
+                if 'types' in place and place['types']:
+                    place_details['types'] = place['types']
+                
+                # サマリーロケーションを生成
+                if 'addressComponents' in place:
+                    country = None
+                    prefecture = None
+                    locality = None
+                    
+                    for component in place['addressComponents']:
+                        types = component.get('types', [])
+                        if 'country' in types:
+                            country = component.get('longText')
+                        elif 'administrative_area_level_1' in types:
+                            prefecture = component.get('longText')
+                        elif 'locality' in types:
+                            locality = component.get('longText')
+                    
+                    # サマリーロケーションを構築
+                    summary_parts = []
+                    if country:
+                        summary_parts.append(country)
+                    if prefecture:
+                        summary_parts.append(prefecture)
+                    if locality:
+                        summary_parts.append(locality)
+                    
+                    if summary_parts:
+                        place_details['summary_location'] = '、'.join(summary_parts)
+        
         return jsonify(place_details)
     except Exception as e:
         print(f"Exception occurred: {str(e)}")
@@ -177,7 +237,8 @@ def places_autocomplete():
     
     data = {
         'input': query,
-        'languageCode': 'ja'  # 日本語を指定
+        'languageCode': 'ja',  # 日本語を指定
+        'regionCode': 'jp'     # 日本の地域コードを指定
     }
     
     print(f"Calling Google Places API v1 with URL: {url}")

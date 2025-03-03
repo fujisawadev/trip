@@ -24,6 +24,7 @@ class Spot(db.Model):
     types = db.Column(db.Text, nullable=True)  # JSON形式で保存
     thumbnail_url = db.Column(db.String(255), nullable=True)
     google_photo_reference = db.Column(db.String(255), nullable=True)  # Google写真参照情報
+    summary_location = db.Column(db.String(255), nullable=True)  # サマリーロケーション（国、都道府県、市区町村）
     
     # リレーションシップ
     photos = db.relationship('Photo', backref='spot', lazy=True, cascade='all, delete-orphan')

@@ -71,9 +71,20 @@ async function reverseGeocode(lat, lng) {
     const data = await response.json();
     
     if (data && data.display_name) {
+      // サマリーロケーションを構築
+      const address = data.address;
+      const summaryParts = [];
+      
+      if (address.country) summaryParts.push(address.country);
+      if (address.state) summaryParts.push(address.state);
+      if (address.city || address.town || address.village) {
+        summaryParts.push(address.city || address.town || address.village);
+      }
+      
       return {
         address: data.display_name,
-        details: data.address
+        details: data.address,
+        summary_location: summaryParts.join('、')
       };
     }
     return null;

@@ -215,8 +215,8 @@
                                         <h3 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900 text-ellipsis">
                                             {{ spot.name }}
                                         </h3>
-                                        <p class="overflow-hidden text-sm whitespace-nowrap text-ellipsis text-slate-500">
-                                            {{ spot.location }}
+                                        <p class="overflow-hidden text-sm text-slate-500">
+                                            {{ spot.summary_location or spot.location }}
                                         </p>
                                     </div>
                                 </div>

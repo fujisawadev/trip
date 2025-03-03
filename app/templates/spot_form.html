@@ -135,6 +135,7 @@
           <input type="hidden" id="types" name="types" value="{% if is_edit %}{{ spot.types or '' }}{% endif %}">
           <input type="hidden" id="thumbnail_url" name="thumbnail_url" value="{% if is_edit %}{{ spot.thumbnail_url or '' }}{% endif %}">
           <input type="hidden" id="google_photo_reference" name="google_photo_reference" value="{% if is_edit %}{{ spot.google_photo_reference or '' }}{% endif %}">
+          <input type="hidden" id="summary_location" name="summary_location" value="{% if is_edit %}{{ spot.summary_location or '' }}{% endif %}">
           
           <!-- Spot Name -->
           <div class="flex flex-col gap-2 w-full">
@@ -519,6 +520,11 @@
               googlePlaceIdInput.value = data.place_id;
               formattedAddressInput.value = data.formatted_address;
               
+              // サマリーロケーションを設定
+              if (data.summary_location) {
+                document.getElementById('summary_location').value = data.summary_location;
+              }
+              
               // カテゴリ情報があれば設定
               if (data.types && data.types.length > 0) {
                 // typesをJSON文字列として保存
@@ -620,6 +626,7 @@
             reverseGeocode(latlng.lat, latlng.lng).then(result => {
               if (result) {
                 locationInput.value = result.address;
+                document.getElementById('summary_location').value = result.summary_location;
               }
             });
           });
@@ -634,6 +641,7 @@
           reverseGeocode(latlng.lat, latlng.lng).then(result => {
             if (result) {
               locationInput.value = result.address;
+              document.getElementById('summary_location').value = result.summary_location;
             }
           });
         });
@@ -646,6 +654,13 @@
               if (result) {
                 updateMarkerAndInputs(result.lat, result.lng, result.displayName);
                 map.setView([result.lat, result.lng], 15);
+                
+                // 逆ジオコーディングでサマリーロケーションを取得
+                reverseGeocode(result.lat, result.lng).then(geoResult => {
+                  if (geoResult && geoResult.summary_location) {
+                    document.getElementById('summary_location').value = geoResult.summary_location;
+                  }
+                });
               } else {
                 alert('Location not found. Please try a different address.');
               }
@@ -677,6 +692,7 @@
               reverseGeocode(latlng.lat, latlng.lng).then(result => {
                 if (result) {
                   locationInput.value = result.address;
+                  document.getElementById('summary_location').value = result.summary_location;
                 }
               });
             });
