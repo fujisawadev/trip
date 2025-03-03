@@ -117,6 +117,18 @@
           >
             {% if is_edit %}Edit Spot{% else %}Add New Spot{% endif %}
           </h1>
+          {% if is_edit %}
+          <button
+            type="button"
+            id="delete-spot-btn"
+            class="flex items-center justify-center w-12 h-12 text-red-500 hover:text-red-600"
+            aria-label="Delete spot"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          </button>
+          {% endif %}
         </nav>
 
         <!-- Spot Form -->
@@ -335,10 +347,61 @@
         font-size: 12px;
         cursor: pointer;
       }
+      /* モーダル表示時のスタイル */
+      body.modal-open {
+        overflow: hidden;
+      }
+      
+      body.modal-open .leaflet-container {
+        z-index: 1 !important;
+      }
+      
+      body.modal-open .autocomplete-container {
+        z-index: 1 !important;
+      }
+      
+      .autocomplete-container {
+        position: relative;
+        z-index: 1000;
+      }
+      
+      #location-map {
+        z-index: 1;
+      }
     </style>
 
     <!-- 地図ユーティリティJSの読み込み -->
     <script src="{{ url_for('static', filename='js/map-utils.js') }}"></script>
+
+    <!-- 削除確認モーダル -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[10000]">
+      <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
+        <h3 class="text-lg font-bold text-neutral-900 mb-4">スポットを削除</h3>
+        <p class="text-neutral-600 mb-6">このスポットを削除してもよろしいですか？この操作は取り消せません。</p>
+        <div class="flex justify-end gap-4">
+          <button
+            type="button"
+            id="cancel-delete-btn"
+            class="px-4 py-2 text-neutral-600 hover:bg-neutral-100 rounded-lg"
+          >
+            キャンセル
+          </button>
+          <form
+            action="{{ url_for('spot.delete_spot', spot_id=spot.id) if is_edit else '#' }}"
+            method="POST"
+            id="delete-spot-form"
+          >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            >
+              削除する
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
 
     <script>
       // File upload preview
@@ -798,6 +861,35 @@
         document.addEventListener('click', function(e) {
           if (!categoryResults.contains(e.target) && e.target !== categoryInput) {
             categoryResults.classList.add('hidden');
+          }
+        });
+      });
+
+      // 削除機能の実装
+      document.addEventListener('DOMContentLoaded', function() {
+        const deleteBtn = document.getElementById('delete-spot-btn');
+        const modal = document.getElementById('delete-confirm-modal');
+        const cancelBtn = document.getElementById('cancel-delete-btn');
+
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', function() {
+            modal.classList.remove('hidden');
+            document.body.classList.add('modal-open');
+          });
+        }
+
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', function() {
+            modal.classList.add('hidden');
+            document.body.classList.remove('modal-open');
+          });
+        }
+
+        // モーダルの外側をクリックしたときにモーダルを閉じる
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) {
+            modal.classList.add('hidden');
+            document.body.classList.remove('modal-open');
           }
         });
       });
