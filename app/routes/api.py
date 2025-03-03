@@ -4,6 +4,9 @@ from sqlalchemy.orm import joinedload
 import requests
 import os
 import json
+from flask_login import current_user
+from sqlalchemy import distinct
+from app import db
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -434,3 +437,26 @@ def get_spot_photos(spot_id):
         'spot_id': spot_id,
         'photos': photos_data
     })
+
+@api_bp.route('/user/categories', methods=['GET'])
+def get_user_categories():
+    """ユーザーが過去に登録したカテゴリの一覧を取得するAPI"""
+    try:
+        if not current_user.is_authenticated:
+            return jsonify([])
+        
+        # ユーザーの過去のカテゴリを重複なしで取得
+        categories = db.session.query(distinct(Spot.category))\
+            .filter(Spot.user_id == current_user.id)\
+            .filter(Spot.category.isnot(None))\
+            .filter(Spot.category != '')\
+            .order_by(Spot.category)\
+            .all()
+        
+        # タプルのリストを文字列のリストに変換
+        categories = [category[0] for category in categories]
+        
+        return jsonify(categories)
+    except Exception as e:
+        print(f"Error in get_user_categories: {str(e)}")
+        return jsonify({'error': str(e)}), 500
