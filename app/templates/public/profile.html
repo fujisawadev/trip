@@ -22,6 +22,7 @@
             width: 100%;
             height: 250px;
             border-radius: 0.75rem;
+            position: relative; /* 地図コンテナを相対位置に設定 */
         }
         /* スポット詳細モーダルの地図 */
         #spot-map-modal {
@@ -64,47 +65,47 @@
         body.modal-open {
             overflow: hidden;
         }
-        /* 地図フィルターボタンのスタイル */
-        .map-filter-control {
-            background: none;
-            border: none;
-            position: absolute !important;
-            top: 10px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
+        /* 地図フィルターボタンのスタイル - 新しい実装 */
+        .map-filter-container {
+            position: absolute;
+            top: 12px;
+            left: 0;
+            right: 0;
+            text-align: center;
             z-index: 1000;
-            width: auto !important;
-            margin: 0 !important;
+            pointer-events: none; /* コンテナ自体はポインターイベントを無視 */
         }
         .map-filter-button {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            background-color: white;
+            background-color: rgba(255, 255, 255, 0.85);
             border-radius: 0.75rem;
             padding: 8px 16px;
             color: #1e293b;
             font-size: 14px;
             font-weight: 500;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: none;
             cursor: pointer;
             transition: all 0.2s ease;
             text-decoration: none;
             min-width: 140px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid rgba(226, 232, 240, 0.6);
             white-space: nowrap;
+            pointer-events: auto; /* ボタン自体はポインターイベントを受け取る */
         }
         .map-filter-button:hover {
-            background-color: #f8fafc;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: rgba(255, 255, 255, 1);
+            border-color: rgba(226, 232, 240, 0.9);
         }
         .map-filter-button.active {
-            background-color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.9);
             color: white;
-            border-color: #3b82f6;
+            border-color: rgba(59, 130, 246, 0.9);
         }
         .map-filter-button.active:hover {
-            background-color: #2563eb;
+            background-color: rgba(37, 99, 235, 0.95);
+            border-color: rgba(37, 99, 235, 0.95);
         }
         @media (max-width: 480px) {
             .map-filter-button {
@@ -146,7 +147,14 @@
 
                     <!-- 地図表示エリア -->
                     <div class="flex items-start px-4 py-2 w-full">
-                        <div id="map" class="w-full rounded-xl aspect-[1.78] min-w-60"></div>
+                        <div id="map" class="w-full rounded-xl aspect-[1.78] min-w-60">
+                            <!-- 地図フィルターボタン（オーバーレイ） -->
+                            <div class="map-filter-container">
+                                <button id="map-filter-button" class="map-filter-button">
+                                    <span>このエリアで絞り込む</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex flex-col justify-center px-4 py-2 w-full">
@@ -226,7 +234,7 @@
                         <!-- 検索結果が0件の場合のメッセージ -->
                         <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] no-spots-message" style="{% if spots and spots|length > 0 %}display: none;{% endif %}">
                             <div class="flex flex-col justify-center self-stretch my-auto w-full text-center">
-                                <p class="text-slate-500">{% if spots and spots|length > 0 %}No spots found for the selected criteria{% else %}No spots added yet{% endif %}</p>
+                                <p class="text-slate-500">{% if spots and spots|length > 0 %}選択した条件に一致するスポットが見つかりませんでした{% else %}まだスポットが追加されていません{% endif %}</p>
                             </div>
                         </article>
                     </section>
@@ -286,75 +294,6 @@
         // 地図ベースのフィルタリングが有効かどうかのフラグ
         let mapFilterActive = false;
         
-        // カスタム地図コントロールの作成
-        const MapFilterControl = L.Control.extend({
-          options: {
-            position: 'topright' // 位置はCSSで上書きするので何でも良い
-          },
-          
-          onAdd: function(map) {
-            // コントロールのコンテナを作成
-            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control map-filter-control');
-            const button = L.DomUtil.create('a', 'map-filter-button', container);
-            
-            // Leafletの自動配置を上書きするためにスタイルを直接設定
-            container.style.position = 'absolute';
-            container.style.left = '50%';
-            container.style.transform = 'translateX(-50%)';
-            container.style.marginLeft = '0';
-            container.style.marginRight = '0';
-            
-            button.href = '#';
-            button.title = 'このエリアで絞り込む';
-            button.innerHTML = '<span>このエリアで絞り込む</span>';
-            
-            // クリックイベントの設定
-            L.DomEvent.on(button, 'click', function(e) {
-              L.DomEvent.stopPropagation(e);
-              L.DomEvent.preventDefault(e);
-              
-              // フィルター状態の切り替え
-              mapFilterActive = !mapFilterActive;
-              
-              // ボタンの表示を更新
-              if (mapFilterActive) {
-                button.innerHTML = '<span>エリアフィルター解除</span>';
-                button.classList.add('active');
-              } else {
-                button.innerHTML = '<span>このエリアで絞り込む</span>';
-                button.classList.remove('active');
-              }
-              
-              // フィルタリングを実行
-              filterSpots(currentSearchTerm, currentCategory);
-            });
-            
-            // ズームレベルに応じた表示/非表示の制御
-            map.on('zoomend', function() {
-              const zoomLevel = map.getZoom();
-              if (zoomLevel >= 8) {
-                container.style.display = 'block';
-              } else {
-                container.style.display = 'none';
-                // ズームアウト時にフィルターを解除
-                if (mapFilterActive) {
-                  mapFilterActive = false;
-                  button.innerHTML = '<span>このエリアで絞り込む</span>';
-                  button.classList.remove('active');
-                  filterSpots(currentSearchTerm, currentCategory);
-                }
-              }
-            });
-            
-            // 初期状態の設定
-            if (map.getZoom() < 8) {
-              container.style.display = 'none';
-            }
-            
-            return container;
-          }
-        });
-        
         // スポットごとにマーカーを作成し、マーカーオブジェクトに格納
         spots.forEach(spot => {
           if (spot.lat && spot.lng) {
@@ -371,9 +310,26 @@
           }
         });
         
-        // 地図にフィルターコントロールを追加
-        const mapFilterControl = new MapFilterControl();
-        map.addControl(mapFilterControl);
+        // 地図フィルターボタンのイベント設定
+        const mapFilterButton = document.getElementById('map-filter-button');
+        
+        // フィルターボタンのクリックイベント
+        mapFilterButton.addEventListener('click', function() {
+          // フィルター状態の切り替え
+          mapFilterActive = !mapFilterActive;
+          
+          // ボタンの表示を更新
+          if (mapFilterActive) {
+            this.innerHTML = '<span>エリアフィルター解除</span>';
+            this.classList.add('active');
+          } else {
+            this.innerHTML = '<span>このエリアで絞り込む</span>';
+            this.classList.remove('active');
+          }
+          
+          // フィルタリングを実行
+          filterSpots(currentSearchTerm, currentCategory);
+        });
         
         // マーカーの状態をログ出力する関数
         function logMarkerState(message) {
@@ -558,8 +514,8 @@
                 if (noSpotsMessage) {
                     noSpotsMessage.style.display = 'flex';
                     const messageText = spots.length > 0 
-                        ? 'No spots found for the selected criteria' 
-                        : 'No spots added yet';
+                        ? '選択した条件に一致するスポットが見つかりませんでした' 
+                        : 'まだスポットが追加されていません';
                     noSpotsMessage.querySelector('p').textContent = messageText;
                 }
             } else {
