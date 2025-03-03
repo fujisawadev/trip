@@ -124,6 +124,14 @@
                 <div class="flex-1 shrink self-stretch pr-12 my-auto basis-0 min-w-60">
                     <!-- 「Profile」という文字を削除 -->
                 </div>
+                <!-- シェアボタンを追加 -->
+                <div class="flex shrink-0 self-stretch my-auto w-12 h-12 justify-center items-center">
+                    <button id="share-button" class="text-neutral-800 hover:text-neutral-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <main>
@@ -259,6 +267,44 @@
                 <!-- モーダルコンテンツがここに動的に読み込まれます -->
                 <div class="flex justify-center items-center p-10">
                     <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <!-- URLコピー - 一番上に移動 -->
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                    <!-- LINE -->
+                    <a href="#" id="share-line" class="flex items-center gap-4 p-4 rounded-xl bg-[#06C755] text-white">
+                        <img src="{{ url_for('static', filename='icons/social/line.svg') }}" alt="LINE" class="w-8 h-8" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg'; this.onerror=null;">
+                        <span class="font-medium">LINEでシェア</span>
+                    </a>
+                    <!-- Twitter/X -->
+                    <a href="#" id="share-twitter" class="flex items-center gap-4 p-4 rounded-xl bg-black text-white">
+                        <img src="{{ url_for('static', filename='icons/social/twitter.svg') }}" alt="Twitter/X" class="w-8 h-8" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023.svg'; this.onerror=null;">
+                        <span class="font-medium">X (Twitter)でシェア</span>
+                    </a>
+                    <!-- Facebook -->
+                    <a href="#" id="share-facebook" class="flex items-center gap-4 p-4 rounded-xl bg-[#1877F2] text-white">
+                        <img src="{{ url_for('static', filename='icons/social/facebook.svg') }}" alt="Facebook" class="w-8 h-8" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg'; this.onerror=null;">
+                        <span class="font-medium">Facebookでシェア</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -506,11 +552,11 @@
             console.log(`表示されるスポット数: ${visibleCount}`);
             logMarkerState('フィルタリング完了');
             
-            // 「スポットが見つかりません」メッセージの表示/非表示
+            // "スポットが見つかりません"メッセージの表示/非表示
             const noSpotsMessage = document.querySelector('.no-spots-message');
             
             if (visibleCount === 0) {
-                // 「スポットが見つかりません」メッセージを表示
+                // "スポットが見つかりません"メッセージを表示
                 if (noSpotsMessage) {
                     noSpotsMessage.style.display = 'flex';
                     const messageText = spots.length > 0 
@@ -519,7 +565,7 @@
                     noSpotsMessage.querySelector('p').textContent = messageText;
                 }
             } else {
-                // 「スポットが見つかりません」メッセージを非表示
+                // "スポットが見つかりません"メッセージを非表示
                 if (noSpotsMessage) {
                     noSpotsMessage.style.display = 'none';
                 }
@@ -823,6 +869,81 @@
                 });
             }, 100); // 少し遅延させてDOMが確実に準備できるようにする
         }
+        
+        // シェア機能の実装
+        const shareButton = document.getElementById('share-button');
+        const shareModal = document.getElementById('share-modal');
+        const shareModalClose = shareModal.querySelector('.modal-close');
+        const copyUrlButton = document.getElementById('copy-url');
+        const shareLineButton = document.getElementById('share-line');
+        const shareTwitterButton = document.getElementById('share-twitter');
+        const shareFacebookButton = document.getElementById('share-facebook');
+        
+        // 現在のURLを取得
+        const currentUrl = window.location.href;
+        const shareTitle = "{{ user.username }}さんのプロフィール | Trip";
+        const shareText = "{{ user.username }}さんのお気に入りスポットをチェックしよう！";
+        
+        // シェアボタンクリック時の処理
+        shareButton.addEventListener('click', function() {
+            shareModal.style.display = 'block';
+            document.body.classList.add('modal-open');
+        });
+        
+        // モーダルを閉じる処理
+        shareModalClose.addEventListener('click', function() {
+            shareModal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        });
+        
+        // 背景クリックでモーダルを閉じる
+        shareModal.addEventListener('click', function(event) {
+            if (event.target === shareModal) {
+                shareModal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+            }
+        });
+        
+        // URLコピー機能
+        copyUrlButton.addEventListener('click', function() {
+            navigator.clipboard.writeText(currentUrl).then(function() {
+                // コピー成功時の表示
+                const originalText = copyUrlButton.innerHTML;
+                copyUrlButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span class="font-medium">コピーしました！</span>
+                `;
+                
+                setTimeout(function() {
+                    copyUrlButton.innerHTML = originalText;
+                }, 2000);
+            }).catch(function(err) {
+                console.error('URLのコピーに失敗しました:', err);
+            });
+        });
+        
+        // LINEシェア
+        shareLineButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareText)}`;
+            window.open(lineShareUrl, '_blank');
+        });
+        
+        // Twitterシェア
+        shareTwitterButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const twitterShareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareText)}`;
+            window.open(twitterShareUrl, '_blank');
+        });
+        
+        // Facebookシェア
+        shareFacebookButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`;
+            window.open(facebookShareUrl, '_blank');
+        });
         
         // ページ読み込み時に初期フィルタリングを実行（全てのスポットを表示）
         filterSpots('', 'all');
