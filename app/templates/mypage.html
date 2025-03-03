@@ -158,11 +158,54 @@
             </form>
           </div>
 
-          <div class="spots-list mt-6">
+          <!-- Search and Filter Section -->
+          <div class="px-4 pt-6">
+            <!-- Search Bar -->
+            <div class="relative">
+              <input
+                type="text"
+                id="spot-search"
+                placeholder="スポットを検索"
+                class="w-full px-4 py-2 pl-10 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Category Filter -->
+            <div class="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide">
+              <button
+                class="category-filter active whitespace-nowrap px-4 py-1 rounded-full bg-blue-500 text-white text-sm"
+                data-category="all"
+              >
+                すべて
+              </button>
+              {% set categories = [] %}
+              {% for spot in spots %}
+                {% if spot.category and spot.category not in categories %}
+                  {% set _ = categories.append(spot.category) %}
+                {% endif %}
+              {% endfor %}
+              {% for category in categories %}
+              <button
+                class="category-filter whitespace-nowrap px-4 py-1 rounded-full bg-slate-100 text-slate-600 text-sm hover:bg-slate-200"
+                data-category="{{ category }}"
+              >
+                {{ category }}
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="spots-list mt-3">
             {% if spots %}
               {% for spot in spots %}
                 <article
                   class="flex justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
+                  data-category="{{ spot.category }}"
                 >
                   <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center self-stretch my-auto mr-2 overflow-hidden" style="max-width: calc(100% - 60px);">
                     {% if spot.photos and spot.photos|length > 0 %}
@@ -304,6 +347,84 @@
         }
         
         return true;
+      });
+
+      // Search and Filter functionality
+      document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('spot-search');
+        const categoryButtons = document.querySelectorAll('.category-filter');
+        const spotsList = document.querySelectorAll('.spots-list article');
+        
+        let currentCategory = 'all';
+        let searchTerm = '';
+        let debounceTimer;
+
+        // Search functionality with debounce
+        searchInput.addEventListener('input', function(e) {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            searchTerm = e.target.value.toLowerCase();
+            filterSpots();
+          }, 300); // 300ms後に検索を実行
+        });
+
+        // Category filter functionality
+        categoryButtons.forEach(button => {
+          button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            categoryButtons.forEach(btn => {
+              btn.classList.remove('active', 'bg-blue-500', 'text-white');
+              btn.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            
+            // Add active class to clicked button
+            this.classList.remove('bg-slate-100', 'text-slate-600');
+            this.classList.add('active', 'bg-blue-500', 'text-white');
+            
+            currentCategory = this.dataset.category;
+            filterSpots();
+          });
+        });
+
+        function filterSpots() {
+          let visibleCount = 0;
+
+          spotsList.forEach(article => {
+            const nameElement = article.querySelector('h4');
+            const locationElement = article.querySelector('p');
+            const category = article.dataset.category;
+
+            if (!nameElement || !locationElement) return;
+
+            const name = nameElement.textContent.toLowerCase();
+            const location = locationElement.textContent.toLowerCase();
+            
+            const matchesSearch = !searchTerm || 
+                                name.includes(searchTerm) || 
+                                location.includes(searchTerm);
+            const matchesCategory = currentCategory === 'all' || 
+                                  category === currentCategory;
+
+            if (matchesSearch && matchesCategory) {
+              article.style.display = 'flex';
+              visibleCount++;
+            } else {
+              article.style.display = 'none';
+            }
+          });
+
+          // 検索結果が0件の場合のメッセージ表示
+          const noResultsMessage = document.querySelector('.no-spots-message');
+          if (noResultsMessage) {
+            if (visibleCount === 0) {
+              noResultsMessage.style.display = 'flex';
+              noResultsMessage.querySelector('p').textContent = 
+                spots.length > 0 ? '条件に一致するスポットが見つかりません' : 'スポットがまだ登録されていません';
+            } else {
+              noResultsMessage.style.display = 'none';
+            }
+          }
+        }
       });
     </script>
   </body>
