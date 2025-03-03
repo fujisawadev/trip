@@ -586,8 +586,15 @@
                 
                 // スポット詳細データを取得
                 fetch(`/api/spots/${spotId}`)
-                    .then(response => response.json())
+                    .then(response => {
+                        console.log('API Response Status:', response.status);
+                        return response.json();
+                    })
                     .then(data => {
+                        // APIレスポンスの内容をログに出力
+                        console.log('API Response Data:', data);
+                        console.log('Affiliate Links:', data.affiliate_links);
+                        
                         // モーダルにスポット詳細を表示
                         renderSpotDetail(data);
                     })
@@ -751,99 +758,52 @@
             // アフィリエイトリンク
             if (spot.affiliate_links && spot.affiliate_links.length > 0) {
                 spot.affiliate_links.forEach(link => {
-                    if (link.is_active) {
-                        // アフィリエイトのアイコンキーがある場合はそれを使用、なければデフォルトアイコン
-                        const iconPath = link.icon_key 
-                            ? `{{ url_for('static', filename='icons/affiliates/${link.icon_key}.svg') }}`
-                            : `{{ url_for('static', filename='icons/affiliates/booking-com.svg') }}`;
-                            
-                        html += `
-                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
-                                <img
-                                    src="${iconPath}"
-                                    alt="${link.platform} logo"
-                                    class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
-                                />
-                                <div class="flex flex-col justify-center self-stretch my-auto flex-1">
-                                    <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
-                                        ${link.title || link.platform}
-                                    </h3>
-                                    <p class="overflow-hidden max-w-full text-sm text-slate-500">
-                                        ${link.description || ''}
-                                    </p>
-                                </div>
-                                <a href="${link.url}" 
-                                   target="_blank" 
-                                   class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
-                                    予約
-                                </a>
-                            </article>
-                        `;
+                    // アフィリエイトのアイコンキーがある場合はそれを使用、なければデフォルトアイコン
+                    let iconPath;
+                    if (link.icon_key) {
+                        iconPath = "{{ url_for('static', filename='icons/affiliates/') }}" + link.icon_key + ".svg";
+                    } else {
+                        iconPath = "{{ url_for('static', filename='icons/affiliates/booking-com.svg') }}";
                     }
+                        
+                    html += `
+                        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
+                            <img
+                                src="${iconPath}"
+                                alt="${link.platform} logo"
+                                class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
+                            />
+                            <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                                <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
+                                    ${link.title || link.platform}
+                                </h3>
+                                <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                                    予約情報・料金を確認する
+                                </p>
+                            </div>
+                            <a href="${link.url}" 
+                               target="_blank" 
+                               class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
+                                予約
+                            </a>
+                        </article>
+                    `;
                 });
-            } else {
-                // デフォルトのアフィリエイトリンク（将来的には削除）
-                html += `
-                    <!-- Booking.com Details -->
-                    <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
-                        <img
-                            src="{{ url_for('static', filename='icons/affiliates/booking-com.svg') }}"
-                            alt="Booking.com logo"
-                            class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
-                        />
-                        <div class="flex flex-col justify-center self-stretch my-auto flex-1">
-                            <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
-                                Booking.com
-                            </h3>
-                            <p class="overflow-hidden max-w-full text-sm text-slate-500">
-                                Price: $50, Availability: 5 rooms left
-                            </p>
-                        </div>
-                        <a href="#" 
-                           target="_blank" 
-                           class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
-                            予約
-                        </a>
-                    </article>
-
-                    <!-- Rakuten Travel Details -->
-                    <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
-                        <img
-                            src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}"
-                            alt="Rakuten Travel logo"
-                            class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
-                        />
-                        <div class="flex flex-col justify-center self-stretch my-auto flex-1">
-                            <h3 class="overflow-hidden max-w-full text-base font-medium text-neutral-900">
-                                Rakuten Travel
-                            </h3>
-                            <p class="overflow-hidden max-w-full text-sm text-slate-500">
-                                Price: $45, Availability: 10 rooms left
-                            </p>
-                        </div>
-                        <a href="#" 
-                           target="_blank" 
-                           class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
-                            予約
-                        </a>
-                    </article>
-                `;
             }
             
             // SNS投稿
             if (spot.social_posts && spot.social_posts.length > 0) {
-                const platformIcons = {
-                    'instagram': '{{ url_for("static", filename="icons/social/instagram.svg") }}',
-                    'twitter': '{{ url_for("static", filename="icons/social/twitter.svg") }}',
-                    'tiktok': '{{ url_for("static", filename="icons/social/tiktok.svg") }}',
-                    'youtube': '{{ url_for("static", filename="icons/social/youtube.svg") }}'
-                };
+                // プラットフォームごとのアイコンパスを定義
+                const platformIconBase = "{{ url_for('static', filename='icons/social/') }}";
                 
                 spot.social_posts.forEach(post => {
+                    // プラットフォーム名からアイコンパスを生成
+                    const iconPath = platformIconBase + post.platform + ".svg";
+                    
                     html += `
                         <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
                             <img
-                                src="${platformIcons[post.platform] || '{{ url_for("static", filename="icons/social/instagram.svg") }}'}"
+                                src="${iconPath}"
                                 alt="${post.platform} logo"
                                 class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
                             />
@@ -852,7 +812,7 @@
                                     ${post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}の投稿を見る
                                 </h3>
                                 <p class="overflow-hidden max-w-full text-sm text-slate-500">
-                                    ${post.caption ? (post.caption.length > 50 ? post.caption.substring(0, 50) + '...' : post.caption) : ''}
+                                    投稿内容を確認する
                                 </p>
                             </div>
                             <a href="${post.post_url}" 
