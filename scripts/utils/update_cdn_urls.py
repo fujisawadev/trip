@@ -4,8 +4,10 @@ import os
 import requests
 import time
 
-# Google Maps API Key - 直接指定
-GOOGLE_MAPS_API_KEY = "AIzaSyD1eKEJje0XpgVnRXCdeKPDzdZTrnlVjFc"
+# Google Maps API Keyを環境変数から取得
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+if not GOOGLE_MAPS_API_KEY:
+    raise EnvironmentError("GOOGLE_MAPS_API_KEY environment variable is not set")
 
 def get_cdn_url_from_reference(photo_reference):
     """Google Photo ReferenceからCDN URLを取得する"""

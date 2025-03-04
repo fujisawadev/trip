@@ -13,7 +13,9 @@ from app.models.photo import Photo
 bp = Blueprint('spot', __name__)
 
 # Google Places API Key
-GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', "AIzaSyD1eKEJje0XpgVnRXCdeKPDzdZTrnlVjFc")
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+if not GOOGLE_MAPS_API_KEY:
+    raise EnvironmentError("GOOGLE_MAPS_API_KEY environment variable is not set")
 
 # 許可するファイル拡張子
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}

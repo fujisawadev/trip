@@ -11,7 +11,9 @@ from app import db
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 # Google Places API Key
-GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', "AIzaSyD1eKEJje0XpgVnRXCdeKPDzdZTrnlVjFc")
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+if not GOOGLE_MAPS_API_KEY:
+    raise EnvironmentError("GOOGLE_MAPS_API_KEY environment variable is not set")
 
 @api_bp.route('/spots/<int:spot_id>', methods=['GET'])
 def get_spot(spot_id):
