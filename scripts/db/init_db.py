@@ -36,7 +36,10 @@ def init_db():
             instagram="testuser",
             twitter="testuser",
             tiktok="testuser",
-            youtube="https://youtube.com/testuser"
+            youtube="https://youtube.com/testuser",
+            platform="instagram",
+            username="testuser",
+            profile_url="https://instagram.com/testuser"
         )
         db.session.add(social)
         

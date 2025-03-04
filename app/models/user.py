@@ -12,16 +12,16 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    profile_pic_url = db.Column(db.String(255), nullable=True, default='default_profile.jpg')
+    password_hash = db.Column(db.Text, nullable=False)
+    profile_pic_url = db.Column(db.Text, nullable=True, default='default_profile.jpg')
     bio = db.Column(db.Text, nullable=True)
     spots_heading = db.Column(db.String(50), nullable=True, default='Favorite Spots')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    # リレーションシップ
-    spots = db.relationship('Spot', backref='user', lazy=True, cascade='all, delete-orphan')
-    social_accounts = db.relationship('SocialAccount', backref='user', lazy=True, cascade='all, delete-orphan')
+    # リレーションシップ - backrefの代わりにback_populatesを使用
+    spots = db.relationship('Spot', back_populates='user', lazy=True, cascade='all, delete-orphan')
+    social_accounts = db.relationship('SocialAccount', back_populates='user', lazy=True, cascade='all, delete-orphan')
     
     def __init__(self, username, email, password=None, bio=None, profile_pic_url=None, spots_heading='Favorite Spots'):
         self.username = username

@@ -7,10 +7,10 @@ class AffiliateLink(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     spot_id = db.Column(db.Integer, db.ForeignKey('spots.id'), nullable=False)
     platform = db.Column(db.String(50), nullable=False)  # 'booking', 'rakuten', 'expedia'など
-    url = db.Column(db.String(512), nullable=False)  # アフィリエイトリンクURL
-    title = db.Column(db.String(100), nullable=True)  # 表示タイトル
-    description = db.Column(db.String(255), nullable=True)  # 説明文
-    logo_url = db.Column(db.String(255), nullable=True)  # ロゴURL
+    url = db.Column(db.Text, nullable=False)  # アフィリエイトリンクURL
+    title = db.Column(db.Text, nullable=True)  # 表示タイトル
+    description = db.Column(db.Text, nullable=True)  # 説明文
+    logo_url = db.Column(db.Text, nullable=True)  # ロゴURL
     icon_key = db.Column(db.String(50), nullable=True)  # SVGアイコンのキー（例: 'booking-com', 'rakuten-travel'）
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

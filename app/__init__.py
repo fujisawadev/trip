@@ -30,6 +30,14 @@ def create_app(test_config=None):
         MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max upload
     )
     
+    # PostgreSQL固有の設定
+    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_size': 10,
+            'pool_recycle': 3600,
+            'pool_pre_ping': True
+        }
+    
     if test_config is not None:
         # テスト用の設定を上書き
         app.config.from_mapping(test_config)
@@ -51,12 +59,12 @@ def create_app(test_config=None):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # ルートの登録
-    from app.routes import main, auth, spot, profile, public, api
+    from app.routes import main, auth, profile, public, spot, api
     app.register_blueprint(main.bp)
     app.register_blueprint(auth.bp)
-    app.register_blueprint(spot.bp)
     app.register_blueprint(profile.bp)
     app.register_blueprint(public.public_bp)
+    app.register_blueprint(spot.bp)
     app.register_blueprint(api.api_bp)
     
     # APIルートのCSRF保護を無効化
