@@ -26,13 +26,20 @@ def create_app(test_config=None):
     if database_url and database_url.startswith('postgres:'):
         database_url = database_url.replace('postgres:', 'postgresql:', 1)
     
+    # Heroku環境の場合はSERVER_NAMEを設定
+    server_name = None
+    if os.environ.get('HEROKU_APP_NAME'):
+        server_name = f"{os.environ.get('HEROKU_APP_NAME')}.herokuapp.com"
+    
     # 設定の読み込み
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'dev'),
         SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///' + os.path.join(app.instance_path, 'app.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         UPLOAD_FOLDER=os.path.join(app.static_folder, 'uploads'),
-        MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max upload
+        MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload
+        SERVER_NAME=server_name,
+        PREFERRED_URL_SCHEME='https' if server_name else 'http'
     )
     
     # PostgreSQL固有の設定
