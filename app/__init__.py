@@ -28,8 +28,8 @@ def create_app(test_config=None):
     
     # Heroku環境の場合はSERVER_NAMEを設定
     server_name = None
-    if os.environ.get('HEROKU_APP_NAME'):
-        server_name = f"{os.environ.get('HEROKU_APP_NAME')}.herokuapp.com"
+    if os.environ.get('APP_NAME'):
+        server_name = f"{os.environ.get('APP_NAME')}.herokuapp.com"
     
     # 設定の読み込み
     app.config.from_mapping(
