@@ -29,7 +29,9 @@ def create_app(test_config=None):
     # Heroku環境の場合はSERVER_NAMEを設定
     server_name = None
     if os.environ.get('APP_NAME'):
+        # 明示的にSERVER_NAMEを設定
         server_name = f"{os.environ.get('APP_NAME')}.herokuapp.com"
+        print(f"Setting SERVER_NAME to: {server_name}")
     
     # 設定の読み込み
     app.config.from_mapping(
@@ -37,9 +39,12 @@ def create_app(test_config=None):
         SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///' + os.path.join(app.instance_path, 'app.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload
-        SERVER_NAME=server_name,
         PREFERRED_URL_SCHEME='https' if server_name else 'http'
     )
+    
+    # SERVER_NAMEを明示的に設定（from_mappingの後に設定することで確実に反映される）
+    if server_name:
+        app.config['SERVER_NAME'] = server_name
     
     # 環境変数からUPLOAD_FOLDERを設定
     upload_folder = os.environ.get('UPLOAD_FOLDER')
