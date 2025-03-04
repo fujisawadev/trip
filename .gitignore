@@ -56,6 +56,9 @@ app/static/uploads/
 *.sqlite
 *.sqlite3
 
+# Cookies
+cookies.txt
+
 # Python
 __pycache__/
 *.py[cod]
