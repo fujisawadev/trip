@@ -39,13 +39,15 @@ def create_app(test_config=None):
         PREFERRED_URL_SCHEME='https' if app_name else 'http'
     )
     
-    # Heroku環境の場合はSERVER_NAMEを設定
-    if app_name:
+    # Heroku環境の場合はSERVER_NAMEを設定しない
+    # Flaskは自動的にリクエストのホスト名を使用する
+    # SERVER_NAMEを設定すると、実際のホスト名と一致しない場合に問題が発生する
+    if False and app_name:
         server_name = f"{app_name}.herokuapp.com"
         app.config['SERVER_NAME'] = server_name
         print(f"SERVER_NAMEを設定しました: {server_name}")
     else:
-        print("APP_NAME環境変数が設定されていないため、SERVER_NAMEは設定されません")
+        print("SERVER_NAMEは設定せず、リクエストのホスト名を使用します")
     
     # 環境変数からUPLOAD_FOLDERを設定
     upload_folder = os.environ.get('UPLOAD_FOLDER')
