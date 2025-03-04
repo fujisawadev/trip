@@ -21,17 +21,22 @@ def create_app(test_config=None):
     # アプリケーションの作成と設定
     app = Flask(__name__, instance_relative_config=True)
     
+    # DATABASE_URLの処理（Herokuのpostgres:をpostgresql:に変換）
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith('postgres:'):
+        database_url = database_url.replace('postgres:', 'postgresql:', 1)
+    
     # 設定の読み込み
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'dev'),
-        SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(app.instance_path, 'app.db')),
+        SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///' + os.path.join(app.instance_path, 'app.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         UPLOAD_FOLDER=os.path.join(app.static_folder, 'uploads'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max upload
     )
     
     # PostgreSQL固有の設定
-    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
+    if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'pool_size': 10,
             'pool_recycle': 3600,
