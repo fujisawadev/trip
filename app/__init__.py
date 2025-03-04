@@ -36,11 +36,19 @@ def create_app(test_config=None):
         SECRET_KEY=os.environ.get('SECRET_KEY', 'dev'),
         SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///' + os.path.join(app.instance_path, 'app.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        UPLOAD_FOLDER=os.environ.get('UPLOAD_FOLDER', os.path.join(app.static_folder, 'uploads')),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload
         SERVER_NAME=server_name,
         PREFERRED_URL_SCHEME='https' if server_name else 'http'
     )
+    
+    # 環境変数からUPLOAD_FOLDERを設定
+    upload_folder = os.environ.get('UPLOAD_FOLDER')
+    if upload_folder:
+        app.config['UPLOAD_FOLDER'] = upload_folder
+        print(f"Using UPLOAD_FOLDER from environment: {upload_folder}")
+    else:
+        app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
+        print(f"Using default UPLOAD_FOLDER: {app.config['UPLOAD_FOLDER']}")
     
     # PostgreSQL固有の設定
     if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
