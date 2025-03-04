@@ -28,10 +28,14 @@ def create_app(test_config=None):
     
     # Heroku環境の場合はSERVER_NAMEを設定
     server_name = None
+    print(f"APP_NAME環境変数: {os.environ.get('APP_NAME')}")
+    
     if os.environ.get('APP_NAME'):
         # 明示的にSERVER_NAMEを設定
         server_name = f"{os.environ.get('APP_NAME')}.herokuapp.com"
         print(f"Setting SERVER_NAME to: {server_name}")
+    else:
+        print("APP_NAME環境変数が設定されていないため、SERVER_NAMEは設定されません")
     
     # 設定の読み込み
     app.config.from_mapping(
