@@ -26,16 +26,9 @@ def create_app(test_config=None):
     if database_url and database_url.startswith('postgres:'):
         database_url = database_url.replace('postgres:', 'postgresql:', 1)
     
-    # Heroku環境の場合はSERVER_NAMEを設定
-    server_name = None
-    print(f"APP_NAME環境変数: {os.environ.get('APP_NAME')}")
-    
-    if os.environ.get('APP_NAME'):
-        # 明示的にSERVER_NAMEを設定
-        server_name = f"{os.environ.get('APP_NAME')}.herokuapp.com"
-        print(f"Setting SERVER_NAME to: {server_name}")
-    else:
-        print("APP_NAME環境変数が設定されていないため、SERVER_NAMEは設定されません")
+    # APP_NAME環境変数の確認
+    app_name = os.environ.get('APP_NAME')
+    print(f"APP_NAME環境変数: {app_name}")
     
     # 設定の読み込み
     app.config.from_mapping(
@@ -43,12 +36,16 @@ def create_app(test_config=None):
         SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///' + os.path.join(app.instance_path, 'app.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload
-        PREFERRED_URL_SCHEME='https' if server_name else 'http'
+        PREFERRED_URL_SCHEME='https' if app_name else 'http'
     )
     
-    # SERVER_NAMEを明示的に設定（from_mappingの後に設定することで確実に反映される）
-    if server_name:
+    # Heroku環境の場合はSERVER_NAMEを設定
+    if app_name:
+        server_name = f"{app_name}.herokuapp.com"
         app.config['SERVER_NAME'] = server_name
+        print(f"SERVER_NAMEを設定しました: {server_name}")
+    else:
+        print("APP_NAME環境変数が設定されていないため、SERVER_NAMEは設定されません")
     
     # 環境変数からUPLOAD_FOLDERを設定
     upload_folder = os.environ.get('UPLOAD_FOLDER')
