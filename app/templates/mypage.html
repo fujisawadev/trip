@@ -312,13 +312,13 @@
             }
             
             // サーバーにスポットの状態を更新するリクエストを送信
-            updateSpotStatus(spotId, isActive);
+            updateSpotStatus(spotId, isActive, this);
           });
         });
       }
       
       // スポットの状態を更新する関数
-      function updateSpotStatus(spotId, isActive) {
+      function updateSpotStatus(spotId, isActive, toggleElement) {
         const csrfToken = document.querySelector('input[name="csrf_token"]').value;
         
         fetch('/spot/' + spotId + '/toggle_status', {
@@ -341,7 +341,9 @@
         .catch(error => {
           console.error('Error updating status:', error);
           // エラーが発生した場合は元の状態に戻す
-          toggle.checked = !isActive;
+          if (toggleElement) {
+            toggleElement.checked = !isActive;
+          }
         });
       }
       
