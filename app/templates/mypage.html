@@ -278,157 +278,143 @@
     </nav>
 
     <script>
-      // Toggle switch functionality
-      document.querySelectorAll('.toggle-switch').forEach(toggle => {
-        toggle.addEventListener('change', function() {
-          const spotId = this.dataset.spotId;
-          if (spotId) {
-            // トグル操作中はクリックを無効化
-            this.disabled = true;
-            // トグルスイッチの状態を視覚的に更新
-            const slider = this.nextElementSibling;
-            const label = this.closest('label');
-            if (this.checked) {
-              slider.style.transform = 'translateX(20px)';
-              slider.classList.add('bg-blue-500');
-              label.classList.add('bg-blue-300');
-            } else {
-              slider.style.transform = 'translateX(0)';
-              slider.classList.remove('bg-blue-500');
-              label.classList.remove('bg-blue-300');
-            }
-            // リダイレクト
-            window.location.href = "{{ url_for('spot.toggle_spot', spot_id=0) }}".replace('0', spotId);
-          }
-        });
+      // ページ読み込み完了時に実行
+      document.addEventListener('DOMContentLoaded', function() {
+        // トグルスイッチの機能を設定
+        setupToggleSwitches();
+        
+        // 検索機能の設定
+        setupSearch();
+        
+        // カテゴリフィルターの設定
+        setupCategoryFilter();
       });
-
-      // 見出し編集機能
+      
+      // トグルスイッチの機能を設定する関数
+      function setupToggleSwitches() {
+        const toggleSwitches = document.querySelectorAll('.toggle-switch');
+        
+        toggleSwitches.forEach(toggle => {
+          toggle.addEventListener('change', function() {
+            const spotId = this.dataset.spotId;
+            const isActive = this.checked;
+            
+            // トグルスライダーとバックグラウンドの色を変更
+            const slider = this.nextElementSibling;
+            const bg = this.closest('.toggle-bg');
+            
+            if (isActive) {
+              slider.classList.add('bg-blue-500');
+              bg.classList.add('bg-blue-300');
+            } else {
+              slider.classList.remove('bg-blue-500');
+              bg.classList.remove('bg-blue-300');
+            }
+            
+            // サーバーにスポットの状態を更新するリクエストを送信
+            updateSpotStatus(spotId, isActive);
+          });
+        });
+      }
+      
+      // スポットの状態を更新する関数
+      function updateSpotStatus(spotId, isActive) {
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        
+        fetch('/spot/' + spotId + '/toggle_status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({ is_active: isActive })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Status updated successfully:', data);
+        })
+        .catch(error => {
+          console.error('Error updating status:', error);
+          // エラーが発生した場合は元の状態に戻す
+          toggle.checked = !isActive;
+        });
+      }
+      
+      // 見出し編集の切り替え
       function toggleHeadingEdit() {
         const displayElement = document.getElementById('spots-heading-display');
         const formElement = document.getElementById('spots-heading-form');
         const inputElement = document.getElementById('spots-heading-input');
-        const editButton = document.getElementById('edit-heading-btn');
         
         if (formElement.classList.contains('hidden')) {
-          // 表示要素を非表示にし、フォームを表示
+          // 表示を切り替え
           displayElement.classList.add('hidden');
-          editButton.classList.add('hidden');
           formElement.classList.remove('hidden');
-          // 入力フィールドにフォーカスを当てる
+          // 入力フィールドにフォーカス
           inputElement.focus();
-          // 入力フィールドの内容を全選択
+          // 入力フィールドのテキストを全選択
           inputElement.select();
         } else {
-          // フォームを非表示にし、表示要素を表示
-          formElement.classList.add('hidden');
+          // 表示を元に戻す
           displayElement.classList.remove('hidden');
-          editButton.classList.remove('hidden');
-          // 入力内容をリセット（キャンセル時）
-          inputElement.value = displayElement.textContent.trim();
+          formElement.classList.add('hidden');
         }
       }
-
-      // フォーム送信前のバリデーション
-      document.getElementById('heading-edit-form').addEventListener('submit', function(e) {
-        const inputElement = document.getElementById('spots-heading-input');
-        const value = inputElement.value.trim();
-        
-        if (!value) {
-          e.preventDefault();
-          alert('見出しを入力してください');
-          inputElement.focus();
-          return false;
-        }
-        
-        // 最大文字数チェック（念のため）
-        if (value.length > 50) {
-          e.preventDefault();
-          alert('見出しは50文字以内で入力してください');
-          inputElement.focus();
-          return false;
-        }
-        
-        return true;
-      });
-
-      // Search and Filter functionality
-      document.addEventListener('DOMContentLoaded', function() {
+      
+      // 検索機能の設定
+      function setupSearch() {
         const searchInput = document.getElementById('spot-search');
-        const categoryButtons = document.querySelectorAll('.category-filter');
-        const spotsList = document.querySelectorAll('.spots-list article');
+        if (!searchInput) return;
         
-        let currentCategory = 'all';
-        let searchTerm = '';
-        let debounceTimer;
-
-        // Search functionality with debounce
-        searchInput.addEventListener('input', function(e) {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            searchTerm = e.target.value.toLowerCase();
-            filterSpots();
-          }, 300); // 300ms後に検索を実行
-        });
-
-        // Category filter functionality
-        categoryButtons.forEach(button => {
-          button.addEventListener('click', function() {
-            // Remove active class from all buttons
-            categoryButtons.forEach(btn => {
-              btn.classList.remove('active', 'bg-blue-500', 'text-white');
-              btn.classList.add('bg-slate-100', 'text-slate-600');
-            });
+        searchInput.addEventListener('input', function() {
+          const searchTerm = this.value.toLowerCase();
+          const spotItems = document.querySelectorAll('.spots-list article');
+          
+          spotItems.forEach(item => {
+            const spotName = item.querySelector('h4').textContent.toLowerCase();
+            const spotLocation = item.querySelector('p').textContent.toLowerCase();
             
-            // Add active class to clicked button
+            if (spotName.includes(searchTerm) || spotLocation.includes(searchTerm)) {
+              item.style.display = '';
+            } else {
+              item.style.display = 'none';
+            }
+          });
+        });
+      }
+      
+      // カテゴリフィルターの設定
+      function setupCategoryFilter() {
+        const filterButtons = document.querySelectorAll('.category-filter');
+        if (!filterButtons.length) return;
+        
+        filterButtons.forEach(button => {
+          button.addEventListener('click', function() {
+            // アクティブなボタンのスタイルを更新
+            document.querySelector('.category-filter.active').classList.remove('active', 'bg-blue-500', 'text-white');
+            document.querySelector('.category-filter.active').classList.add('bg-slate-100', 'text-slate-600');
+            
             this.classList.remove('bg-slate-100', 'text-slate-600');
             this.classList.add('active', 'bg-blue-500', 'text-white');
             
-            currentCategory = this.dataset.category;
-            filterSpots();
+            const category = this.dataset.category;
+            const spotItems = document.querySelectorAll('.spots-list article');
+            
+            spotItems.forEach(item => {
+              if (category === 'all' || item.dataset.category === category) {
+                item.style.display = '';
+              } else {
+                item.style.display = 'none';
+              }
+            });
           });
         });
-
-        function filterSpots() {
-          let visibleCount = 0;
-
-          spotsList.forEach(article => {
-            const nameElement = article.querySelector('h4');
-            const locationElement = article.querySelector('p');
-            const category = article.dataset.category;
-
-            if (!nameElement || !locationElement) return;
-
-            const name = nameElement.textContent.toLowerCase();
-            const location = locationElement.textContent.toLowerCase();
-            
-            const matchesSearch = !searchTerm || 
-                                name.includes(searchTerm) || 
-                                location.includes(searchTerm);
-            const matchesCategory = currentCategory === 'all' || 
-                                  category === currentCategory;
-
-            if (matchesSearch && matchesCategory) {
-              article.style.display = 'flex';
-              visibleCount++;
-            } else {
-              article.style.display = 'none';
-            }
-          });
-
-          // 検索結果が0件の場合のメッセージ表示
-          const noResultsMessage = document.querySelector('.no-spots-message');
-          if (noResultsMessage) {
-            if (visibleCount === 0) {
-              noResultsMessage.style.display = 'flex';
-              noResultsMessage.querySelector('p').textContent = 
-                spots.length > 0 ? '条件に一致するスポットが見つかりません' : 'スポットがまだ登録されていません';
-            } else {
-              noResultsMessage.style.display = 'none';
-            }
-          }
-        }
-      });
+      }
     </script>
   </body>
 </html>
