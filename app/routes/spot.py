@@ -2,7 +2,7 @@ import os
 import uuid
 import json
 import requests
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
@@ -304,6 +304,29 @@ def toggle_spot(spot_id):
     status = '有効' if spot.is_active else '無効'
     flash(f'スポット「{spot.name}」を{status}にしました。', 'success')
     return redirect(url_for('profile.mypage'))
+
+@bp.route('/<int:spot_id>/toggle_status', methods=['POST'])
+@login_required
+def toggle_spot_status(spot_id):
+    """スポットの有効/無効をAjaxで切り替えるAPI"""
+    spot = Spot.query.filter_by(id=spot_id, user_id=current_user.id).first_or_404()
+    
+    # リクエストからJSONデータを取得
+    data = request.get_json()
+    if data and 'is_active' in data:
+        spot.is_active = data['is_active']
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'spot_id': spot.id,
+            'is_active': spot.is_active
+        })
+    
+    return jsonify({
+        'success': False,
+        'error': 'Invalid request data'
+    }), 400
 
 @bp.route('/delete-spot/<int:spot_id>', methods=['POST'])
 @login_required
