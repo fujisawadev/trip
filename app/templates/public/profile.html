@@ -7,20 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     
-    <!-- OGP タグ -->
-    <meta property="og:title" content="{{ user.username }}のプロフィール">
-    <meta property="og:description" content="{{ user.bio if user.bio else user.username + 'のプロフィールページです' }}">
-    <meta property="og:type" content="profile">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ user.profile_image if user.profile_image else url_for('static', filename='default_profile.jpg', _external=True) }}">
-    <meta property="og:site_name" content="Trip App">
-    <meta property="og:profile:username" content="{{ user.username }}">
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ user.username }}のプロフィール">
-    <meta name="twitter:description" content="{{ user.bio if user.bio else user.username + 'のプロフィールページです' }}">
-    <meta name="twitter:image" content="{{ user.profile_image if user.profile_image else url_for('static', filename='default_profile.jpg', _external=True) }}">
+    <!-- OGP タグとTwitter Card - コメントアウト -->
     
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Leaflet CSS -->
