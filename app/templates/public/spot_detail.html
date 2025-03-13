@@ -33,7 +33,7 @@
                         {% elif spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None' %}
                             <img src="{{ url_for('public.photo_proxy', photo_reference=spot.google_photo_reference) }}" alt="{{ spot.name }}" class="w-full h-64 object-cover rounded-lg">
                         {% else %}
-                            <img src="{{ url_for('static', filename='default_profile.jpg') }}" alt="{{ spot.name }}" class="w-full h-64 object-cover rounded-lg">
+                            <img src="{{ url_for('static', filename='default_profile.png') }}" alt="{{ spot.name }}" class="w-full h-64 object-cover rounded-lg">
                         {% endif %}
                     </div>
                     

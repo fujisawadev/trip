@@ -13,7 +13,7 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.Text, nullable=False)
-    profile_pic_url = db.Column(db.Text, nullable=True, default='default_profile.jpg')
+    profile_pic_url = db.Column(db.Text, nullable=True, default='default_profile.png')
     bio = db.Column(db.Text, nullable=True)
     spots_heading = db.Column(db.String(50), nullable=True, default='Favorite Spots')
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

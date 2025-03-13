@@ -318,7 +318,7 @@ def test_koshien_photo():
             <h2>画像テスト</h2>
             <div>
                 <h3>1. プロキシエンドポイント経由</h3>
-                <img src="{url_for('public.photo_proxy', photo_reference=spot.google_photo_reference) if spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None' else url_for('static', filename='default_profile.jpg')}" alt="甲子園 via Proxy">
+                <img src="{url_for('public.photo_proxy', photo_reference=spot.google_photo_reference) if spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None' else url_for('static', filename='default_profile.png')}" alt="甲子園 via Proxy">
                 
                 <h3>2. CDN URL直接アクセス（取得できた場合）</h3>
                 {f'<img src="{cdn_url}" alt="甲子園 via CDN">' if cdn_url else '<p>CDN URLが取得できませんでした</p>'}
@@ -337,7 +337,7 @@ def photo_proxy(photo_reference):
     
     # photo_referenceが無効な場合はデフォルト画像にリダイレクト
     if not photo_reference or photo_reference == 'null' or photo_reference == 'None':
-        return redirect(url_for('static', filename='default_profile.jpg'))
+        return redirect(url_for('static', filename='default_profile.png'))
     
     # まずCDN URLを取得
     try:
@@ -378,4 +378,4 @@ def photo_proxy(photo_reference):
         pass
     
     # すべての方法が失敗した場合、デフォルト画像にリダイレクト
-    return redirect(url_for('static', filename='default_profile.jpg')) 
+    return redirect(url_for('static', filename='default_profile.png')) 
