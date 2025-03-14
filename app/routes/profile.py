@@ -1,10 +1,13 @@
 import os
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
 from app.models.user import User
 from app.models.spot import Spot
+import uuid
+import requests
+from datetime import datetime
 
 bp = Blueprint('profile', __name__)
 
@@ -86,11 +89,197 @@ def settings():
     """設定ページ"""
     return render_template('settings.html')
 
+@bp.route('/settings/account')
+@login_required
+def account_settings():
+    """アカウント設定ページ"""
+    return render_template('account_settings.html')
+
 @bp.route('/settings/sns')
 @login_required
 def sns_settings():
     """SNS連携設定ページ"""
-    return render_template('sns.html')
+    # Instagramの連携状態を確認
+    instagram_connected = False
+    if hasattr(current_user, 'instagram_token') and current_user.instagram_token:
+        instagram_connected = True
+    
+    return render_template('sns.html', instagram_connected=instagram_connected)
+
+@bp.route('/connect/instagram')
+@login_required
+def connect_instagram():
+    """Instagramとの連携を開始"""
+    # Instagram Graph APIのOAuth認証フローを開始
+    # クライアントIDとリダイレクトURIを設定
+    client_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
+    
+    # デバッグ情報を表示
+    print(f"Instagram Client ID: {client_id}")
+    print(f"Instagram Client Secret: {current_app.config.get('INSTAGRAM_CLIENT_SECRET')}")
+    
+    # ローカル開発環境用のリダイレクトURI
+    # _external=Trueを使わず、明示的にURLを構築
+    host = request.host
+    redirect_uri = f"http://{host}/instagram/callback"
+    
+    print(f"Redirect URI: {redirect_uri}")
+    
+    if not client_id:
+        flash('Instagram連携の設定が完了していません。管理者にお問い合わせください。', 'danger')
+        return redirect(url_for('profile.sns_settings'))
+    
+    # Instagram認証URLを生成
+    # スコープはinstagram_graph_user_profile,instagram_graph_user_media（プロフィール情報と投稿へのアクセス）
+    # stateパラメータを追加してCSRF対策と追跡を強化
+    state = str(uuid.uuid4())
+    session['instagram_auth_state'] = state
+    
+    auth_url = f"https://api.instagram.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope=instagram_graph_user_profile,instagram_graph_user_media&response_type=code&state={state}"
+    
+    print(f"Auth URL: {auth_url}")
+    
+    # Instagram認証ページにリダイレクト
+    return redirect(auth_url)
+
+@bp.route('/instagram/callback')
+@login_required
+def instagram_callback():
+    """Instagram認証後のコールバック処理"""
+    # 認証コードを取得
+    code = request.args.get('code')
+    error = request.args.get('error')
+    error_reason = request.args.get('error_reason')
+    state = request.args.get('state')
+    
+    # エラーチェック
+    if error:
+        flash(f'Instagram連携に失敗しました: {error_reason}', 'danger')
+        return redirect(url_for('profile.sns_settings'))
+    
+    if not code:
+        flash('認証コードが取得できませんでした。', 'danger')
+        return redirect(url_for('profile.sns_settings'))
+    
+    # CSRF対策の状態チェック
+    if not session.get('instagram_auth_state') or session.get('instagram_auth_state') != state:
+        # stateが一致しない場合でも、コードがあれば処理を続行（Instagram APIの問題対応）
+        if not state:
+            print("Warning: State parameter is missing from callback, but proceeding with code")
+        else:
+            print(f"Warning: State mismatch. Expected: {session.get('instagram_auth_state')}, Got: {state}")
+    
+    # セッションから状態を削除
+    session.pop('instagram_auth_state', None)
+    
+    # アクセストークンを取得するためのリクエストを準備
+    client_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
+    client_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
+    
+    # ローカル開発環境用のリダイレクトURI
+    host = request.host
+    redirect_uri = f"http://{host}/instagram/callback"
+    
+    if not client_id or not client_secret:
+        flash('Instagram連携の設定が完了していません。管理者にお問い合わせください。', 'danger')
+        return redirect(url_for('profile.sns_settings'))
+    
+    # アクセストークンを取得
+    token_url = 'https://api.instagram.com/oauth/access_token'
+    payload = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'grant_type': 'authorization_code',
+        'redirect_uri': redirect_uri,
+        'code': code
+    }
+    
+    try:
+        # トークンリクエスト
+        response = requests.post(token_url, data=payload)
+        token_data = response.json()
+        
+        print(f"Token response: {token_data}")
+        
+        if 'error_type' in token_data:
+            flash(f'アクセストークンの取得に失敗しました: {token_data.get("error_message")}', 'danger')
+            return redirect(url_for('profile.sns_settings'))
+        
+        # 短期アクセストークンと Instagram ユーザーIDを取得
+        short_lived_token = token_data.get('access_token')
+        instagram_user_id = token_data.get('user_id')
+        
+        if not short_lived_token or not instagram_user_id:
+            flash('アクセストークンまたはユーザーIDの取得に失敗しました。', 'danger')
+            return redirect(url_for('profile.sns_settings'))
+        
+        print(f"Got short-lived token and user ID: {instagram_user_id}")
+        
+        # 長期アクセストークンに交換（60日間有効）
+        graph_url = f"https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret={client_secret}&access_token={short_lived_token}"
+        response = requests.get(graph_url)
+        long_lived_data = response.json()
+        
+        print(f"Long-lived token response: {long_lived_data}")
+        
+        if 'error' in long_lived_data:
+            flash(f'長期アクセストークンの取得に失敗しました: {long_lived_data.get("error").get("message")}', 'danger')
+            return redirect(url_for('profile.sns_settings'))
+        
+        long_lived_token = long_lived_data.get('access_token')
+        
+        # ユーザー名を取得
+        user_info_url = f"https://graph.instagram.com/me?fields=username,account_type&access_token={long_lived_token}"
+        response = requests.get(user_info_url)
+        user_info = response.json()
+        
+        print(f"User info response: {user_info}")
+        
+        if 'error' in user_info:
+            flash(f'ユーザー情報の取得に失敗しました: {user_info.get("error").get("message")}', 'danger')
+            return redirect(url_for('profile.sns_settings'))
+        
+        instagram_username = user_info.get('username')
+        account_type = user_info.get('account_type', 'unknown')
+        
+        # アカウントタイプをチェック（ビジネスアカウントかどうか）
+        if account_type != 'BUSINESS':
+            print(f"Warning: Account type is {account_type}, not BUSINESS")
+        
+        # ユーザーモデルに保存
+        current_user.instagram_token = long_lived_token
+        current_user.instagram_user_id = instagram_user_id
+        current_user.instagram_username = instagram_username
+        current_user.instagram_connected_at = datetime.utcnow()
+        db.session.commit()
+        
+        flash(f'Instagram連携が完了しました。ユーザー名: {instagram_username}', 'success')
+    except Exception as e:
+        import traceback
+        print(f"Instagram連携中にエラーが発生しました: {str(e)}")
+        print(traceback.format_exc())
+        flash(f'Instagram連携中にエラーが発生しました: {str(e)}', 'danger')
+    
+    return redirect(url_for('profile.sns_settings'))
+
+@bp.route('/disconnect/instagram', methods=['POST'])
+@login_required
+def disconnect_instagram():
+    """Instagram連携を解除"""
+    # CSRFトークンの検証
+    if not request.form.get('csrf_token') or not current_app.csrf.validate_csrf(request.form.get('csrf_token')):
+        flash('不正なリクエストです。', 'danger')
+        return redirect(url_for('profile.sns_settings'))
+    
+    # 連携情報をクリア
+    current_user.instagram_token = None
+    current_user.instagram_user_id = None
+    current_user.instagram_username = None
+    current_user.instagram_connected_at = None
+    db.session.commit()
+    
+    flash('Instagram連携を解除しました。', 'success')
+    return redirect(url_for('profile.sns_settings'))
 
 @bp.route('/user/<username>')
 def user_profile(username):

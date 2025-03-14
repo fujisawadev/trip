@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>パスワード変更 | Spacey</title>
+    <title>メールアドレス変更 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,26 +39,66 @@
           <h1
             class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
           >
-            パスワード変更
+            メールアドレス変更
           </h1>
         </nav>
 
-        <!-- Change Password Form -->
+        <!-- Change Email Form -->
         <form 
-          action="{{ url_for('auth.change_password') }}" 
+          action="{{ url_for('auth.change_email') }}" 
           method="POST" 
           class="flex flex-col gap-6 p-4 w-full"
         >
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           
-          <!-- Current Password -->
+          <!-- Current Email -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="current_password" class="text-sm font-medium text-neutral-900">現在のパスワード</label>
+            <label for="current_email" class="text-sm font-medium text-neutral-900">現在のメールアドレス</label>
+            <input
+              type="email"
+              id="current_email"
+              name="current_email"
+              value="{{ user.email }}"
+              readonly
+              class="px-4 py-3 w-full text-base bg-slate-100 rounded-xl border border-slate-300 focus:outline-none"
+            />
+          </div>
+
+          <!-- New Email -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="new_email" class="text-sm font-medium text-neutral-900">新しいメールアドレス</label>
+            <input
+              type="email"
+              id="new_email"
+              name="new_email"
+              required
+              placeholder="新しいメールアドレスを入力"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Confirm New Email -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="confirm_email" class="text-sm font-medium text-neutral-900">新しいメールアドレス（確認）</label>
+            <input
+              type="email"
+              id="confirm_email"
+              name="confirm_email"
+              required
+              placeholder="新しいメールアドレスを再入力"
+              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div id="email-match-message" class="text-xs hidden"></div>
+          </div>
+
+          <!-- Password Confirmation -->
+          <div class="flex flex-col gap-2 w-full">
+            <label for="password" class="text-sm font-medium text-neutral-900">パスワード確認</label>
             <div class="relative">
               <input
                 type="password"
-                id="current_password"
-                name="current_password"
+                id="password"
+                name="password"
                 required
                 placeholder="現在のパスワードを入力"
                 class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -66,47 +106,7 @@
               <button
                 type="button"
                 class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 toggle-password"
-                data-target="current_password"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  class="w-5 h-5 eye-icon"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- New Password -->
-          <div class="flex flex-col gap-2 w-full">
-            <label for="new_password" class="text-sm font-medium text-neutral-900">新しいパスワード</label>
-            <div class="relative">
-              <input
-                type="password"
-                id="new_password"
-                name="new_password"
-                required
-                placeholder="新しいパスワードを入力"
-                class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="button"
-                class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 toggle-password"
-                data-target="new_password"
+                data-target="password"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -130,49 +130,8 @@
               </button>
             </div>
             <div class="text-xs text-slate-500">
-              パスワードは8文字以上で、文字、数字、特殊文字を組み合わせてください。
+              セキュリティのため、現在のパスワードを入力してください。
             </div>
-          </div>
-
-          <!-- Confirm New Password -->
-          <div class="flex flex-col gap-2 w-full">
-            <label for="confirm_password" class="text-sm font-medium text-neutral-900">新しいパスワード（確認）</label>
-            <div class="relative">
-              <input
-                type="password"
-                id="confirm_password"
-                name="confirm_password"
-                required
-                placeholder="新しいパスワードを再入力"
-                class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="button"
-                class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 toggle-password"
-                data-target="confirm_password"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  class="w-5 h-5 eye-icon"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div id="password-match-message" class="text-xs hidden"></div>
           </div>
 
           <!-- Submit Button -->
@@ -181,7 +140,7 @@
             class="flex justify-center items-center px-4 w-full bg-blue-500 text-white rounded-xl min-h-12 mt-4"
             id="submit-button"
           >
-            <span class="text-base font-medium">パスワードを変更</span>
+            <span class="text-base font-medium">メールアドレスを変更</span>
           </button>
         </form>
       </div>
@@ -209,33 +168,33 @@
         });
       });
       
-      // Password match validation
-      const newPassword = document.getElementById('new_password');
-      const confirmPassword = document.getElementById('confirm_password');
-      const matchMessage = document.getElementById('password-match-message');
+      // Email match validation
+      const newEmail = document.getElementById('new_email');
+      const confirmEmail = document.getElementById('confirm_email');
+      const matchMessage = document.getElementById('email-match-message');
       const submitButton = document.getElementById('submit-button');
       
-      function checkPasswordMatch() {
-        if (confirmPassword.value === '') {
+      function checkEmailMatch() {
+        if (confirmEmail.value === '') {
           matchMessage.classList.add('hidden');
           return;
         }
         
-        if (newPassword.value === confirmPassword.value) {
-          matchMessage.textContent = 'パスワードが一致しています';
+        if (newEmail.value === confirmEmail.value) {
+          matchMessage.textContent = 'メールアドレスが一致しています';
           matchMessage.classList.remove('hidden', 'text-red-500');
           matchMessage.classList.add('text-green-500');
           submitButton.disabled = false;
         } else {
-          matchMessage.textContent = 'パスワードが一致していません';
+          matchMessage.textContent = 'メールアドレスが一致していません';
           matchMessage.classList.remove('hidden', 'text-green-500');
           matchMessage.classList.add('text-red-500');
           submitButton.disabled = true;
         }
       }
       
-      newPassword.addEventListener('input', checkPasswordMatch);
-      confirmPassword.addEventListener('input', checkPasswordMatch);
+      newEmail.addEventListener('input', checkEmailMatch);
+      confirmEmail.addEventListener('input', checkEmailMatch);
     </script>
   </body>
 </html> 

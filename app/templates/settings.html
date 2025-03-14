@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>設定</title>
+    <title>設定 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,7 +29,7 @@
           <h1
             class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center whitespace-nowrap basis-0 min-w-60 text-neutral-900"
           >
-            Settings
+            設定
           </h1>
         </header>
 
@@ -43,7 +43,7 @@
             <ul>
               <li>
                 <a
-                  href="#"
+                  href="{{ url_for('profile.account_settings') }}"
                   class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
                 >
                   <span
@@ -66,7 +66,7 @@
               </li>
               <li>
                 <a
-                  href="#"
+                  href="{{ url_for('profile.sns_settings') }}"
                   class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
                 >
                   <span

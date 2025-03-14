@@ -4,42 +4,52 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>SNS連携</title>
+    <title>SNS連携 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <meta
       name="description"
-      content="Connect your social media business accounts"
+      content="SNSアカウントを連携して投稿を自動インポート"
     />
   </head>
   <body class="bg-slate-50">
     <div class="mx-auto w-full bg-white max-w-[480px]">
       <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
         <header class="w-full">
           <div
             class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
           >
-            <button
+            <a
+              href="{{ url_for('profile.settings') }}"
               class="flex items-center self-stretch my-auto w-12 min-h-12"
-              aria-label="Go back"
+              aria-label="戻る"
             >
-              <img
-                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/978499a3fd14f72ddbda6833ab72816199bc8c92c1990ddcd17ee1329cd6162a?placeholderIfAbsent=true"
-                alt="Back"
-                class="object-contain self-stretch my-auto w-6 aspect-square"
-              />
-            </button>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </a>
             <h1
               class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-neutral-900"
             >
-              Social Media
+              SNS連携
             </h1>
           </div>
           <h2
             class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none min-h-[47px] text-neutral-900"
           >
-            Connect to
+            連携するSNS
           </h2>
         </header>
 
@@ -52,13 +62,11 @@
                 class="flex gap-4 items-center self-stretch my-auto min-w-60"
               >
                 <div
-                  class="flex justify-center items-center self-stretch my-auto w-12 h-12 rounded-lg bg-slate-200 min-h-12"
+                  class="flex justify-center items-center self-stretch my-auto w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-500 min-h-12"
                 >
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/82ac64152a01159aae00498565dffc7c660241fa08a6ccd6dcd527c2f1bc8f07?placeholderIfAbsent=true"
-                    alt="Instagram"
-                    class="object-contain self-stretch my-auto w-6 aspect-square"
-                  />
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
                 </div>
                 <div
                   class="flex flex-col justify-center self-stretch my-auto w-[187px]"
@@ -71,100 +79,92 @@
                   <p
                     class="overflow-hidden max-w-full text-sm text-slate-500 w-[187px]"
                   >
-                    Instagram Business Account
+                    ビジネスアカウント連携
                   </p>
                 </div>
               </div>
-              <button
-                class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-neutral-900 w-[91px]"
-              >
-                <div
-                  class="flex overflow-hidden justify-center items-center px-4 rounded-xl bg-slate-200 min-h-8 min-w-[84px] w-[91px]"
+              {% if current_user.instagram_username %}
+              <div class="flex flex-col items-end">
+                <span class="text-sm font-medium text-green-500 mb-1">連携済み: {{ current_user.instagram_username }}</span>
+                <form action="{{ url_for('profile.disconnect_instagram') }}" method="POST" class="mt-1">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="text-xs text-red-500 underline" onclick="return confirm('Instagram連携を解除してもよろしいですか？')">連携解除</button>
+                </form>
+              </div>
+              {% else %}
+              <div class="flex flex-col items-end">
+                <a
+                  href="{{ url_for('profile.connect_instagram') }}"
+                  class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-white"
                 >
-                  <span class="overflow-hidden self-stretch my-auto w-[59px]"
-                    >Connect</span
+                  <div
+                    class="flex overflow-hidden justify-center items-center px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 transition-colors"
                   >
-                </div>
-              </button>
+                    <span>連携する</span>
+                  </div>
+                </a>
+                <p class="text-xs text-slate-500 mt-2">※連携後、自動的にこのページに戻ります</p>
+              </div>
+              {% endif %}
             </article>
+          </section>
 
-            <article
-              class="flex gap-10 justify-between items-center px-4 py-3 w-full bg-slate-50 min-h-[72px]"
-            >
-              <div class="flex gap-4 items-center self-stretch my-auto">
-                <div
-                  class="flex justify-center items-center self-stretch my-auto w-12 h-12 rounded-lg bg-slate-200 min-h-12"
-                >
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/b60fdae8eb407118052a9e3464582733b6a5b5222486b3ae7015afd87ad607f2?placeholderIfAbsent=true"
-                    alt="Facebook"
-                    class="object-contain self-stretch my-auto w-6 aspect-square"
-                  />
+          <div class="rounded-lg border border-slate-200 mb-4 overflow-hidden">
+            <div class="bg-slate-100 px-4 py-3">
+                <h5 class="text-base font-medium text-slate-600">その他のSNS連携（準備中）</h5>
+            </div>
+            <div class="px-4 py-4">
+                <p class="text-sm text-slate-600 mb-4">YouTube、Twitter、Facebookなどの連携機能は現在開発中です。</p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="px-3 py-2 border border-slate-300 rounded-lg text-slate-400 cursor-not-allowed" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                        </svg>
+                        YouTube
+                    </button>
+                    <button class="px-3 py-2 border border-slate-300 rounded-lg text-slate-400 cursor-not-allowed" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                        </svg>
+                        Twitter
+                    </button>
+                    <button class="px-3 py-2 border border-slate-300 rounded-lg text-slate-400 cursor-not-allowed" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/>
+                        </svg>
+                        Facebook
+                    </button>
                 </div>
-                <div
-                  class="flex flex-col justify-center self-stretch my-auto w-24"
-                >
-                  <h3
-                    class="overflow-hidden w-24 text-base font-medium whitespace-nowrap text-neutral-900"
-                  >
-                    Facebook
-                  </h3>
-                  <p class="overflow-hidden w-24 text-sm text-slate-500">
-                    Business Page
-                  </p>
-                </div>
-              </div>
-              <button
-                class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-neutral-900 w-[91px]"
-              >
-                <div
-                  class="flex overflow-hidden justify-center items-center px-4 rounded-xl bg-slate-200 min-h-8 min-w-[84px] w-[91px]"
-                >
-                  <span class="overflow-hidden self-stretch my-auto w-[59px]"
-                    >Connect</span
-                  >
-                </div>
-              </button>
-            </article>
+            </div>
+          </div>
 
-            <article
-              class="flex gap-10 justify-between items-center px-4 py-3 w-full bg-slate-50 min-h-[72px]"
-            >
-              <div class="flex gap-4 items-center self-stretch my-auto">
-                <div
-                  class="flex justify-center items-center self-stretch my-auto w-12 h-12 rounded-lg bg-slate-200 min-h-12"
-                >
-                  <img
-                    src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/ee56e3ea8811c830996134249e76272603b9b1b80be45811e5e9867e676135d3?placeholderIfAbsent=true"
-                    alt="LinkedIn"
-                    class="object-contain self-stretch my-auto w-6 aspect-square"
-                  />
-                </div>
-                <div
-                  class="flex flex-col justify-center self-stretch my-auto w-24"
-                >
-                  <h3
-                    class="overflow-hidden w-24 text-base font-medium whitespace-nowrap text-neutral-900"
-                  >
-                    LinkedIn
-                  </h3>
-                  <p class="overflow-hidden w-24 text-sm text-slate-500">
-                    Business Page
-                  </p>
-                </div>
-              </div>
-              <button
-                class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-neutral-900 w-[91px]"
-              >
-                <div
-                  class="flex overflow-hidden justify-center items-center px-4 rounded-xl bg-slate-200 min-h-8 min-w-[84px] w-[91px]"
-                >
-                  <span class="overflow-hidden self-stretch my-auto w-[59px]"
-                    >Connect</span
-                  >
-                </div>
-              </button>
-            </article>
+          <section class="px-4 mt-8">
+            <h3 class="text-base font-medium text-neutral-900 mb-2">SNS連携について</h3>
+            <p class="text-sm text-slate-600 mb-4">
+              Instagramビジネスアカウントを連携すると、以下の機能が利用できるようになります：
+            </p>
+            <ul class="text-sm text-slate-600 list-disc pl-5 space-y-2">
+              <li>Instagram投稿の自動インポート</li>
+              <li>位置情報付き投稿からのスポット自動作成</li>
+              <li>投稿内容からのスポット情報自動抽出</li>
+            </ul>
+            <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <p class="text-sm text-blue-700">
+                <span class="font-medium">注意：</span> 連携には、Instagramビジネスアカウントが必要です。個人アカウントをビジネスアカウントに変更する方法は<a href="#" class="underline">こちら</a>をご覧ください。
+              </p>
+            </div>
+            
+            <div class="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-100">
+              <h4 class="text-sm font-medium text-yellow-800 mb-2">連携手順</h4>
+              <ol class="text-sm text-yellow-700 list-decimal pl-5 space-y-1">
+                <li>「連携する」ボタンをクリックします</li>
+                <li>Instagramのログイン画面が表示されたら、ビジネスアカウントでログインします</li>
+                <li>アクセス許可を求められたら「許可する」をクリックします</li>
+                <li>連携が完了すると、自動的にこのページに戻ります</li>
+                <li>ページ上部に「連携が完了しました」というメッセージが表示されます</li>
+              </ol>
+              <p class="text-sm text-yellow-700 mt-2">※ログイン後にInstagramのトップページに移動した場合は、このページに戻ってください。連携処理は既に完了している可能性があります。</p>
+            </div>
           </section>
         </main>
 

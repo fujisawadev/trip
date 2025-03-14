@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ user.username }}のプロフィール</title>
+    <title>{{ user.username }} | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     
@@ -201,10 +201,7 @@
                             {% endif %}
                         {% endfor %}
                         {% for category in categories %}
-                        <div class="category-filter flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-slate-200 min-h-8 cursor-pointer" data-category="{{ category }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 9l7-7 7 7v11a2 2 0 01-2 2H7a2 2 0 01-2-2V9z" />
-                            </svg>
+                        <div class="category-filter flex gap-2 justify-center items-center px-4 rounded-xl bg-slate-200 min-h-8 cursor-pointer" data-category="{{ category }}">
                             <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">{{ category }}</span>
                         </div>
                         {% endfor %}
@@ -218,12 +215,6 @@
                                     {% if spot.photos and spot.photos|length > 0 %}
                                         <img
                                             src="{{ spot.photos[0].photo_url }}"
-                                            alt="{{ spot.name }}"
-                                            class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
-                                        />
-                                    {% elif spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None' %}
-                                        <img
-                                            src="{{ url_for('public.photo_proxy', photo_reference=spot.google_photo_reference) }}"
                                             alt="{{ spot.name }}"
                                             class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
                                         />
@@ -255,7 +246,7 @@
             </main>
             
             <footer class="w-full py-6 text-center text-gray-500 text-sm">
-                <p>&copy; 2024 Trip. All rights reserved.</p>
+                <p>&copy; 2024 CAPSULE CORP. All rights reserved.</p>
             </footer>
         </div>
     </header>
@@ -288,28 +279,12 @@
             <div class="p-6">
                 <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
                 <div class="flex flex-col gap-4">
-                    <!-- URLコピー - 一番上に移動 -->
                     <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                         <span class="font-medium">URLをコピー</span>
                     </button>
-                    <!-- LINE -->
-                    <a href="#" id="share-line" class="flex items-center gap-4 p-4 rounded-xl bg-[#06C755] text-white">
-                        <img src="{{ url_for('static', filename='icons/social/line.svg') }}" alt="LINE" class="w-8 h-8" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg'; this.onerror=null;">
-                        <span class="font-medium">LINEでシェア</span>
-                    </a>
-                    <!-- Twitter/X -->
-                    <a href="#" id="share-twitter" class="flex items-center gap-4 p-4 rounded-xl bg-black text-white">
-                        <img src="{{ url_for('static', filename='icons/social/twitter.svg') }}" alt="Twitter/X" class="w-8 h-8" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023.svg'; this.onerror=null;">
-                        <span class="font-medium">X (Twitter)でシェア</span>
-                    </a>
-                    <!-- Facebook -->
-                    <a href="#" id="share-facebook" class="flex items-center gap-4 p-4 rounded-xl bg-[#1877F2] text-white">
-                        <img src="{{ url_for('static', filename='icons/social/facebook.svg') }}" alt="Facebook" class="w-8 h-8" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg'; this.onerror=null;">
-                        <span class="font-medium">Facebookでシェア</span>
-                    </a>
                 </div>
             </div>
         </div>
@@ -880,13 +855,10 @@
         const shareModal = document.getElementById('share-modal');
         const shareModalClose = shareModal.querySelector('.modal-close');
         const copyUrlButton = document.getElementById('copy-url');
-        const shareLineButton = document.getElementById('share-line');
-        const shareTwitterButton = document.getElementById('share-twitter');
-        const shareFacebookButton = document.getElementById('share-facebook');
         
         // 現在のURLを取得
         const currentUrl = window.location.href;
-        const shareTitle = "{{ user.username }}さんのプロフィール | Trip";
+        const shareTitle = "{{ user.username }} | Spacey";
         const shareText = "{{ user.username }}さんのお気に入りスポットをチェックしよう！";
         
         // シェアボタンクリック時の処理
@@ -927,27 +899,6 @@
             }).catch(function(err) {
                 console.error('URLのコピーに失敗しました:', err);
             });
-        });
-        
-        // LINEシェア
-        shareLineButton.addEventListener('click', function(e) {
-            e.preventDefault();
-            const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareText)}`;
-            window.open(lineShareUrl, '_blank');
-        });
-        
-        // Twitterシェア
-        shareTwitterButton.addEventListener('click', function(e) {
-            e.preventDefault();
-            const twitterShareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareText)}`;
-            window.open(twitterShareUrl, '_blank');
-        });
-        
-        // Facebookシェア
-        shareFacebookButton.addEventListener('click', function(e) {
-            e.preventDefault();
-            const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`;
-            window.open(facebookShareUrl, '_blank');
         });
         
         // ページ読み込み時に初期フィルタリングを実行（全てのスポットを表示）

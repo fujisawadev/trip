@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>新規登録</title>
+    <title>新規登録 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,11 +24,11 @@
           <a
             href="{{ url_for('auth.login') }}"
             class="flex items-center self-stretch my-auto w-12 min-h-12"
-            aria-label="Back"
+            aria-label="戻る"
           >
             <img
               src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/dc35af4f720669171b19e767ff8083df959589376e3db375fb2496d480e542d8?placeholderIfAbsent=true"
-              alt="Back"
+              alt="戻る"
               class="object-contain self-stretch my-auto w-6 aspect-square"
             />
           </a>
@@ -48,7 +48,7 @@
         <h1
           class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none text-neutral-900"
         >
-          Sign Up
+          新規登録
         </h1>
 
         <div class="flex gap-4 items-end px-4 py-3 w-full text-base">
@@ -57,13 +57,13 @@
               class="pb-2 w-full font-medium text-neutral-900"
               for="fullName"
             >
-              Full Name
+              お名前
             </label>
             <input
               type="text"
               id="fullName"
               name="fullName"
-              placeholder="Full name"
+              placeholder="お名前を入力"
               class="overflow-hidden self-stretch p-4 w-full rounded-xl bg-slate-200 min-h-14 text-slate-500"
               required
             />
@@ -73,13 +73,13 @@
         <div class="flex gap-4 items-end px-4 py-3 w-full text-base">
           <div class="flex-1 shrink w-full basis-0 min-w-40">
             <label class="pb-2 w-full font-medium text-neutral-900" for="email">
-              Email Address
+              メールアドレス
             </label>
             <input
               type="email"
               id="email"
               name="email"
-              placeholder="Email address"
+              placeholder="メールアドレスを入力"
               class="overflow-hidden self-stretch p-4 w-full rounded-xl bg-slate-200 min-h-14 text-slate-500"
               required
             />
@@ -92,27 +92,27 @@
               class="pb-2 w-full text-base font-medium whitespace-nowrap text-neutral-900"
               for="password"
             >
-              Password
+              パスワード
             </label>
             <div class="flex flex-1 rounded-xl size-full">
               <input
                 type="password"
                 id="password"
                 name="password"
-                placeholder="Password"
+                placeholder="パスワードを入力"
                 class="overflow-hidden flex-1 shrink self-start py-4 pr-2 pl-4 text-base whitespace-nowrap rounded-l-xl basis-0 bg-slate-200 min-h-14 min-w-60 text-slate-500"
                 required
               />
               <button
                 type="button"
-                class="flex justify-center items-center pr-4 w-10 h-full rounded-r-xl bg-slate-200"
-                aria-label="Toggle password visibility"
+                class="flex justify-center items-center px-4 h-14 rounded-r-xl bg-slate-200"
+                aria-label="パスワードの表示/非表示"
                 onclick="togglePasswordVisibility()"
               >
                 <img
                   src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/4bf78ff2138fd8241e4d5b018c464c638c26c1b3b75a55856210c8b2f2dbb59a?placeholderIfAbsent=true"
-                  alt="Show/Hide password"
-                  class="object-contain flex-1 shrink self-stretch my-auto w-6 aspect-square basis-0"
+                  alt="パスワードの表示/非表示"
+                  class="object-contain w-6 h-6"
                 />
               </button>
             </div>
@@ -129,8 +129,8 @@
               type="submit"
               class="flex overflow-hidden justify-center items-center px-4 w-full bg-blue-500 rounded-xl min-h-10 min-w-[84px] text-slate-50 hover:bg-blue-600 transition-colors"
             >
-              <span class="overflow-hidden self-stretch my-auto w-[106px]">
-                Create account
+              <span class="overflow-hidden my-auto whitespace-nowrap">
+                アカウントを作成
               </span>
             </button>
 
@@ -138,8 +138,8 @@
               href="{{ url_for('auth.login') }}"
               class="flex overflow-hidden justify-center items-center px-4 mt-3 w-full rounded-xl min-h-10 min-w-[84px] text-neutral-900 hover:bg-slate-100 transition-colors"
             >
-              <span class="overflow-hidden self-stretch my-auto w-[221px]">
-                Already have an account? Log in
+              <span class="overflow-hidden my-auto whitespace-nowrap">
+                すでにアカウントをお持ちの方はこちら
               </span>
             </a>
           </div>
@@ -148,13 +148,9 @@
         <footer
           class="px-4 pt-1 pb-3 w-full text-sm leading-5 text-center text-slate-500"
         >
-          By continuing, you agree to the
-          <a href="#terms" class="underline hover:text-slate-700"
-            >Terms of Use</a
-          >. Read our
-          <a href="#privacy" class="underline hover:text-slate-700"
-            >Privacy Policy</a
-          >.
+          登録することで、
+          <a href="#terms" class="underline hover:text-slate-700">利用規約</a>と
+          <a href="#privacy" class="underline hover:text-slate-700">プライバシーポリシー</a>に同意したものとみなされます。
         </footer>
 
         <div class="flex w-full bg-slate-50 min-h-5"></div>
@@ -162,7 +158,7 @@
     </form>
 
     <script>
-      // Toggle password visibility
+      // パスワード表示/非表示の切り替え
       function togglePasswordVisibility() {
         const passwordInput = document.getElementById("password");
         const toggleButton = passwordInput.nextElementSibling;
@@ -170,14 +166,14 @@
 
         if (passwordInput.type === "password") {
           passwordInput.type = "text";
-          toggleButton.setAttribute("aria-label", "Hide password");
+          toggleButton.setAttribute("aria-label", "パスワードを隠す");
         } else {
           passwordInput.type = "password";
-          toggleButton.setAttribute("aria-label", "Show password");
+          toggleButton.setAttribute("aria-label", "パスワードを表示");
         }
       }
 
-      // Add input validation feedback
+      // 入力バリデーションのフィードバック追加
       const inputs = document.querySelectorAll("input");
       inputs.forEach((input) => {
         input.addEventListener("blur", function () {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>マイページ</title>
+    <title>マイページ | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -64,22 +64,20 @@
         <nav
           class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50"
         >
-          <div class="w-10"></div> <!-- 左側の空白スペース（バランス用） -->
+          <div class="w-[90px] flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
           <h1
-            class="text-lg font-bold text-center text-neutral-900"
+            class="flex-1 text-lg font-bold text-center text-neutral-900"
           >
             ページ管理
           </h1>
-          <a
-            href="{{ url_for('public.username_profile', username=user.username) }}"
-            class="flex gap-2 items-center text-blue-500 hover:text-blue-700"
-          >
-            <span class="text-sm mr-1">プレビュー</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </a>
+          <div class="w-[90px] flex justify-end">
+            <a
+              href="{{ url_for('public.username_profile', username=user.username) }}"
+              class="text-blue-500 hover:text-blue-700"
+            >
+              プレビュー
+            </a>
+          </div>
         </nav>
 
         <!-- Global Navigation は削除 -->
@@ -92,7 +90,7 @@
             >
               <div class="flex gap-4 items-center">
                 <img
-                  src="{{ user.profile_pic_url if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
+                  src="{{ user.profile_pic_url if user.profile_pic_url else url_for('static', filename='default_profile.png') }}"
                   alt="Profile"
                   class="object-cover shrink-0 rounded-xl aspect-square w-[58px]"
                 />
@@ -112,7 +110,7 @@
 
         <!-- My Spots Section -->
         <section class="my-spots">
-          <div class="flex justify-between items-center px-4 pt-5 pb-3 w-full h-[40px]">
+          <div class="flex justify-between items-center px-4 pt-5 pb-3 w-full min-h-[60px]">
             <h2
               id="spots-heading-display"
               class="text-2xl font-bold leading-none text-neutral-900 cursor-pointer"
@@ -162,77 +160,65 @@
           </div>
 
           <!-- Search and Filter Section -->
-          <div class="px-4 pt-6">
-            <!-- Search Bar -->
-            <div class="relative">
-              <input
-                type="text"
-                id="spot-search"
-                placeholder="スポットを検索"
-                class="w-full px-4 py-2 pl-10 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+          <div class="flex flex-col justify-center px-4 py-2 w-full">
+            <div class="w-full min-h-12 min-w-40">
+              <div class="flex flex-1 rounded-xl size-full bg-slate-200 overflow-hidden">
+                <input
+                  type="search"
+                  id="spot-search"
+                  placeholder="スポットを検索"
+                  class="flex overflow-hidden flex-1 shrink items-center py-3.5 pl-4 pr-2 h-12 text-base bg-transparent min-w-60 text-slate-500 focus:outline-none"
+                />
+                <button type="button" class="flex justify-center items-center w-12 h-12 my-auto self-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
               </div>
-            </div>
-
-            <!-- Category Filter -->
-            <div class="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide">
-              <button
-                class="category-filter active whitespace-nowrap px-4 py-1 rounded-full bg-blue-500 text-white text-sm"
-                data-category="all"
-              >
-                すべて
-              </button>
-              {% set categories = [] %}
-              {% for spot in spots %}
-                {% if spot.category and spot.category not in categories %}
-                  {% set _ = categories.append(spot.category) %}
-                {% endif %}
-              {% endfor %}
-              {% for category in categories %}
-              <button
-                class="category-filter whitespace-nowrap px-4 py-1 rounded-full bg-slate-100 text-slate-600 text-sm hover:bg-slate-200"
-                data-category="{{ category }}"
-              >
-                {{ category }}
-              </button>
-              {% endfor %}
             </div>
           </div>
 
-          <div class="spots-list mt-3">
+          <nav class="flex gap-3 items-start py-2 pr-4 pl-3 w-full overflow-x-auto">
+            <div class="category-filter flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-blue-500 text-white min-h-8 cursor-pointer" data-category="all">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-white">すべて</span>
+            </div>
+            {% set categories = [] %}
+            {% for spot in spots %}
+              {% if spot.category and spot.category not in categories %}
+                {% set _ = categories.append(spot.category) %}
+              {% endif %}
+            {% endfor %}
+            {% for category in categories %}
+            <div class="category-filter flex gap-2 justify-center items-center px-4 rounded-xl bg-slate-200 min-h-8 cursor-pointer" data-category="{{ category }}">
+              <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">{{ category }}</span>
+            </div>
+            {% endfor %}
+          </nav>
+
+          <section class="location-cards pt-1">
             {% if spots %}
               {% for spot in spots %}
-                <article
-                  class="flex justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
-                  data-category="{{ spot.category }}"
-                >
-                  <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center self-stretch my-auto mr-2 overflow-hidden" style="max-width: calc(100% - 60px);">
+                <article class="flex justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] spot-article" data-category="{{ spot.category }}">
+                  <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center w-full cursor-pointer" style="max-width: calc(100% - 60px);">
                     {% if spot.photos and spot.photos|length > 0 %}
                       <img
                         src="{{ spot.photos[0].photo_url }}"
                         alt="{{ spot.name }}"
-                        class="object-cover shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                        class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
                       />
                     {% else %}
                       <div class="shrink-0 self-stretch my-auto w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center">
                         <span class="text-slate-400 text-xs">No Image</span>
                       </div>
                     {% endif %}
-                    <div
-                      class="flex flex-col justify-center self-stretch my-auto min-w-0 flex-shrink"
-                    >
-                      <h4
-                        class="overflow-hidden text-base font-medium text-neutral-900 whitespace-nowrap text-ellipsis"
-                      >
+                    <div class="flex flex-col justify-center self-stretch my-auto flex-1 min-w-0">
+                      <h4 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900 text-ellipsis">
                         {{ spot.name }}
                       </h4>
-                      <p
-                        class="overflow-hidden text-sm text-slate-500 whitespace-nowrap text-ellipsis"
-                      >
+                      <p class="overflow-hidden text-sm text-slate-500 whitespace-nowrap text-ellipsis">
                         {{ spot.summary_location or spot.location }}
                       </p>
                     </div>
@@ -251,11 +237,13 @@
                 </article>
               {% endfor %}
             {% else %}
-              <div class="px-4 py-8 text-center text-slate-500">
-                スポットがまだありません。下部の「新規スポット」ボタンからスポットを追加してください。
-              </div>
+              <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] no-spots-message">
+                <div class="flex flex-col justify-center self-stretch my-auto w-full text-center">
+                  <p class="text-slate-500">スポットがまだありません。下部の「新規スポット」ボタンからスポットを追加してください。</p>
+                </div>
+              </article>
             {% endif %}
-          </div>
+          </section>
         </section>
       </div>
     </header>
@@ -371,22 +359,29 @@
       // 検索機能の設定
       function setupSearch() {
         const searchInput = document.getElementById('spot-search');
+        const searchButton = searchInput ? searchInput.nextElementSibling : null;
         if (!searchInput) return;
         
+        // 検索ボタンのクリックイベント
+        if (searchButton) {
+          searchButton.addEventListener('click', function() {
+            const searchTerm = searchInput.value.toLowerCase();
+            filterSpots(searchTerm);
+          });
+        }
+        
+        // 検索入力フィールドのEnterキーイベント
+        searchInput.addEventListener('keyup', function(event) {
+          if (event.key === 'Enter') {
+            const searchTerm = this.value.toLowerCase();
+            filterSpots(searchTerm);
+          }
+        });
+        
+        // 入力時の即時検索も維持
         searchInput.addEventListener('input', function() {
           const searchTerm = this.value.toLowerCase();
-          const spotItems = document.querySelectorAll('.spots-list article');
-          
-          spotItems.forEach(item => {
-            const spotName = item.querySelector('h4').textContent.toLowerCase();
-            const spotLocation = item.querySelector('p').textContent.toLowerCase();
-            
-            if (spotName.includes(searchTerm) || spotLocation.includes(searchTerm)) {
-              item.style.display = '';
-            } else {
-              item.style.display = 'none';
-            }
-          });
+          filterSpots(searchTerm);
         });
       }
       
@@ -397,25 +392,79 @@
         
         filterButtons.forEach(button => {
           button.addEventListener('click', function() {
-            // アクティブなボタンのスタイルを更新
-            document.querySelector('.category-filter.active').classList.remove('active', 'bg-blue-500', 'text-white');
-            document.querySelector('.category-filter.active').classList.add('bg-slate-100', 'text-slate-600');
-            
-            this.classList.remove('bg-slate-100', 'text-slate-600');
-            this.classList.add('active', 'bg-blue-500', 'text-white');
-            
+            // 現在のカテゴリーを取得
             const category = this.dataset.category;
-            const spotItems = document.querySelectorAll('.spots-list article');
             
-            spotItems.forEach(item => {
-              if (category === 'all' || item.dataset.category === category) {
-                item.style.display = '';
-              } else {
-                item.style.display = 'none';
+            // 全てのカテゴリーフィルターからアクティブクラスを削除
+            filterButtons.forEach(btn => {
+              btn.classList.remove('bg-blue-500', 'text-white');
+              btn.classList.add('bg-slate-200');
+              
+              // テキストの色を元に戻す
+              const span = btn.querySelector('span');
+              if (span) {
+                span.classList.remove('text-white');
+                span.classList.add('text-neutral-900');
               }
             });
+            
+            // クリックされたカテゴリーにアクティブクラスを追加
+            this.classList.remove('bg-slate-200');
+            this.classList.add('bg-blue-500', 'text-white');
+            
+            // テキストの色を白に変更
+            const span = this.querySelector('span');
+            if (span) {
+              span.classList.remove('text-neutral-900');
+              span.classList.add('text-white');
+            }
+            
+            // スポットをフィルタリング
+            const searchTerm = document.getElementById('spot-search').value.toLowerCase();
+            filterSpots(searchTerm, category);
           });
         });
+      }
+      
+      // スポットをフィルタリングする関数
+      function filterSpots(searchTerm, category = 'all') {
+        const spotItems = document.querySelectorAll('.location-cards .spot-article');
+        const noSpotsMessage = document.querySelector('.no-spots-message');
+        let visibleCount = 0;
+        
+        spotItems.forEach(item => {
+          const spotName = item.querySelector('h4').textContent.toLowerCase();
+          const spotLocation = item.querySelector('p').textContent.toLowerCase();
+          const spotCategory = item.dataset.category;
+          
+          // 検索条件とカテゴリー条件の両方に一致するか確認
+          const matchesSearch = !searchTerm || 
+              spotName.includes(searchTerm) || 
+              spotLocation.includes(searchTerm);
+          const matchesCategory = category === 'all' || spotCategory === category;
+          
+          if (matchesSearch && matchesCategory) {
+            // 条件に一致する場合は表示
+            item.style.display = '';
+            visibleCount++;
+          } else {
+            // 条件に一致しない場合は非表示
+            item.style.display = 'none';
+          }
+        });
+        
+        // 表示されるスポットがない場合のメッセージ表示
+        if (noSpotsMessage) {
+          if (spotItems.length > 0 && visibleCount === 0) {
+            noSpotsMessage.style.display = 'flex';
+            noSpotsMessage.querySelector('p').textContent = '選択した条件に一致するスポットが見つかりませんでした';
+          } else if (spotItems.length === 0) {
+            noSpotsMessage.style.display = 'flex';
+            noSpotsMessage.querySelector('p').textContent = 'スポットがまだありません。下部の「新規スポット」ボタンからスポットを追加してください。';
+          } else {
+            noSpotsMessage.style.display = 'none';
+          }
+        }
       }
     </script>
   </body>

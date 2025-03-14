@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>プロフィール編集</title>
+    <title>プロフィール編集 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,18 +30,16 @@
           <a
             href="{{ url_for('profile.mypage') }}"
             class="flex items-center self-stretch my-auto w-12 min-h-12"
-            aria-label="Back"
+            aria-label="戻る"
           >
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/cbcfb374e6f9cf26c845989c39cf840095e94415ef262142766df01f141cd5e1?placeholderIfAbsent=true"
-              alt="Back"
-              class="object-contain self-stretch my-auto w-6 aspect-square"
-            />
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
           </a>
           <h1
             class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
           >
-            Edit Profile
+            プロフィール編集
           </h1>
         </nav>
 
@@ -58,8 +56,8 @@
           <div class="flex flex-col items-center gap-4 w-full">
             <div class="relative w-24 h-24">
               <img
-                src="{{ user.profile_pic_url if user.profile_pic_url else 'https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a4e1bd740473092f7d311d08cbfdd79d227cc7f673bebe0f776a6f07c44f70e0?placeholderIfAbsent=true' }}"
-                alt="Profile"
+                src="{{ user.profile_pic_url if user.profile_pic_url else url_for('static', filename='default_profile.png') }}"
+                alt="プロフィール画像"
                 class="object-cover w-full h-full rounded-full"
                 id="profile-preview"
               />
@@ -94,47 +92,47 @@
 
           <!-- Username -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="username" class="text-sm font-medium text-neutral-900">Username</label>
+            <label for="username" class="text-sm font-medium text-neutral-900">ユーザー名</label>
             <input
               type="text"
               id="username"
               name="username"
               required
               value="{{ user.username }}"
-              placeholder="Enter username"
+              placeholder="ユーザー名を入力"
               class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <!-- Email -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="email" class="text-sm font-medium text-neutral-900">Email</label>
+            <label for="email" class="text-sm font-medium text-neutral-900">メールアドレス</label>
             <input
               type="email"
               id="email"
               name="email"
               required
               value="{{ user.email }}"
-              placeholder="Enter email"
+              placeholder="メールアドレスを入力"
               class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <!-- Bio -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="bio" class="text-sm font-medium text-neutral-900">Bio</label>
+            <label for="bio" class="text-sm font-medium text-neutral-900">自己紹介</label>
             <textarea
               id="bio"
               name="bio"
               rows="4"
-              placeholder="Tell us about yourself"
+              placeholder="自己紹介を入力してください"
               class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >{{ user.bio }}</textarea>
           </div>
 
           <!-- Social Media Accounts -->
           <div class="flex flex-col gap-4 w-full">
-            <h2 class="text-base font-medium text-neutral-900">Social Media Accounts</h2>
+            <h2 class="text-base font-medium text-neutral-900">SNSアカウント</h2>
             
             <!-- Instagram -->
             <div class="flex flex-col gap-2 w-full">
@@ -146,7 +144,7 @@
                   id="instagram"
                   name="instagram"
                   value="{{ social_accounts.instagram if social_accounts and social_accounts.instagram }}"
-                  placeholder="username"
+                  placeholder="ユーザー名"
                   class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -162,7 +160,7 @@
                   id="twitter"
                   name="twitter"
                   value="{{ social_accounts.twitter if social_accounts and social_accounts.twitter }}"
-                  placeholder="username"
+                  placeholder="ユーザー名"
                   class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -178,7 +176,7 @@
                   id="tiktok"
                   name="tiktok"
                   value="{{ social_accounts.tiktok if social_accounts and social_accounts.tiktok }}"
-                  placeholder="username"
+                  placeholder="ユーザー名"
                   class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -192,7 +190,7 @@
                 id="youtube"
                 name="youtube"
                 value="{{ social_accounts.youtube if social_accounts and social_accounts.youtube }}"
-                placeholder="Channel URL"
+                placeholder="チャンネルURL"
                 class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -203,7 +201,7 @@
             type="submit"
             class="flex justify-center items-center px-4 w-full bg-blue-500 text-white rounded-xl min-h-12 mt-4"
           >
-            <span class="text-base font-medium">Save Changes</span>
+            <span class="text-base font-medium">変更を保存</span>
           </button>
         </form>
       </div>

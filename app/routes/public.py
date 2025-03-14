@@ -80,77 +80,10 @@ def username_profile(username):
     # ソーシャルアカウント情報を取得
     social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
     
-    # 写真がないスポットのGoogle Places APIから写真を取得
-    google_photos = {}
-    for spot in spots:
-        # スポットに関連する写真を取得
-        photos = Photo.query.filter_by(spot_id=spot.id).all()
-        print(f"スポット {spot.id}: 写真数={len(photos)}, google_place_id={spot.google_place_id}")
-        
-        # Google写真参照情報を持つ写真があるか確認
-        google_photo = Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).first()
-        
-        if google_photo and google_photo.google_photo_reference:
-            # 既に保存されているGoogle写真参照情報を使用
-            photo_reference = google_photo.google_photo_reference
-            photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}"
-            google_photos[spot.id] = photo_url
-            print(f"保存済み写真参照情報使用: スポットID={spot.id}, 参照={photo_reference}")
-        elif not photos and spot.google_place_id:
-            # 写真がなく、かつGoogle Place IDがある場合はAPIから取得
-            try:
-                # Google Places APIを直接呼び出す
-                url = f"https://places.googleapis.com/v1/places/{spot.google_place_id}"
-                headers = {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                    'X-Goog-FieldMask': 'photos.0.name'  # 最初の写真のみ取得
-                }
-                
-                print(f"Google Places API呼び出し: URL={url}")
-                print(f"ヘッダー: {headers}")
-                
-                api_response = requests.get(url, headers=headers)
-                print(f"APIレスポンスステータス: {api_response.status_code}")
-                
-                if api_response.status_code == 200:
-                    data = api_response.json()
-                    print(f"APIレスポンスデータ: {data}")
-                    
-                    if 'photos' in data and len(data['photos']) > 0:
-                        photo = data['photos'][0]
-                        photo_reference = photo.get('name', '')
-                        if photo_reference:
-                            # 新しいPhotos APIのエンドポイントを使用
-                            photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}"
-                            google_photos[spot.id] = photo_url
-                            print(f"写真URL取得成功: スポットID={spot.id}, URL={photo_url}")
-                            
-                            # 写真参照情報をデータベースに保存（将来の使用のため）
-                            new_photo = Photo(
-                                spot_id=spot.id,
-                                photo_url=None,
-                                google_photo_reference=photo_reference,
-                                is_google_photo=True
-                            )
-                            db.session.add(new_photo)
-                            db.session.commit()
-                    else:
-                        print(f"写真が見つかりませんでした: スポットID={spot.id}")
-                else:
-                    print(f"APIエラー: スポットID={spot.id}, ステータス={api_response.status_code}")
-                    if hasattr(api_response, 'text'):
-                        print(f"エラーレスポンス: {api_response.text}")
-            except Exception as e:
-                print(f"例外発生: スポットID={spot.id}, エラー={str(e)}")
-    
-    print(f"取得した写真: {google_photos}")
-    
     return render_template('public/profile.html', 
                           user=user, 
                           spots=spots,
                           social_accounts=social_accounts,
-                          google_photos=google_photos,
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 
 @public_bp.route('/spot/<int:spot_id>')
@@ -165,70 +98,14 @@ def spot_detail(spot_id):
     
     # スポットに関連する写真を取得
     photos = Photo.query.filter_by(spot_id=spot_id).all()
-    print(f"スポット詳細 {spot_id}: 写真数={len(photos)}, google_place_id={spot.google_place_id}")
+    print(f"スポット詳細 {spot_id}: 写真数={len(photos)}")
     
-    # Google Places APIから写真を取得するかどうか
-    google_photo_url = None
-    
-    # Google写真参照情報を持つ写真があるか確認
-    google_photo = Photo.query.filter_by(spot_id=spot_id, is_google_photo=True).first()
-    
-    if google_photo and google_photo.google_photo_reference:
-        # 既に保存されているGoogle写真参照情報を使用
-        photo_reference = google_photo.google_photo_reference
-        google_photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=800&maxWidthPx=800&key={GOOGLE_MAPS_API_KEY}"
-        print(f"スポット詳細 - 保存済み写真参照情報使用: 参照={photo_reference}")
-    elif not photos and spot.google_place_id:
-        # 写真がない場合はGoogle Places APIから取得
-        try:
-            # Google Places APIを直接呼び出す
-            url = f"https://places.googleapis.com/v1/places/{spot.google_place_id}"
-            headers = {
-                'Content-Type': 'application/json',
-                'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                'X-Goog-FieldMask': 'photos.0.name'  # 最初の写真のみ取得
-            }
-            
-            print(f"スポット詳細 - Google Places API呼び出し: URL={url}")
-            print(f"スポット詳細 - ヘッダー: {headers}")
-            
-            api_response = requests.get(url, headers=headers)
-            print(f"スポット詳細 - APIレスポンスステータス: {api_response.status_code}")
-            
-            if api_response.status_code == 200:
-                data = api_response.json()
-                print(f"スポット詳細 - APIレスポンスデータ: {data}")
-                
-                if 'photos' in data and len(data['photos']) > 0:
-                    photo = data['photos'][0]
-                    photo_reference = photo.get('name', '')
-                    if photo_reference:
-                        # 新しいPhotos APIのエンドポイントを使用
-                        google_photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=800&maxWidthPx=800&key={GOOGLE_MAPS_API_KEY}"
-                        print(f"スポット詳細 - 写真URL取得成功: URL={google_photo_url}")
-                        
-                        # 写真参照情報をデータベースに保存（将来の使用のため）
-                        new_photo = Photo(
-                            spot_id=spot_id,
-                            photo_url=None,
-                            google_photo_reference=photo_reference,
-                            is_google_photo=True
-                        )
-                        db.session.add(new_photo)
-                        db.session.commit()
-                else:
-                    print(f"スポット詳細 - 写真が見つかりませんでした")
-            else:
-                print(f"スポット詳細 - APIエラー: ステータス={api_response.status_code}")
-                if hasattr(api_response, 'text'):
-                    print(f"スポット詳細 - エラーレスポンス: {api_response.text}")
-        except Exception as e:
-            print(f"スポット詳細 - 例外発生: エラー={str(e)}")
+    # 不要なGoogle Places API呼び出しを削除
+    # 写真情報はすでにPhotoモデルに保存されているため、再度APIを呼び出す必要はない
     
     return render_template('public/spot_detail.html', 
                           spot=spot,
-                          photos=photos,
-                          google_photo_url=google_photo_url)
+                          photos=photos)
 
 @public_bp.route('/test_koshien_photo')
 def test_koshien_photo():
@@ -335,9 +212,9 @@ def photo_proxy(photo_reference):
     """Google Photo Referenceを使用して画像を取得するプロキシエンドポイント"""
     import requests
     
-    # photo_referenceが無効な場合はデフォルト画像にリダイレクト
+    # photo_referenceが無効な場合は404エラーを返す（デフォルト画像へのリダイレクトを削除）
     if not photo_reference or photo_reference == 'null' or photo_reference == 'None':
-        return redirect(url_for('static', filename='default_profile.png'))
+        return jsonify({'error': '無効な写真参照'}), 404
     
     # まずCDN URLを取得
     try:
@@ -377,5 +254,5 @@ def photo_proxy(photo_reference):
         # 画像取得に失敗した場合
         pass
     
-    # すべての方法が失敗した場合、デフォルト画像にリダイレクト
-    return redirect(url_for('static', filename='default_profile.png')) 
+    # すべての方法が失敗した場合、404エラーを返す（デフォルト画像へのリダイレクトを削除）
+    return jsonify({'error': '画像の取得に失敗しました'}), 404 

@@ -59,6 +59,9 @@ app/static/uploads/
 # Cookies
 cookies.txt
 
+# Scripts directory (for development/testing only)
+scripts/
+
 # Python
 __pycache__/
 *.py[cod]
