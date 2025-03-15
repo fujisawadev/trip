@@ -12,12 +12,18 @@ class Config:
     # DATABASE_URLの処理（Herokuのpostgres:をpostgresql:に変換）
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
-        print("エラー: DATABASE_URL環境変数が設定されていません。")
+        print("警告: DATABASE_URL環境変数が設定されていません。")
         print("PostgreSQLデータベースへの接続情報を.envファイルに設定してください。")
         print("例: DATABASE_URL=postgresql://username:password@localhost:5432/trip_db")
-        sys.exit(1)
+        # Heroku環境ではエラーで終了しない
+        if 'DYNO' not in os.environ:
+            sys.exit(1)
+        else:
+            # Heroku環境ではデフォルト値を設定（実際にはHerokuが自動的に設定するはず）
+            print("Heroku環境を検出しました。DATABASE_URLが設定されていませんが、続行します。")
+            database_url = "sqlite:///app.db"  # フォールバック用の一時的なSQLiteデータベース
     
-    if database_url.startswith('postgres:'):
+    if database_url and database_url.startswith('postgres:'):
         database_url = database_url.replace('postgres:', 'postgresql:', 1)
     
     SQLALCHEMY_DATABASE_URI = database_url
@@ -55,4 +61,7 @@ class Config:
             os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
             print(f"Created upload directory: {Config.UPLOAD_FOLDER}")
         except Exception as e:
-            print(f"Error creating upload directory: {str(e)}") 
+            print(f"Error creating upload directory: {str(e)}")
+            # Heroku環境ではエラーを無視（一時ファイルシステムを使用）
+            if 'DYNO' in os.environ:
+                print("Heroku環境を検出しました。アップロードディレクトリの作成エラーを無視します。") 
