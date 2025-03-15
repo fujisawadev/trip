@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex">
     <title>{% if is_edit %}スポットを編集 - {{ spot.name }}{% else %}新規スポット登録{% endif %} | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <!-- <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}"> -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -17,8 +17,8 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""></script>
     <!-- Leaflet Control Geocoder -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.js"></script>
     <style>
       /* 地図のスタイル */
       #location-map {
@@ -407,6 +407,22 @@
     </div>
 
     <script>
+      // グローバルエラーハンドリング
+      window.addEventListener('error', function(event) {
+        console.error('Global error caught:', event.error);
+        alert('ページの読み込み中にエラーが発生しました。ページをリロードしてください。');
+      });
+
+      // 外部リソースの読み込みエラーを検知
+      window.addEventListener('load', function() {
+        const scripts = document.getElementsByTagName('script');
+        for (let i = 0; i < scripts.length; i++) {
+          if (!scripts[i].loaded && scripts[i].src) {
+            console.warn('Script may not have loaded properly:', scripts[i].src);
+          }
+        }
+      });
+
       // File upload preview
       const fileInput = document.getElementById('photos');
       const previewContainer = document.getElementById('preview-container');
@@ -617,7 +633,7 @@
               // 地図を更新
               if (window.map && data.latitude && data.longitude) {
                 updateMarkerAndInputs(data.latitude, data.longitude);
-                map.setView([data.latitude, data.longitude], 15);
+                window.map.setView([data.latitude, data.longitude], 15);
               }
               
               // 候補リストを非表示
@@ -640,123 +656,86 @@
       
       // 地図関連の処理
       document.addEventListener('DOMContentLoaded', function() {
-        const locationInput = document.getElementById('location');
-        const latitudeInput = document.getElementById('latitude');
-        const longitudeInput = document.getElementById('longitude');
-        const searchButton = document.getElementById('search-location');
-        
-        // 初期位置（東京）
-        let initialLat = 35.6812;
-        let initialLng = 139.7671;
-        let initialZoom = 13;
-        
-        // スポットデータをdata属性から取得
-        const spotDataElement = document.getElementById('spot-data');
-        const isEdit = spotDataElement.dataset.isEdit === 'true';
-        const spotLat = spotDataElement.dataset.latitude ? parseFloat(spotDataElement.dataset.latitude) : null;
-        const spotLng = spotDataElement.dataset.longitude ? parseFloat(spotDataElement.dataset.longitude) : null;
-        
-        // 編集時は既存の位置情報を使用
-        if (isEdit && spotLat && spotLng) {
-          initialLat = spotLat;
-          initialLng = spotLng;
-          initialZoom = 15;
-        }
-        
-        // 地図の初期化
-        const map = initMap('location-map', {
-          center: [initialLat, initialLng],
-          zoom: initialZoom
-        });
-        
-        // ジオコーディングコントロールを追加
-        L.Control.geocoder({
-          defaultMarkGeocode: false
-        }).on('markgeocode', function(e) {
-          const latlng = e.geocode.center;
-          updateMarkerAndInputs(latlng.lat, latlng.lng, e.geocode.name);
-          map.fitBounds(e.geocode.bbox);
-        }).addTo(map);
-        
-        // マーカーを作成
-        let marker = null;
-        
-        // 編集時は既存の位置情報でマーカーを表示
-        if (latitudeInput.value && longitudeInput.value) {
-          marker = addMarker(map, parseFloat(latitudeInput.value), parseFloat(longitudeInput.value), {
-            draggable: true
-          });
+        try {
+          const locationInput = document.getElementById('location');
+          const latitudeInput = document.getElementById('latitude');
+          const longitudeInput = document.getElementById('longitude');
+          const searchButton = document.getElementById('search-location');
           
-          // マーカードラッグ時の処理
-          marker.on('dragend', function(e) {
-            const latlng = e.target.getLatLng();
-            updateInputs(latlng.lat, latlng.lng);
-            
-            // 逆ジオコーディングで住所を取得
-            reverseGeocode(latlng.lat, latlng.lng).then(result => {
-              if (result) {
-                locationInput.value = result.address;
-                document.getElementById('summary_location').value = result.summary_location;
-              }
-            });
-          });
-        }
-        
-        // 地図クリック時の処理
-        map.on('click', function(e) {
-          const latlng = e.latlng;
-          updateMarkerAndInputs(latlng.lat, latlng.lng);
+          // 初期位置（東京）
+          let initialLat = 35.6812;
+          let initialLng = 139.7671;
+          let initialZoom = 13;
           
-          // 逆ジオコーディングで住所を取得
-          reverseGeocode(latlng.lat, latlng.lng).then(result => {
-            if (result) {
-              locationInput.value = result.address;
-              document.getElementById('summary_location').value = result.summary_location;
+          // スポットデータをdata属性から取得
+          const spotDataElement = document.getElementById('spot-data');
+          const isEdit = spotDataElement.dataset.isEdit === 'true';
+          const spotLat = spotDataElement.dataset.latitude ? parseFloat(spotDataElement.dataset.latitude) : null;
+          const spotLng = spotDataElement.dataset.longitude ? parseFloat(spotDataElement.dataset.longitude) : null;
+          
+          // 編集時は既存の位置情報を使用
+          if (isEdit && spotLat && spotLng) {
+            initialLat = spotLat;
+            initialLng = spotLng;
+            initialZoom = 15;
+          }
+          
+          console.log('Initializing map...');
+          
+          // 地図の初期化
+          if (typeof initMap === 'function') {
+            try {
+              window.map = initMap('location-map', {
+                center: [initialLat, initialLng],
+                zoom: initialZoom
+              });
+              console.log('Map initialized successfully');
+            } catch (mapError) {
+              console.error('Failed to initialize map:', mapError);
+              return;
             }
-          });
-        });
-        
-        // 検索ボタンクリック時の処理
-        searchButton.addEventListener('click', function() {
-          const address = locationInput.value;
-          if (address) {
-            geocodeAddress(address).then(result => {
-              if (result) {
-                updateMarkerAndInputs(result.lat, result.lng, result.displayName);
-                map.setView([result.lat, result.lng], 15);
+            
+            // ジオコーディングコントロールを追加
+            if (L && L.Control && L.Control.geocoder) {
+              L.Control.geocoder({
+                defaultMarkGeocode: false
+              }).on('markgeocode', function(e) {
+                const latlng = e.geocode.center;
+                updateMarkerAndInputs(latlng.lat, latlng.lng, e.geocode.name);
+                window.map.fitBounds(e.geocode.bbox);
+              }).addTo(window.map);
+            } else {
+              console.error('Leaflet Control Geocoder not loaded');
+            }
+            
+            // マーカーを作成
+            let marker = null;
+            
+            // 編集時は既存の位置情報でマーカーを表示
+            if (latitudeInput.value && longitudeInput.value) {
+              marker = addMarker(window.map, parseFloat(latitudeInput.value), parseFloat(longitudeInput.value), {
+                draggable: true
+              });
+              
+              // マーカードラッグ時の処理
+              marker.on('dragend', function(e) {
+                const latlng = e.target.getLatLng();
+                updateInputs(latlng.lat, latlng.lng);
                 
-                // 逆ジオコーディングでサマリーロケーションを取得
-                reverseGeocode(result.lat, result.lng).then(geoResult => {
-                  if (geoResult && geoResult.summary_location) {
-                    document.getElementById('summary_location').value = geoResult.summary_location;
+                // 逆ジオコーディングで住所を取得
+                reverseGeocode(latlng.lat, latlng.lng).then(result => {
+                  if (result) {
+                    locationInput.value = result.address;
+                    document.getElementById('summary_location').value = result.summary_location;
                   }
                 });
-              } else {
-                alert('場所が見つかりませんでした。別の住所を試してください。');
-              }
-            });
-          }
-        });
-        
-        // マーカーと入力フィールドを更新する関数
-        function updateMarkerAndInputs(lat, lng, address = null) {
-          updateInputs(lat, lng);
-          
-          if (address) {
-            locationInput.value = address;
-          }
-          
-          if (marker) {
-            marker.setLatLng([lat, lng]);
-          } else {
-            marker = addMarker(map, lat, lng, {
-              draggable: true
-            });
+              });
+            }
             
-            // マーカードラッグ時の処理
-            marker.on('dragend', function(e) {
-              const latlng = e.target.getLatLng();
-              updateInputs(latlng.lat, latlng.lng);
+            // 地図クリック時の処理
+            window.map.on('click', function(e) {
+              const latlng = e.latlng;
+              updateMarkerAndInputs(latlng.lat, latlng.lng);
               
               // 逆ジオコーディングで住所を取得
               reverseGeocode(latlng.lat, latlng.lng).then(result => {
@@ -766,13 +745,68 @@
                 }
               });
             });
+            
+            // 検索ボタンクリック時の処理
+            searchButton.addEventListener('click', function() {
+              const address = locationInput.value;
+              if (address) {
+                geocodeAddress(address).then(result => {
+                  if (result) {
+                    updateMarkerAndInputs(result.lat, result.lng, result.displayName);
+                    window.map.setView([result.lat, result.lng], 15);
+                    
+                    // 逆ジオコーディングでサマリーロケーションを取得
+                    reverseGeocode(result.lat, result.lng).then(geoResult => {
+                      if (geoResult && geoResult.summary_location) {
+                        document.getElementById('summary_location').value = geoResult.summary_location;
+                      }
+                    });
+                  } else {
+                    alert('場所が見つかりませんでした。別の住所を試してください。');
+                  }
+                });
+              }
+            });
+            
+            // マーカーと入力フィールドを更新する関数
+            function updateMarkerAndInputs(lat, lng, address = null) {
+              updateInputs(lat, lng);
+              
+              if (address) {
+                locationInput.value = address;
+              }
+              
+              if (marker) {
+                marker.setLatLng([lat, lng]);
+              } else {
+                marker = addMarker(window.map, lat, lng, {
+                  draggable: true
+                });
+                
+                // マーカードラッグ時の処理
+                marker.on('dragend', function(e) {
+                  const latlng = e.target.getLatLng();
+                  updateInputs(latlng.lat, latlng.lng);
+                  
+                  // 逆ジオコーディングで住所を取得
+                  reverseGeocode(latlng.lat, latlng.lng).then(result => {
+                    if (result) {
+                      locationInput.value = result.address;
+                      document.getElementById('summary_location').value = result.summary_location;
+                    }
+                  });
+                });
+              }
+            }
+            
+            // 入力フィールドを更新する関数
+            function updateInputs(lat, lng) {
+              latitudeInput.value = lat;
+              longitudeInput.value = lng;
+            }
           }
-        }
-        
-        // 入力フィールドを更新する関数
-        function updateInputs(lat, lng) {
-          latitudeInput.value = lat;
-          longitudeInput.value = lng;
+        } catch (error) {
+          console.error('Error initializing map:', error);
         }
       });
 

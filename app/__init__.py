@@ -49,6 +49,11 @@ def create_app(config_class=None):
     # メールの初期化
     mail.init_app(app)
     
+    # Instagram API設定
+    app.config['INSTAGRAM_CLIENT_ID'] = os.environ.get('INSTAGRAM_CLIENT_ID')
+    app.config['INSTAGRAM_CLIENT_SECRET'] = os.environ.get('INSTAGRAM_CLIENT_SECRET')
+    app.config['INSTAGRAM_REDIRECT_URI'] = os.environ.get('INSTAGRAM_REDIRECT_URI')
+    
     # ルートの登録
     from app.routes import auth, main, profile, public, spot, api
     app.register_blueprint(auth.bp, url_prefix='/auth')

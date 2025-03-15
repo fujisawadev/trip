@@ -9,6 +9,7 @@ class Photo(db.Model):
     photo_url = db.Column(db.Text, nullable=True)  # ユーザーアップロード写真用、nullableに変更
     google_photo_reference = db.Column(db.Text, nullable=True)  # Google写真参照用
     is_google_photo = db.Column(db.Boolean, default=False, nullable=False)  # 写真の種類を区別
+    is_primary = db.Column(db.Boolean, default=False, nullable=False)  # プライマリ写真かどうか
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     def __repr__(self):

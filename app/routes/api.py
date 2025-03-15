@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, abort
-from app.models import Spot, Photo, AffiliateLink, SocialPost
+from app.models import Spot, Photo, AffiliateLink, SocialPost, ImportHistory
 from sqlalchemy.orm import joinedload
 import requests
 import os
@@ -7,6 +7,7 @@ import json
 from flask_login import current_user
 from sqlalchemy import distinct
 from app import db
+import re
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -14,6 +15,11 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
 if not GOOGLE_MAPS_API_KEY:
     raise EnvironmentError("GOOGLE_MAPS_API_KEY environment variable is not set")
+
+# OpenAI API Key
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+if not OPENAI_API_KEY:
+    print("Warning: OPENAI_API_KEY environment variable is not set. AI features will not work.")
 
 @api_bp.route('/spots/<int:spot_id>', methods=['GET'])
 def get_spot(spot_id):
@@ -209,7 +215,7 @@ def place_details():
                     
                     # サマリーロケーションを構築
                     summary_parts = []
-                    if country:
+                    if country and country != "日本":
                         summary_parts.append(country)
                     if prefecture:
                         summary_parts.append(prefecture)
@@ -218,6 +224,38 @@ def place_details():
                     
                     if summary_parts:
                         place_details['summary_location'] = '、'.join(summary_parts)
+                        print(f"日本語のsummary_locationを設定: {place_details['summary_location']}")
+        
+        # summary_locationが設定されていない、または日本語でない場合は、Nominatim APIを使用して取得を試みる
+        if 'summary_location' not in place_details or not is_japanese(place_details.get('summary_location', '')):
+            try:
+                print(f"Nominatim APIを使用して日本語の地名情報を取得します")
+                if place_details.get('latitude') and place_details.get('longitude'):
+                    nominatim_url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={place_details['latitude']}&lon={place_details['longitude']}&accept-language=ja"
+                    nominatim_headers = {
+                        'User-Agent': 'Spacey App (https://spacey.example.com)'
+                    }
+                    
+                    nominatim_response = requests.get(nominatim_url, headers=nominatim_headers)
+                    if nominatim_response.status_code == 200:
+                        nominatim_data = nominatim_response.json()
+                        
+                        if 'address' in nominatim_data:
+                            address = nominatim_data['address']
+                            summary_parts = []
+                            
+                            if 'country' in address and address['country'] != "日本":
+                                summary_parts.append(address['country'])
+                            if 'state' in address:
+                                summary_parts.append(address['state'])
+                            if 'city' in address or 'town' in address or 'village' in address:
+                                summary_parts.append(address.get('city') or address.get('town') or address.get('village'))
+                            
+                            if summary_parts:
+                                place_details['summary_location'] = '、'.join(summary_parts)
+                                print(f"Nominatim APIから日本語のsummary_locationを設定: {place_details['summary_location']}")
+            except Exception as e:
+                print(f"Nominatim API呼び出しエラー: {str(e)}")
         
         return jsonify(place_details)
     except Exception as e:
@@ -518,3 +556,831 @@ def get_google_maps_url(spot_id):
         url = f"https://www.google.com/maps/search/?api=1&query={spot.name}"
     
     return jsonify({'google_maps_url': url})
+
+@api_bp.route('/import/instagram/fetch', methods=['POST'])
+def fetch_instagram_posts():
+    """Instagramから投稿を取得するAPI"""
+    print("=== Instagram投稿取得API開始 ===")
+    if not current_user.is_authenticated:
+        print("エラー: 認証されていないユーザー")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    print(f"ユーザーID: {current_user.id}, ユーザー名: {current_user.username}")
+    print(f"Instagram連携状態: token={current_user.instagram_token is not None}")
+    
+    if not current_user.instagram_token:
+        print("エラー: Instagramアカウントが連携されていません")
+        return jsonify({'error': 'Instagram account not connected'}), 400
+    
+    # リクエストからパラメータを取得
+    data = request.get_json() or {}
+    limit = data.get('limit', 10)  # デフォルトは10件
+    print(f"リクエストパラメータ: limit={limit}")
+    
+    try:
+        # Instagram Graph APIを呼び出す
+        url = f"https://graph.instagram.com/v18.0/me/media"
+        params = {
+            "fields": "id,caption,media_type,media_url,permalink,timestamp,location",
+            "access_token": current_user.instagram_token,
+            "limit": limit
+        }
+        
+        print(f"Instagram Graph API呼び出し: URL={url}")
+        print(f"パラメータ: fields={params['fields']}, limit={params['limit']}")
+        print(f"アクセストークン: {current_user.instagram_token[:10]}...{current_user.instagram_token[-10:]}")
+        
+        response = requests.get(url, params=params)
+        
+        print(f"Instagram Graph APIレスポンス: ステータスコード={response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"Instagram Graph APIエラー: {response.text}")
+            return jsonify({'error': f'Instagram API error: {response.text}'}), 400
+        
+        posts_data = response.json().get('data', [])
+        print(f"取得した投稿数: {len(posts_data)}")
+        
+        # 投稿データを整形して返す
+        posts = []
+        for post in posts_data:
+            # キャプションがある投稿のみ処理
+            if 'caption' in post:
+                posts.append({
+                    'id': post.get('id'),
+                    'caption': post.get('caption', ''),
+                    'media_type': post.get('media_type'),
+                    'media_url': post.get('media_url'),
+                    'permalink': post.get('permalink'),
+                    'timestamp': post.get('timestamp'),
+                    'location': post.get('location', {})
+                })
+        
+        print(f"処理後の投稿数: {len(posts)}")
+        print("=== Instagram投稿取得API終了 ===")
+        
+        return jsonify({
+            'success': True,
+            'count': len(posts),
+            'posts': posts
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"Instagram投稿取得中にエラーが発生しました: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': f'Failed to fetch Instagram posts: {str(e)}'}), 500
+
+@api_bp.route('/import/instagram/analyze', methods=['POST'])
+def analyze_instagram_posts():
+    """Instagram投稿からスポット候補を生成するAPI"""
+    if not current_user.is_authenticated:
+        print("DEBUG: User not authenticated")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # リクエストからパラメータを取得
+    data = request.get_json() or {}
+    posts = data.get('posts', [])
+    
+    print(f"DEBUG: Received {len(posts)} posts for analysis")
+    
+    if not posts:
+        print("DEBUG: No posts provided")
+        return jsonify({'error': 'No posts provided'}), 400
+
+    if not OPENAI_API_KEY:
+        print("DEBUG: OpenAI API key not configured")
+        return jsonify({'error': 'OpenAI API key not configured'}), 500
+
+    try:
+        import openai
+        from openai import OpenAI
+        
+        # OpenAIクライアントの初期化（タイムアウト設定付き）
+        client = OpenAI(
+            api_key=OPENAI_API_KEY,
+            timeout=30.0  # 30秒のタイムアウト
+        )
+        print(f"DEBUG: OpenAI API key set: {OPENAI_API_KEY[:5]}...{OPENAI_API_KEY[-5:]}")
+        
+        spot_candidates = []
+        
+        # 処理する投稿数を制限（最初の5件のみ）
+        posts_to_process = posts[:5]
+        print(f"DEBUG: Processing only the first {len(posts_to_process)} posts")
+        
+        for post in posts_to_process:
+            caption = post.get('caption', '')
+            print(f"DEBUG: Processing post ID: {post.get('id')}, Caption length: {len(caption)}")
+            
+            # キャプションが空の場合はスキップ
+            if not caption:
+                print("DEBUG: Empty caption, skipping")
+                continue
+            
+            # キャプションが長すぎる場合は切り詰める
+            if len(caption) > 1000:
+                caption = caption[:1000] + "..."
+                print("DEBUG: Caption truncated to 1000 characters")
+            
+            # OpenAI APIを使用してキャプションからスポット名を抽出
+            prompt = f"""
+            以下のInstagramの投稿キャプションから、訪問した場所やスポットの名前を全て抽出してください。
+            複数の場所が言及されている場合は、それぞれを別々に抽出してください。
+            最大5つまでのスポットを抽出し、JSONリスト形式で返してください。
+            
+            キャプション: {caption}
+            
+            出力形式:
+            {{
+              "spots": [
+                "スポット名1",
+                "スポット名2",
+                ...
+              ]
+            }}
+            """
+            
+            print("DEBUG: Calling OpenAI API")
+            try:
+                # タイムアウト付きでAPIを呼び出す
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": "あなたはInstagramの投稿からスポット情報を抽出する専門家です。日本語のキャプションから場所名を正確に抽出してください。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=500  # トークン数を制限
+                )
+                print(f"DEBUG: OpenAI API response received")
+            except Exception as openai_error:
+                print(f"DEBUG: OpenAI API error: {str(openai_error)}")
+                # エラーが発生した場合でも処理を続行
+                # 位置情報があれば使用
+                location = post.get('location', {})
+                if location and 'name' in location:
+                    spot_name = location.get('name')
+                    print(f"DEBUG: Using location from post metadata: {spot_name}")
+                    
+                    # 位置情報からスポット候補を追加
+                    spot_candidate = {
+                        'name': spot_name,
+                        'formatted_address': '',
+                        'instagram_post_id': post.get('id'),
+                        'instagram_permalink': post.get('permalink'),
+                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption
+                    }
+                    spot_candidates.append(spot_candidate)
+                    print(f"DEBUG: Added spot candidate from location metadata: {spot_name}")
+                
+                continue
+            
+            try:
+                # レスポンスからスポット名のリストを取得
+                content = response.choices[0].message.content
+                print(f"DEBUG: OpenAI response content: {content}")
+                result = json.loads(content)
+                print(f"DEBUG: Parsed JSON result: {result}")
+                
+                # スポット名を抽出（様々な形式に対応）
+                spot_names = []
+                
+                # 辞書型の場合
+                if isinstance(result, dict):
+                    # 辞書の値を確認
+                    for key, value in result.items():
+                        # リスト型の値の場合
+                        if isinstance(value, list):
+                            spot_names.extend(value)
+                        # 文字列型の値の場合（キーがerrorでない場合のみ）
+                        elif isinstance(value, str) and not key.lower() in ['error', 'エラー']:
+                            spot_names.append(value)
+                        # 辞書型の値の場合（再帰的に処理）
+                        elif isinstance(value, dict):
+                            for sub_key, sub_value in value.items():
+                                if isinstance(sub_value, str) and not sub_key.lower() in ['error', 'エラー']:
+                                    spot_names.append(sub_value)
+                
+                # リスト型の場合
+                elif isinstance(result, list):
+                    spot_names = result
+                
+                print(f"DEBUG: Extracted spot names: {spot_names}")
+                
+                # 位置情報があれば優先的に使用
+                location = post.get('location', {})
+                if location and 'name' in location:
+                    spot_names.insert(0, location.get('name'))
+                    print(f"DEBUG: Added location from post metadata: {location.get('name')}")
+                
+                # 重複を削除
+                spot_names = list(dict.fromkeys(spot_names))
+                print(f"DEBUG: Final spot names after deduplication: {spot_names}")
+                
+                # スポット名が空の場合はスキップ
+                if not spot_names:
+                    print("DEBUG: No spot names found, skipping Google Places API calls")
+                    continue
+                
+                # 各スポット名でGoogle Places APIを呼び出して詳細情報を取得
+                for spot_name in spot_names:
+                    # スポット名が空の場合はスキップ
+                    if not spot_name or spot_name.strip() == "":
+                        print("DEBUG: Empty spot name, skipping")
+                        continue
+                        
+                    print(f"DEBUG: Looking up spot: {spot_name}")
+                    
+                    # 基本的なスポット候補を作成（APIエラー時のフォールバック用）
+                    basic_spot_candidate = {
+                        'name': spot_name,
+                        'formatted_address': '',
+                        'instagram_post_id': post.get('id'),
+                        'instagram_permalink': post.get('permalink'),
+                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption
+                    }
+                    
+                    # Google Places APIの検索エンドポイントを呼び出す
+                    search_url = "https://places.googleapis.com/v1/places:searchText"
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.types,places.id',
+                        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+                    }
+                    search_data = {
+                        "textQuery": spot_name,
+                        "languageCode": "ja",  # 日本語を指定
+                        "regionCode": "JP"     # 日本の地域コードを指定
+                    }
+                    
+                    print(f"DEBUG: Calling Google Places API with query: {spot_name}")
+                    try:
+                        # タイムアウト設定付きでAPIを呼び出す
+                        search_response = requests.post(search_url, headers=headers, json=search_data, timeout=10)
+                        print(f"DEBUG: Google Places API response status: {search_response.status_code}")
+                        
+                        if search_response.status_code == 200:
+                            search_result = search_response.json()
+                            places = search_result.get('places', [])
+                            
+                            if places:
+                                place = places[0]  # 最初の結果を使用
+                                print(f"DEBUG: Found place: {place.get('displayName', {}).get('text')}")
+                                
+                                # スポット候補を追加
+                                spot_candidate = {
+                                    'name': place.get('displayName', {}).get('text', spot_name),
+                                    'formatted_address': place.get('formattedAddress', ''),
+                                    'latitude': place.get('location', {}).get('latitude'),
+                                    'longitude': place.get('location', {}).get('longitude'),
+                                    'types': place.get('types', []),
+                                    'place_id': place.get('id'),
+                                    'instagram_post_id': post.get('id'),
+                                    'instagram_permalink': post.get('permalink'),
+                                    'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption
+                                }
+                                
+                                # 写真情報を取得
+                                try:
+                                    photo_url = f"https://places.googleapis.com/v1/places/{place.get('id')}/photos"
+                                    photo_headers = {
+                                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                                        'X-Goog-FieldMask': 'photos.name,photos.widthPx,photos.heightPx'
+                                    }
+                                    
+                                    photo_response = requests.get(photo_url, headers=photo_headers, timeout=10)
+                                    
+                                    if photo_response.status_code == 200:
+                                        photo_data = photo_response.json()
+                                        photos = photo_data.get('photos', [])
+                                        
+                                        if photos and len(photos) > 0:
+                                            photo_name = photos[0].get('name')
+                                            if photo_name:
+                                                # 写真参照情報を設定
+                                                spot_candidate['photo_reference'] = photo_name
+                                                # サムネイルURLを設定
+                                                spot_candidate['thumbnail_url'] = f"https://places.googleapis.com/v1/{photo_name}/media?key={GOOGLE_MAPS_API_KEY}&maxHeightPx=400&maxWidthPx=400"
+                                                print(f"DEBUG: Added photo reference: {photo_name}")
+                                except Exception as photo_error:
+                                    print(f"DEBUG: Error fetching photos: {str(photo_error)}")
+                                
+                                # 詳細情報を取得して、日本語のsummary_locationを生成
+                                try:
+                                    # Google Places APIの詳細エンドポイントを呼び出す
+                                    details_url = f"https://places.googleapis.com/v1/places/{place.get('id')}"
+                                    details_headers = {
+                                        'Content-Type': 'application/json',
+                                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                                        'X-Goog-FieldMask': 'addressComponents',
+                                        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+                                    }
+                                    
+                                    details_response = requests.get(details_url, headers=details_headers, timeout=10)
+                                    
+                                    if details_response.status_code == 200:
+                                        details_data = details_response.json()
+                                        
+                                        if 'addressComponents' in details_data:
+                                            country = None
+                                            prefecture = None
+                                            locality = None
+                                            
+                                            for component in details_data['addressComponents']:
+                                                types = component.get('types', [])
+                                                if 'country' in types:
+                                                    country = component.get('longText')
+                                                elif 'administrative_area_level_1' in types:
+                                                    prefecture = component.get('longText')
+                                                elif 'locality' in types or 'sublocality_level_1' in types:
+                                                    locality = component.get('longText')
+                                            
+                                            # サマリーロケーションを構築
+                                            summary_parts = []
+                                            if country and country != "日本":
+                                                summary_parts.append(country)
+                                            if prefecture:
+                                                summary_parts.append(prefecture)
+                                            if locality:
+                                                summary_parts.append(locality)
+                                            
+                                            if summary_parts:
+                                                spot_candidate['summary_location'] = '、'.join(summary_parts)
+                                                print(f"DEBUG: Updated summary location from address components: {spot_candidate['summary_location']}")
+                                except Exception as details_error:
+                                    print(f"DEBUG: Error fetching place details: {str(details_error)}")
+                                
+                                # 日本語のsummary_locationが取得できなかった場合、searchTextエンドポイントを使用
+                                if not spot_candidate.get('summary_location') or not is_japanese(spot_candidate.get('summary_location', '')):
+                                    try:
+                                        print(f"DEBUG: Using searchText endpoint to get Japanese information for: {spot_name}")
+                                        
+                                        search_url = "https://places.googleapis.com/v1/places:searchText"
+                                        search_headers = {
+                                            'Content-Type': 'application/json',
+                                            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                                            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.addressComponents'
+                                        }
+                                        search_data = {
+                                            'textQuery': spot_name,
+                                            'languageCode': 'ja',
+                                            'regionCode': 'jp'
+                                        }
+                                        
+                                        search_response = requests.post(search_url, headers=search_headers, json=search_data, timeout=10)
+                                        
+                                        if search_response.status_code == 200:
+                                            search_data = search_response.json()
+                                            
+                                            if 'places' in search_data and len(search_data['places']) > 0:
+                                                place = search_data['places'][0]
+                                                
+                                                # サマリーロケーションを生成
+                                                if 'addressComponents' in place:
+                                                    country = None
+                                                    prefecture = None
+                                                    locality = None
+                                                    
+                                                    for component in place['addressComponents']:
+                                                        types = component.get('types', [])
+                                                        if 'country' in types:
+                                                            country = component.get('longText')
+                                                        elif 'administrative_area_level_1' in types:
+                                                            prefecture = component.get('longText')
+                                                        elif 'locality' in types or 'sublocality_level_1' in types:
+                                                            locality = component.get('longText')
+                                                    
+                                                    # サマリーロケーションを構築
+                                                    summary_parts = []
+                                                    if country and country != "日本":
+                                                        summary_parts.append(country)
+                                                    if prefecture:
+                                                        summary_parts.append(prefecture)
+                                                    if locality:
+                                                        summary_parts.append(locality)
+                                                    
+                                                    if summary_parts:
+                                                        spot_candidate['summary_location'] = '、'.join(summary_parts)
+                                                        print(f"DEBUG: Set Japanese summary_location from searchText: {spot_candidate['summary_location']}")
+                                    except Exception as search_error:
+                                        print(f"DEBUG: Error calling searchText API: {str(search_error)}")
+                                
+                                spot_candidates.append(spot_candidate)
+                                print(f"DEBUG: Added spot candidate: {spot_candidate['name']}")
+                            else:
+                                print(f"DEBUG: No places found for spot name: {spot_name}")
+                                # 場所が見つからない場合でも、名前だけのスポット候補を追加
+                                spot_candidates.append(basic_spot_candidate)
+                                print(f"DEBUG: Added basic spot candidate with name only: {spot_name}")
+                        else:
+                            print(f"DEBUG: Google Places API error: {search_response.text}")
+                            # APIエラーの場合でも、名前だけのスポット候補を追加
+                            spot_candidates.append(basic_spot_candidate)
+                            print(f"DEBUG: Added basic spot candidate after API error: {spot_name}")
+                    except Exception as google_error:
+                        print(f"DEBUG: Google Places API error: {str(google_error)}")
+                        # 例外発生時も、名前だけのスポット候補を追加
+                        spot_candidates.append(basic_spot_candidate)
+                        print(f"DEBUG: Added basic spot candidate after exception: {spot_name}")
+                        continue
+            
+            except Exception as e:
+                print(f"DEBUG: Error processing post {post.get('id')}: {str(e)}")
+                continue
+        
+        print(f"DEBUG: Analysis complete. Found {len(spot_candidates)} spot candidates")
+        return jsonify({
+            'success': True,
+            'count': len(spot_candidates),
+            'spot_candidates': spot_candidates
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Failed to analyze Instagram posts: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to analyze Instagram posts: {str(e)}'}), 500
+
+@api_bp.route('/import/instagram/save', methods=['POST'])
+def save_instagram_spots():
+    """選択されたスポット候補を保存するAPI"""
+    print("=== Instagram投稿保存API開始 ===")
+    if not current_user.is_authenticated:
+        print("エラー: 認証されていないユーザー")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # リクエストからパラメータを取得
+    data = request.get_json() or {}
+    spot_candidates = data.get('spot_candidates', [])
+    
+    print(f"保存するスポット候補数: {len(spot_candidates)}")
+    
+    if not spot_candidates:
+        print("エラー: スポット候補が提供されていません")
+        return jsonify({'error': 'No spot candidates provided'}), 400
+    
+    try:
+        saved_spots = []
+        
+        for i, spot_data in enumerate(spot_candidates):
+            print(f"スポット候補 {i+1}/{len(spot_candidates)} を処理中: {spot_data.get('name', 'Unknown')}")
+            
+            # スポットモデルの作成
+            spot = Spot(
+                user_id=current_user.id,
+                name=spot_data.get('name', ''),
+                location=spot_data.get('formatted_address', ''),
+                latitude=spot_data.get('latitude'),
+                longitude=spot_data.get('longitude'),
+                google_place_id=spot_data.get('place_id'),
+                formatted_address=spot_data.get('formatted_address', ''),
+                summary_location=spot_data.get('summary_location', ''),
+                google_photo_reference=spot_data.get('photo_reference', ''),
+                thumbnail_url=spot_data.get('thumbnail_url', ''),
+                is_active=False  # 非公開状態で保存
+            )
+            
+            print(f"スポットモデル作成: {spot.name}, user_id={spot.user_id}")
+            
+            # Google Placesのtypesから日本語カテゴリを生成
+            if 'types' in spot_data and spot_data['types']:
+                spot.types = json.dumps(spot_data['types'])
+                print(f"タイプ情報: {spot.types}")
+                
+                # OpenAI APIを使用して日本語カテゴリを生成
+                if OPENAI_API_KEY:
+                    try:
+                        import openai
+                        from openai import OpenAI
+                        
+                        # OpenAIクライアントの初期化（タイムアウト設定付き）
+                        client = OpenAI(
+                            api_key=OPENAI_API_KEY,
+                            timeout=30.0  # 30秒のタイムアウト
+                        )
+                        
+                        types_str = ", ".join(spot_data['types'])
+                        
+                        prompt = f"""
+                        以下のGoogle Places APIから返されたタイプ情報から、最も適切な日本語のカテゴリ名を1つだけ生成してください。
+                        
+                        タイプ情報: {types_str}
+                        
+                        以下のようなカテゴリを参考にしてください：
+                        - レストラン
+                        - カフェ
+                        - バー
+                        - ショッピング
+                        - 観光スポット
+                        - 公園
+                        - 美術館・博物館
+                        - ホテル
+                        - エンターテイメント
+                        - スポーツ施設
+                        - その他
+                        
+                        日本語カテゴリ名:
+                        """
+                        
+                        print(f"OpenAI APIを呼び出してカテゴリを生成")
+                        response = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[
+                                {"role": "system", "content": "あなたはGoogle Placesのタイプ情報から適切な日本語カテゴリを生成する専門家です。"},
+                                {"role": "user", "content": prompt}
+                            ],
+                            max_tokens=50  # カテゴリ名は短いので少ないトークン数で十分
+                        )
+                        
+                        category = response.choices[0].message.content.strip()
+                        spot.category = category
+                        print(f"生成されたカテゴリ: {category}")
+                    except Exception as e:
+                        print(f"カテゴリ生成エラー: {str(e)}")
+                        spot.category = "その他"
+            
+            # 日本語のsummary_locationを取得
+            if spot_data.get('place_id'):
+                try:
+                    print(f"日本語のsummary_locationを取得: place_id={spot_data.get('place_id')}")
+                    
+                    # Google Places APIの詳細エンドポイントを呼び出す
+                    details_url = f"https://places.googleapis.com/v1/places/{spot_data.get('place_id')}"
+                    details_headers = {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                        'X-Goog-FieldMask': 'addressComponents',
+                        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+                    }
+                    
+                    details_response = requests.get(details_url, headers=details_headers)
+                    
+                    if details_response.status_code == 200:
+                        details_data = details_response.json()
+                        
+                        if 'addressComponents' in details_data:
+                            country = None
+                            prefecture = None
+                            locality = None
+                            
+                            for component in details_data['addressComponents']:
+                                types = component.get('types', [])
+                                if 'country' in types:
+                                    country = component.get('longText')
+                                elif 'administrative_area_level_1' in types:
+                                    prefecture = component.get('longText')
+                                elif 'locality' in types or 'sublocality_level_1' in types:
+                                    locality = component.get('longText')
+                            
+                            # サマリーロケーションを構築
+                            summary_parts = []
+                            if country and country != "日本":
+                                summary_parts.append(country)
+                            if prefecture:
+                                summary_parts.append(prefecture)
+                            if locality:
+                                summary_parts.append(locality)
+                            
+                            if summary_parts:
+                                spot.summary_location = '、'.join(summary_parts)
+                                print(f"日本語のsummary_locationを設定: {spot.summary_location}")
+                    else:
+                        print(f"Google Places API詳細取得エラー: ステータスコード {details_response.status_code}")
+                        print(f"レスポンス: {details_response.text}")
+                except Exception as e:
+                    print(f"summary_location取得エラー: {str(e)}")
+            
+            # 日本語のsummary_locationが取得できなかった場合、searchTextエンドポイントを使用
+            if spot_data.get('place_id') and (not spot.summary_location or not is_japanese(spot.summary_location)):
+                try:
+                    print(f"searchTextエンドポイントを使用して日本語情報を取得: {spot.name}")
+                    
+                    search_url = "https://places.googleapis.com/v1/places:searchText"
+                    search_headers = {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.addressComponents'
+                    }
+                    search_data = {
+                        'textQuery': spot.name,
+                        'languageCode': 'ja',
+                        'regionCode': 'jp'
+                    }
+                    
+                    search_response = requests.post(search_url, headers=search_headers, json=search_data)
+                    
+                    if search_response.status_code == 200:
+                        search_data = search_response.json()
+                        
+                        if 'places' in search_data and len(search_data['places']) > 0:
+                            place = search_data['places'][0]
+                            
+                            # サマリーロケーションを生成
+                            if 'addressComponents' in place:
+                                country = None
+                                prefecture = None
+                                locality = None
+                                
+                                for component in place['addressComponents']:
+                                    types = component.get('types', [])
+                                    if 'country' in types:
+                                        country = component.get('longText')
+                                    elif 'administrative_area_level_1' in types:
+                                        prefecture = component.get('longText')
+                                    elif 'locality' in types or 'sublocality_level_1' in types:
+                                        locality = component.get('longText')
+                                
+                                # サマリーロケーションを構築
+                                summary_parts = []
+                                if country and country != "日本":
+                                    summary_parts.append(country)
+                                if prefecture:
+                                    summary_parts.append(prefecture)
+                                if locality:
+                                    summary_parts.append(locality)
+                                
+                                if summary_parts:
+                                    spot.summary_location = '、'.join(summary_parts)
+                                    print(f"searchTextから日本語のsummary_locationを設定: {spot.summary_location}")
+                except Exception as e:
+                    print(f"searchText API呼び出しエラー: {str(e)}")
+            
+            print(f"スポットをデータベースに追加")
+            db.session.add(spot)
+            db.session.flush()  # IDを取得するためのフラッシュ
+            print(f"スポットID: {spot.id}")
+            
+            # Google Place IDがあれば、写真を取得・保存
+            if spot_data.get('place_id'):
+                try:
+                    print(f"写真を取得: place_id={spot_data.get('place_id')}")
+                    
+                    # Google Places APIを呼び出して写真情報を取得
+                    url = f"https://places.googleapis.com/v1/places/{spot_data.get('place_id')}"
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                        'X-Goog-FieldMask': 'photos'  # すべての写真の情報を取得
+                    }
+                    
+                    api_response = requests.get(url, headers=headers)
+                    
+                    if api_response.status_code == 200:
+                        data = api_response.json()
+                        
+                        if 'photos' in data and len(data['photos']) > 0:
+                            # 写真参照情報の配列
+                            photos = data['photos']
+                            photo_references = [photo.get('name', '') for photo in photos if photo.get('name', '')]
+                            
+                            print(f"取得した写真数: {len(photo_references)}")
+                            
+                            # 最初の写真参照情報をスポットに設定（まだ設定されていない場合）
+                            if len(photo_references) > 0 and not spot.google_photo_reference:
+                                spot.google_photo_reference = photo_references[0]
+                                print(f"スポットの写真参照情報を設定: {photo_references[0]}")
+                            
+                            # すべての写真を保存（最大5枚）
+                            for i, photo_reference in enumerate(photo_references[:5]):
+                                # Google Photo ReferenceからURLを生成
+                                photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=800&maxWidthPx=800&key={GOOGLE_MAPS_API_KEY}"
+                                
+                                # 写真モデルを作成
+                                photo = Photo(
+                                    spot_id=spot.id,
+                                    photo_url=photo_url,
+                                    google_photo_reference=photo_reference,
+                                    is_google_photo=True,
+                                    is_primary=(i == 0)  # 最初の写真をプライマリに設定
+                                )
+                                db.session.add(photo)
+                                print(f"写真を追加 ({i+1}/{min(5, len(photo_references))}): {photo_url}")
+                                
+                                # 確実にデータベースに反映させるためにflush
+                                db.session.flush()
+                        else:
+                            print("写真情報が見つかりませんでした")
+                            
+                            # 写真情報が見つからない場合、別のエンドポイントを試す
+                            photo_url = f"https://places.googleapis.com/v1/places/{spot_data.get('place_id')}/photos"
+                            photo_headers = {
+                                'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                                'X-Goog-FieldMask': 'photos.name'
+                            }
+                            
+                            photo_response = requests.get(photo_url, headers=photo_headers)
+                            
+                            if photo_response.status_code == 200:
+                                photo_data = photo_response.json()
+                                photos = photo_data.get('photos', [])
+                                
+                                if photos and len(photos) > 0:
+                                    # 写真参照情報の配列
+                                    photo_references = [photo.get('name', '') for photo in photos if photo.get('name', '')]
+                                    
+                                    print(f"別エンドポイントから取得した写真数: {len(photo_references)}")
+                                    
+                                    # 最初の写真参照情報をスポットに設定（まだ設定されていない場合）
+                                    if len(photo_references) > 0 and not spot.google_photo_reference:
+                                        spot.google_photo_reference = photo_references[0]
+                                        print(f"スポットの写真参照情報を設定: {photo_references[0]}")
+                                    
+                                    # すべての写真を保存（最大5枚）
+                                    for i, photo_reference in enumerate(photo_references[:5]):
+                                        # Google Photo ReferenceからURLを生成
+                                        photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=800&maxWidthPx=800&key={GOOGLE_MAPS_API_KEY}"
+                                        
+                                        # 写真モデルを作成
+                                        photo = Photo(
+                                            spot_id=spot.id,
+                                            photo_url=photo_url,
+                                            google_photo_reference=photo_reference,
+                                            is_google_photo=True,
+                                            is_primary=(i == 0)  # 最初の写真をプライマリに設定
+                                        )
+                                        db.session.add(photo)
+                                        print(f"写真を追加 ({i+1}/{min(5, len(photo_references))}): {photo_url}")
+                                        
+                                        # 確実にデータベースに反映させるためにflush
+                                        db.session.flush()
+                    else:
+                        print(f"Google Places API写真取得エラー: ステータスコード {api_response.status_code}")
+                        print(f"レスポンス: {api_response.text}")
+                except Exception as e:
+                    print(f"写真取得エラー: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # raw_dataをJSON互換形式に変換
+            serializable_data = {}
+            for key, value in spot_data.items():
+                # 基本的な型のみを保持
+                if isinstance(value, (str, int, float, bool, list, dict)) or value is None:
+                    serializable_data[key] = value
+            
+            # インポート履歴の記録
+            try:
+                print(f"インポート履歴を記録")
+                history = ImportHistory(
+                    user_id=current_user.id,
+                    source="instagram",
+                    external_id=spot_data.get('instagram_post_id'),
+                    status="success",
+                    spot_id=spot.id,
+                    raw_data=serializable_data
+                )
+                db.session.add(history)
+                print(f"インポート履歴を追加: ID={history.id if hasattr(history, 'id') else 'None'}")
+            except Exception as history_error:
+                print(f"インポート履歴の記録エラー: {str(history_error)}")
+                # インポート履歴の記録に失敗しても処理を続行
+            
+            saved_spots.append({
+                'id': spot.id,
+                'name': spot.name,
+                'location': spot.location,
+                'category': spot.category
+            })
+        
+        print(f"データベースに変更をコミット")
+        db.session.commit()
+        print(f"コミット成功: {len(saved_spots)}件のスポットを保存")
+        
+        return jsonify({
+            'success': True,
+            'count': len(saved_spots),
+            'saved_spots': saved_spots
+        })
+        
+    except Exception as e:
+        print(f"保存処理エラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'error': f'Failed to save spots: {str(e)}'}), 500
+
+# 日本語かどうかを判定する関数を追加
+def is_japanese(text):
+    """テキストに日本語が含まれているかを判定する"""
+    if not text:
+        return False
+    
+    # 日本語の文字コード範囲
+    japanese_ranges = [
+        (0x3040, 0x309F),  # ひらがな
+        (0x30A0, 0x30FF),  # カタカナ
+        (0x4E00, 0x9FFF),  # 漢字
+        (0x3400, 0x4DBF),  # 漢字拡張A
+        (0xFF00, 0xFFEF)   # 全角英数
+    ]
+    
+    # テキスト内の各文字について日本語かどうかをチェック
+    for char in text:
+        char_code = ord(char)
+        for start, end in japanese_ranges:
+            if start <= char_code <= end:
+                return True
+    
+    return False

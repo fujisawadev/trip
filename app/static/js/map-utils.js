@@ -45,7 +45,11 @@ async function geocodeAddress(address) {
   
   try {
     const encodedAddress = encodeURIComponent(address);
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`);
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`, {
+      headers: {
+        'User-Agent': 'Spacey App (https://spacey.example.com)'
+      }
+    });
     const data = await response.json();
     
     if (data && data.length > 0) {
@@ -67,7 +71,11 @@ async function reverseGeocode(lat, lng) {
   if (!lat || !lng) return null;
   
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+      headers: {
+        'User-Agent': 'Spacey App (https://spacey.example.com)'
+      }
+    });
     const data = await response.json();
     
     if (data && data.display_name) {

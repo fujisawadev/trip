@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>インポート管理 | Spacey</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>インポート機能 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,6 +36,98 @@
       button:active {
         transform: scale(0.98);
       }
+      
+      /* Loading spinner */
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-left-color: #38bdf8;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Spot candidate item */
+      .spot-candidate {
+        position: relative;
+        padding: 16px;
+        border-radius: 12px;
+        background-color: white;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      
+      .remove-btn {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background-color: #f87171;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transform: translateY(-50%);
+      }
+      
+      /* モーダルダイアログのスタイル */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 50;
+      }
+      
+      .modal-container {
+        background-color: white;
+        border-radius: 16px;
+        max-width: 90%;
+        width: 480px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        position: relative;
+      }
+      
+      .modal-close-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: #f1f5f9;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      
+      /* スライドインアニメーション */
+      @keyframes slideIn {
+        from { transform: translateY(50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      
+      .slide-in {
+        animation: slideIn 0.3s ease-out forwards;
+      }
     </style>
   </head>
   <body class="bg-slate-50">
@@ -43,229 +136,478 @@
         <header
           class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
         >
+          <a
+            href="{{ url_for('profile.settings') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="戻る"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
           <h1
             class="flex-1 shrink self-stretch pl-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-neutral-900"
           >
-            Import Management
+            インポート機能
           </h1>
           <div class="flex items-center self-stretch my-auto w-12">
             <div
               class="flex overflow-hidden gap-2 justify-center items-center self-stretch my-auto w-6 rounded-xl max-w-[480px] min-h-12"
             >
-              <div class="flex-1 shrink self-stretch my-auto w-full basis-0">
-                <img
-                  src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/df0b719c7898128e23b3744643012bc20d65e71dad19ee383e8aa6feadd0e7db?placeholderIfAbsent=true"
-                  alt="Settings"
-                  class="object-contain flex-1 w-full aspect-square"
-                />
-              </div>
             </div>
           </div>
         </header>
 
-        <main>
-          <section>
-            <h2
-              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none min-h-[47px] text-neutral-900"
-            >
-              Automated Imports
-            </h2>
-
-            <div
-              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
-            >
-              <div
-                class="flex flex-col justify-center self-stretch my-auto min-w-60 w-[291px]"
-              >
-                <h3
-                  class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900 w-[291px]"
-                >
-                  Instagram
-                </h3>
-                <p
-                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[291px]"
-                >
-                  Connect your Instagram account to import posts from your feed
-                </p>
-              </div>
-              <label
-                class="relative inline-block self-stretch my-auto w-[51px]"
-              >
-                <input type="checkbox" class="sr-only peer" />
-                <div
-                  class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
-                >
-                  <div
-                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform peer-checked:translate-x-5"
-                  ></div>
-                </div>
-              </label>
-            </div>
-
-            <div
-              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
-            >
-              <div
-                class="flex flex-col justify-center self-stretch my-auto min-w-60 w-[291px]"
-              >
-                <h3
-                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[291px]"
-                >
-                  Google Maps
-                </h3>
-                <p
-                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[291px]"
-                >
-                  Import photos and information about your spot from Google Maps
-                </p>
-              </div>
-              <label
-                class="relative inline-block self-stretch my-auto w-[51px]"
-              >
-                <input type="checkbox" class="sr-only peer" />
-                <div
-                  class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
-                >
-                  <div
-                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform peer-checked:translate-x-5"
-                  ></div>
-                </div>
-              </label>
-            </div>
-
-            <div
-              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
-            >
-              <div
-                class="flex flex-col justify-center self-stretch my-auto min-w-60 w-[291px]"
-              >
-                <h3
-                  class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900 w-[291px]"
-                >
-                  Yelp
-                </h3>
-                <p
-                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[291px]"
-                >
-                  Import photos and information about your spot from Yelp
-                </p>
-              </div>
-              <label
-                class="relative inline-block self-stretch my-auto w-[51px]"
-              >
-                <input type="checkbox" class="sr-only peer" />
-                <div
-                  class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
-                >
-                  <div
-                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform peer-checked:translate-x-5"
-                  ></div>
-                </div>
-              </label>
-            </div>
-          </section>
-
-          <section class="px-4 mt-8">
-            <h3 class="text-base font-medium text-neutral-900 mb-2">SNS連携について</h3>
+        <main class="px-4 py-2">
+          <!-- 機能説明セクション -->
+          <section class="bg-white rounded-lg p-5 shadow-sm mb-6">
             <p class="text-sm text-slate-600 mb-4">
-              Instagramビジネスアカウントを連携すると、以下の機能が利用できるようになります：
+              Instagramの投稿からスポット情報を自動的に抽出し、マイページに追加する機能です。
             </p>
-            <ul class="text-sm text-slate-600 list-disc pl-5 space-y-2">
-              <li>Instagram投稿の自動インポート</li>
-              <li>位置情報付き投稿からのスポット自動作成</li>
-              <li>投稿内容からのスポット情報自動抽出</li>
-            </ul>
             
-            <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-100">
-              <h4 class="text-sm font-medium text-yellow-800 mb-2">重要：ビジネスアカウントが必要です</h4>
-              <p class="text-sm text-yellow-700 mb-3">
-                2025年現在、InstagramはビジネスアカウントのみAPI連携をサポートしています。個人アカウントでは連携できません。
-              </p>
-              <p class="text-sm text-yellow-700">
-                個人アカウントをビジネスアカウントに変更するには：
-              </p>
-              <ol class="text-sm text-yellow-700 list-decimal pl-5 space-y-1 mt-2">
-                <li>Instagramアプリで自分のプロフィールを開く</li>
-                <li>右上のメニューから「設定とプライバシー」を選択</li>
-                <li>「アカウント」→「アカウントの種類」を選択</li>
-                <li>「プロアカウントに切り替える」を選択</li>
-                <li>「ビジネス」を選択し、画面の指示に従って設定を完了</li>
-              </ol>
-            </div>
+            <h3 class="text-base font-medium text-neutral-900 mb-2">主な機能</h3>
+            <ul class="text-sm text-slate-600 list-disc pl-5 space-y-2">
+              <li>Instagram投稿のキャプションからスポット名を自動抽出</li>
+              <li>Google Mapsと連携して正確な位置情報を取得</li>
+              <li>写真や詳細情報を自動的に取得</li>
+              <li>マイページに非公開状態で保存（後から編集可能）</li>
+            </ul>
           </section>
 
-          <section>
-            <h2
-              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none min-h-[47px] text-neutral-900"
-            >
-              Manual Imports
-            </h2>
-
-            <div
-              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
-            >
-              <div
-                class="flex flex-col justify-center self-stretch my-auto w-[213px]"
-              >
-                <h3
-                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[213px]"
-                >
-                  Upload Photos
-                </h3>
-                <p
-                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[213px]"
-                >
-                  Manually upload photos for your spot
-                </p>
-              </div>
-              <button
-                class="self-stretch my-auto text-base font-medium text-center text-black w-[129px] hover:text-sky-600 focus:outline-none focus:text-sky-600"
-              >
-                Start Importing &gt;
-              </button>
+          <!-- Instagram連携状態に応じた表示 -->
+          {% if is_instagram_connected %}
+          <!-- インポート機能 -->
+          <section class="mb-8">
+            <h2 class="text-lg font-bold text-neutral-900 mb-3">Instagram投稿からインポート</h2>
+            <p class="text-sm text-slate-600 mb-2">
+              あなたのInstagram投稿からスポット情報を自動的に抽出し、マイページに追加します。
+            </p>
+            
+            <div class="flex justify-between items-center mb-4">
+              <p class="text-sm text-slate-700">
+                インポート元: <span class="font-medium">{{ instagram_username }}</span>
+              </p>
+              <a href="{{ url_for('profile.sns_settings') }}" class="text-xs text-blue-600 hover:text-blue-800">
+                連携設定を変更
+              </a>
             </div>
-
-            <div
-              class="flex gap-4 justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px]"
-            >
-              <div
-                class="flex flex-col justify-center self-stretch my-auto w-[213px]"
-              >
-                <h3
-                  class="overflow-hidden max-w-full text-base font-medium text-neutral-900 w-[213px]"
-                >
-                  Add content
-                </h3>
-                <p
-                  class="overflow-hidden max-w-full text-sm leading-5 text-slate-500 w-[213px]"
-                >
-                  Create new content for your spot
-                </p>
-              </div>
+            
+            <div id="import-container">
               <button
-                class="self-stretch my-auto text-base font-medium text-center text-black w-[129px] hover:text-sky-600 focus:outline-none focus:text-sky-600"
+                id="start-import-btn"
+                class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors mb-4"
               >
-                Start Importing &gt;
+                <span class="text-base font-medium">インポートを開始</span>
               </button>
             </div>
           </section>
-
-          <footer
-            class="mt-40 w-full text-base font-bold text-center text-slate-50"
-          >
-            <div class="flex items-start px-4 py-3 w-full">
-              <button
-                class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-sky-500 rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
-              >
-                <span class="overflow-hidden self-stretch my-auto w-[111px]">
-                  Save Changes
-                </span>
-              </button>
+          
+          {% else %}
+          <!-- 未連携の場合 -->
+          <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-5 mb-6">
+            <div class="flex items-start mb-4">
+              <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 mt-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-base font-medium text-yellow-800 mb-2">Instagram連携が必要です</h2>
+                <p class="text-sm text-yellow-700 mb-3">
+                  インポート機能を利用するには、Instagramビジネスアカウントとの連携が必要です。
+                </p>
+              </div>
             </div>
-            <div class="flex w-full bg-slate-50 min-h-5"></div>
-          </footer>
+            <a
+              href="{{ url_for('profile.sns_settings') }}"
+              class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              <span class="text-base font-medium">Instagram連携を設定する</span>
+            </a>
+          </div>
+          {% endif %}
         </main>
       </div>
     </div>
+    
+    <!-- モーダルダイアログ -->
+    <div id="import-modal" class="modal-overlay hidden">
+      <div class="modal-container slide-in">
+        <div id="modal-close-btn" class="modal-close-btn">×</div>
+        
+        <!-- ローディング表示 -->
+        <div id="loading-container" class="py-8">
+          <div class="flex flex-col items-center justify-center">
+            <div class="spinner mb-4"></div>
+            <p id="loading-text" class="text-sm text-slate-600">Instagram投稿を取得中...</p>
+          </div>
+        </div>
+        
+        <!-- 結果表示 -->
+        <div id="result-container" class="hidden">
+          <h3 class="text-lg font-bold text-neutral-900 mb-4">スポット候補</h3>
+          
+          <div class="bg-green-50 border border-green-100 rounded-lg p-4 mb-4">
+            <p id="result-message" class="text-sm text-green-700">
+              Instagram投稿から<span id="spot-count">0</span>件のスポットが見つかりました。
+            </p>
+          </div>
+          
+          <div id="spot-candidates-container" class="mt-4 max-h-[400px] overflow-y-auto">
+            <!-- スポット候補がここに表示されます -->
+          </div>
+          
+          <div class="flex gap-2 mt-6">
+            <button
+              id="save-spots-btn"
+              class="flex-1 flex justify-center items-center px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              <span class="text-base font-medium">選択したスポットを保存</span>
+            </button>
+            
+            <button
+              id="cancel-import-btn"
+              class="flex justify-center items-center px-4 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors"
+            >
+              <span class="text-base font-medium">キャンセル</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- 成功表示 -->
+        <div id="success-container" class="hidden py-4">
+          <div class="flex flex-col items-center justify-center mb-6">
+            <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-neutral-900 mb-2">インポート完了</h3>
+            <p id="success-message" class="text-sm text-slate-600 text-center">
+              <span id="saved-count">0</span>件のスポットを保存しました。
+            </p>
+          </div>
+          
+          <div class="flex gap-2 mt-4">
+            <a
+              href="{{ url_for('profile.mypage') }}"
+              class="flex-1 flex justify-center items-center px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              <span class="text-base font-medium">マイページで確認する</span>
+            </a>
+            
+            <button
+              id="new-import-btn"
+              class="flex justify-center items-center px-4 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors"
+            >
+              <span class="text-base font-medium">閉じる</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- エラー表示 -->
+        <div id="error-container" class="hidden py-4">
+          <div class="flex flex-col items-center justify-center mb-6">
+            <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-neutral-900 mb-2">エラーが発生しました</h3>
+            <p id="error-message" class="text-sm text-slate-600 text-center">
+              インポート処理中にエラーが発生しました。時間をおいて再度お試しください。
+            </p>
+          </div>
+          
+          <div class="flex gap-2 mt-4">
+            <button
+              id="retry-btn"
+              class="flex-1 flex justify-center items-center px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              <span class="text-base font-medium">再試行</span>
+            </button>
+            
+            <button
+              id="close-error-btn"
+              class="flex justify-center items-center px-4 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors"
+            >
+              <span class="text-base font-medium">閉じる</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // 要素の取得
+        const startImportBtn = document.getElementById('start-import-btn');
+        const importModal = document.getElementById('import-modal');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const loadingContainer = document.getElementById('loading-container');
+        const loadingText = document.getElementById('loading-text');
+        const resultContainer = document.getElementById('result-container');
+        const spotCandidatesContainer = document.getElementById('spot-candidates-container');
+        const spotCount = document.getElementById('spot-count');
+        const saveSpotsBtn = document.getElementById('save-spots-btn');
+        const cancelImportBtn = document.getElementById('cancel-import-btn');
+        const successContainer = document.getElementById('success-container');
+        const savedCount = document.getElementById('saved-count');
+        const newImportBtn = document.getElementById('new-import-btn');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const retryBtn = document.getElementById('retry-btn');
+        const closeErrorBtn = document.getElementById('close-error-btn');
+        
+        // 保存するスポット候補
+        let spotCandidates = [];
+        
+        // インポート開始ボタンのクリックイベント
+        if (startImportBtn) {
+          startImportBtn.addEventListener('click', function() {
+            // モーダルを表示
+            importModal.classList.remove('hidden');
+            // インポート処理を開始
+            startImport();
+          });
+        }
+        
+        // モーダル閉じるボタンのクリックイベント
+        if (modalCloseBtn) {
+          modalCloseBtn.addEventListener('click', closeModal);
+        }
+        
+        // キャンセルボタンのクリックイベント
+        if (cancelImportBtn) {
+          cancelImportBtn.addEventListener('click', closeModal);
+        }
+        
+        // 保存ボタンのクリックイベント
+        if (saveSpotsBtn) {
+          saveSpotsBtn.addEventListener('click', saveSpots);
+        }
+        
+        // 新規インポートボタンのクリックイベント
+        if (newImportBtn) {
+          newImportBtn.addEventListener('click', closeModal);
+        }
+        
+        // 再試行ボタンのクリックイベント
+        if (retryBtn) {
+          retryBtn.addEventListener('click', function() {
+            resetModalUI();
+            startImport();
+          });
+        }
+        
+        // エラー閉じるボタンのクリックイベント
+        if (closeErrorBtn) {
+          closeErrorBtn.addEventListener('click', closeModal);
+        }
+        
+        // モーダルを閉じる
+        function closeModal() {
+          importModal.classList.add('hidden');
+          resetModalUI();
+        }
+        
+        // モーダル内のUIをリセット
+        function resetModalUI() {
+          loadingContainer.classList.remove('hidden');
+          resultContainer.classList.add('hidden');
+          successContainer.classList.add('hidden');
+          errorContainer.classList.add('hidden');
+          spotCandidatesContainer.innerHTML = '';
+          spotCandidates = [];
+        }
+        
+        // インポート処理を開始
+        function startImport() {
+          console.log('インポート処理を開始します');
+          // UIをリセット
+          resetModalUI();
+          
+          // ローディング表示
+          loadingText.textContent = 'Instagram投稿を取得中...';
+          
+          // CSRFトークンを取得して表示
+          const csrfToken = getCsrfToken();
+          console.log('CSRFトークン:', csrfToken);
+          
+          // Instagram投稿を取得
+          console.log('Instagram投稿を取得するAPIを呼び出します');
+          fetch('/api/import/instagram/fetch', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+              limit: 20  // 取得する投稿数
+            })
+          })
+          .then(response => {
+            console.log('Instagram投稿取得APIのレスポンス:', response.status, response.statusText);
+            if (!response.ok) {
+              return response.text().then(text => {
+                console.error('エラーレスポンスの詳細:', text);
+                throw new Error(`Instagram投稿の取得に失敗しました (${response.status}: ${response.statusText})`);
+              });
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('Instagram投稿取得APIのデータ:', data);
+            if (data.success && data.posts && data.posts.length > 0) {
+              loadingText.textContent = 'スポット情報を分析中...';
+              console.log(`${data.posts.length}件の投稿を分析します`);
+              
+              // スポット候補を生成
+              return fetch('/api/import/instagram/analyze', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                  posts: data.posts
+                })
+              });
+            } else {
+              console.error('Instagram投稿が見つかりませんでした', data);
+              throw new Error('Instagram投稿が見つかりませんでした');
+            }
+          })
+          .then(response => {
+            console.log('スポット分析APIのレスポンス:', response.status, response.statusText);
+            if (!response.ok) {
+              return response.text().then(text => {
+                console.error('エラーレスポンスの詳細:', text);
+                throw new Error(`スポット情報の分析に失敗しました (${response.status}: ${response.statusText})`);
+              });
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('スポット分析APIのデータ:', data);
+            if (data.success && data.spot_candidates && data.spot_candidates.length > 0) {
+              // スポット候補を表示
+              spotCandidates = data.spot_candidates;
+              console.log(`${spotCandidates.length}件のスポット候補が見つかりました`);
+              displaySpotCandidates(spotCandidates);
+              
+              // 結果表示
+              loadingContainer.classList.add('hidden');
+              resultContainer.classList.remove('hidden');
+              spotCount.textContent = spotCandidates.length;
+            } else {
+              console.error('スポット候補が見つかりませんでした', data);
+              throw new Error('スポット候補が見つかりませんでした');
+            }
+          })
+          .catch(error => {
+            console.error('インポート処理中のエラー:', error);
+            
+            // エラー表示
+            loadingContainer.classList.add('hidden');
+            errorContainer.classList.remove('hidden');
+            errorMessage.textContent = error.message || 'インポート処理中にエラーが発生しました。時間をおいて再度お試しください。';
+          });
+        }
+        
+        // スポット候補を表示
+        function displaySpotCandidates(candidates) {
+          spotCandidatesContainer.innerHTML = '';
+          
+          candidates.forEach((candidate, index) => {
+            const spotElement = document.createElement('div');
+            spotElement.className = 'spot-candidate';
+            spotElement.dataset.index = index;
+            
+            const nameElement = document.createElement('h4');
+            nameElement.className = 'text-base font-medium text-neutral-900 mb-1 pr-8';
+            nameElement.textContent = candidate.name;
+            
+            const addressElement = document.createElement('p');
+            addressElement.className = 'text-sm text-slate-600';
+            addressElement.textContent = candidate.formatted_address || '住所情報なし';
+            
+            const removeBtn = document.createElement('div');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.addEventListener('click', function() {
+              spotElement.remove();
+              spotCandidates[index] = null;  // 削除フラグ
+            });
+            
+            spotElement.appendChild(nameElement);
+            spotElement.appendChild(addressElement);
+            spotElement.appendChild(removeBtn);
+            
+            spotCandidatesContainer.appendChild(spotElement);
+          });
+        }
+        
+        // スポットを保存
+        function saveSpots() {
+          // 削除されていないスポット候補を取得
+          const selectedCandidates = spotCandidates.filter(candidate => candidate !== null);
+          
+          if (selectedCandidates.length === 0) {
+            alert('保存するスポットがありません');
+            return;
+          }
+          
+          // ローディング表示
+          resultContainer.classList.add('hidden');
+          loadingContainer.classList.remove('hidden');
+          loadingText.textContent = 'スポットを保存中...';
+          
+          // スポットを保存
+          fetch('/api/import/instagram/save', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+              spot_candidates: selectedCandidates
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              return response.text().then(text => {
+                console.error('エラーレスポンスの詳細:', text);
+                throw new Error(`スポットの保存に失敗しました (${response.status}: ${response.statusText})`);
+              });
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data.success) {
+              // 成功表示
+              loadingContainer.classList.add('hidden');
+              successContainer.classList.remove('hidden');
+              savedCount.textContent = data.count;
+            } else {
+              throw new Error('スポットの保存に失敗しました');
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            
+            // エラー表示
+            loadingContainer.classList.add('hidden');
+            errorContainer.classList.remove('hidden');
+            errorMessage.textContent = error.message || 'スポットの保存中にエラーが発生しました。時間をおいて再度お試しください。';
+          });
+        }
+        
+        // CSRFトークンを取得
+        function getCsrfToken() {
+          return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        }
+      });
+    </script>
   </body>
 </html>

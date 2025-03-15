@@ -326,4 +326,15 @@ def user_profile(username):
     return render_template('public/profile.html', 
                           user=user, 
                           spots=spots, 
-                          config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY}) 
+                          config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
+
+@bp.route('/settings/import')
+@login_required
+def import_management():
+    """インポート管理ページ"""
+    # Instagram連携状態を確認
+    is_instagram_connected = current_user.instagram_token is not None
+    
+    return render_template('import.html', 
+                          is_instagram_connected=is_instagram_connected,
+                          instagram_username=current_user.instagram_username) 
