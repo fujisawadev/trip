@@ -110,7 +110,7 @@ def sns_settings():
 @login_required
 def connect_instagram():
     """Instagramとの連携を開始"""
-    # Instagram Graph APIのOAuth認証フローを開始
+    # Instagram Business Loginの認証フローを開始
     # クライアントIDとリダイレクトURIを設定
     client_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
     
@@ -118,10 +118,23 @@ def connect_instagram():
     print(f"Instagram Client ID: {client_id}")
     print(f"Instagram Client Secret: {current_app.config.get('INSTAGRAM_CLIENT_SECRET')}")
     
-    # ローカル開発環境用のリダイレクトURI
-    # _external=Trueを使わず、明示的にURLを構築
-    host = request.host
-    redirect_uri = f"http://{host}/instagram/callback"
+    # リダイレクトURIを設定
+    redirect_uri = current_app.config.get('INSTAGRAM_REDIRECT_URI')
+    
+    # 環境変数が設定されていない場合は、リクエストから生成
+    if not redirect_uri:
+        host = request.host
+        if ':' in host:
+            # ポート番号が含まれている場合は削除して8085を使用
+            host_without_port = host.split(':')[0]
+            # localhostと127.0.0.1を区別（Meta Developersでは別のURIとして扱われる）
+            if host_without_port == '127.0.0.1':
+                redirect_uri = f"https://127.0.0.1:8085/instagram/callback"
+            else:
+                redirect_uri = f"https://localhost:8085/instagram/callback"
+        else:
+            # ポート番号がない場合（本番環境など）
+            redirect_uri = f"https://{host}/instagram/callback"
     
     print(f"Redirect URI: {redirect_uri}")
     
@@ -129,13 +142,15 @@ def connect_instagram():
         flash('Instagram連携の設定が完了していません。管理者にお問い合わせください。', 'danger')
         return redirect(url_for('profile.sns_settings'))
     
-    # Instagram認証URLを生成
-    # スコープはinstagram_graph_user_profile,instagram_graph_user_media（プロフィール情報と投稿へのアクセス）
-    # stateパラメータを追加してCSRF対策と追跡を強化
+    # CSRF対策のstateパラメータを生成
     state = str(uuid.uuid4())
     session['instagram_auth_state'] = state
     
-    auth_url = f"https://api.instagram.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope=instagram_graph_user_profile,instagram_graph_user_media&response_type=code&state={state}"
+    # 2025年3月現在の最新の有効なスコープ
+    scope = "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights"
+    
+    # Instagram認証URLを生成
+    auth_url = f"https://www.instagram.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&response_type=code&state={state}&enable_fb_login=0&force_authentication=1"
     
     print(f"Auth URL: {auth_url}")
     
@@ -163,11 +178,8 @@ def instagram_callback():
     
     # CSRF対策の状態チェック
     if not session.get('instagram_auth_state') or session.get('instagram_auth_state') != state:
-        # stateが一致しない場合でも、コードがあれば処理を続行（Instagram APIの問題対応）
-        if not state:
-            print("Warning: State parameter is missing from callback, but proceeding with code")
-        else:
-            print(f"Warning: State mismatch. Expected: {session.get('instagram_auth_state')}, Got: {state}")
+        flash('セキュリティ上の問題が発生しました。もう一度お試しください。', 'danger')
+        return redirect(url_for('profile.sns_settings'))
     
     # セッションから状態を削除
     session.pop('instagram_auth_state', None)
@@ -176,36 +188,53 @@ def instagram_callback():
     client_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
     client_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
     
-    # ローカル開発環境用のリダイレクトURI
-    host = request.host
-    redirect_uri = f"http://{host}/instagram/callback"
+    # リダイレクトURIを設定
+    redirect_uri = current_app.config.get('INSTAGRAM_REDIRECT_URI')
+    
+    # 環境変数が設定されていない場合は、リクエストから生成
+    if not redirect_uri:
+        host = request.host
+        if ':' in host:
+            # ポート番号が含まれている場合は削除して8085を使用
+            host_without_port = host.split(':')[0]
+            # localhostと127.0.0.1を区別（Meta Developersでは別のURIとして扱われる）
+            if host_without_port == '127.0.0.1':
+                redirect_uri = f"https://127.0.0.1:8085/instagram/callback"
+            else:
+                redirect_uri = f"https://localhost:8085/instagram/callback"
+        else:
+            # ポート番号がない場合（本番環境など）
+            redirect_uri = f"https://{host}/instagram/callback"
+    
+    print(f"Callback - Redirect URI: {redirect_uri}")
     
     if not client_id or not client_secret:
         flash('Instagram連携の設定が完了していません。管理者にお問い合わせください。', 'danger')
         return redirect(url_for('profile.sns_settings'))
     
-    # アクセストークンを取得
-    token_url = 'https://api.instagram.com/oauth/access_token'
-    payload = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'grant_type': 'authorization_code',
-        'redirect_uri': redirect_uri,
-        'code': code
-    }
-    
     try:
-        # トークンリクエスト
+        # アクセストークンを取得（POSTリクエスト）
+        token_url = 'https://api.instagram.com/oauth/access_token'
+        payload = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'grant_type': 'authorization_code',
+            'redirect_uri': redirect_uri,
+            'code': code
+        }
+        
+        # POSTリクエストを送信
         response = requests.post(token_url, data=payload)
         token_data = response.json()
         
         print(f"Token response: {token_data}")
         
-        if 'error_type' in token_data:
-            flash(f'アクセストークンの取得に失敗しました: {token_data.get("error_message")}', 'danger')
+        if 'error_type' in token_data or 'error' in token_data:
+            error_message = token_data.get('error_message', token_data.get('error_description', '不明なエラー'))
+            flash(f'アクセストークンの取得に失敗しました: {error_message}', 'danger')
             return redirect(url_for('profile.sns_settings'))
         
-        # 短期アクセストークンと Instagram ユーザーIDを取得
+        # 短期アクセストークンとInstagramユーザーIDを取得
         short_lived_token = token_data.get('access_token')
         instagram_user_id = token_data.get('user_id')
         
@@ -223,10 +252,12 @@ def instagram_callback():
         print(f"Long-lived token response: {long_lived_data}")
         
         if 'error' in long_lived_data:
-            flash(f'長期アクセストークンの取得に失敗しました: {long_lived_data.get("error").get("message")}', 'danger')
+            error_message = long_lived_data.get('error', {}).get('message', '不明なエラー')
+            flash(f'長期アクセストークンの取得に失敗しました: {error_message}', 'danger')
             return redirect(url_for('profile.sns_settings'))
         
         long_lived_token = long_lived_data.get('access_token')
+        expires_in = long_lived_data.get('expires_in', 5184000)  # デフォルトは60日（5184000秒）
         
         # ユーザー名を取得
         user_info_url = f"https://graph.instagram.com/me?fields=username,account_type&access_token={long_lived_token}"
@@ -236,7 +267,8 @@ def instagram_callback():
         print(f"User info response: {user_info}")
         
         if 'error' in user_info:
-            flash(f'ユーザー情報の取得に失敗しました: {user_info.get("error").get("message")}', 'danger')
+            error_message = user_info.get('error', {}).get('message', '不明なエラー')
+            flash(f'ユーザー情報の取得に失敗しました: {error_message}', 'danger')
             return redirect(url_for('profile.sns_settings'))
         
         instagram_username = user_info.get('username')
@@ -244,7 +276,8 @@ def instagram_callback():
         
         # アカウントタイプをチェック（ビジネスアカウントかどうか）
         if account_type != 'BUSINESS':
-            print(f"Warning: Account type is {account_type}, not BUSINESS")
+            flash(f'Instagram連携にはビジネスアカウントが必要です。現在のアカウントタイプ: {account_type}', 'warning')
+            # ビジネスアカウントでない場合でも、一応情報は保存する
         
         # ユーザーモデルに保存
         current_user.instagram_token = long_lived_token

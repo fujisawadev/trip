@@ -62,6 +62,16 @@ cookies.txt
 # Scripts directory (for development/testing only)
 scripts/
 
+# SSL/TLS証明書と鍵
+*.key
+*.crt
+*.pem
+*.cert
+*.p12
+*.pfx
+localhost.key
+localhost.crt
+
 # Python
 __pycache__/
 *.py[cod]
