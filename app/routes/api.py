@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, abort
-from app.models import Spot, Photo, AffiliateLink, SocialPost, ImportHistory
+from app.models import Spot, Photo, AffiliateLink, SocialPost, ImportHistory, ImportProgress
 from sqlalchemy.orm import joinedload
 import requests
 import os
@@ -8,6 +8,8 @@ from flask_login import current_user
 from sqlalchemy import distinct
 from app import db
 import re
+from datetime import datetime
+from app.utils.instagram_helpers import extract_cursor_from_url
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -577,6 +579,19 @@ def fetch_instagram_posts():
     limit = data.get('limit', 10)  # デフォルトは10件
     print(f"リクエストパラメータ: limit={limit}")
     
+    # インポート進捗情報を取得
+    import_progress = ImportProgress.query.filter_by(
+        user_id=current_user.id, 
+        source='instagram'
+    ).first()
+    
+    print(f"インポート進捗情報: {import_progress}")
+    if import_progress:
+        print(f"  - last_post_id: {import_progress.last_post_id}")
+        print(f"  - last_post_timestamp: {import_progress.last_post_timestamp}")
+        print(f"  - next_page_cursor: {import_progress.next_page_cursor}")
+        print(f"  - total_imported_count: {import_progress.total_imported_count}")
+    
     try:
         # Instagram Graph APIを呼び出す
         url = f"https://graph.instagram.com/v18.0/me/media"
@@ -585,6 +600,18 @@ def fetch_instagram_posts():
             "access_token": current_user.instagram_token,
             "limit": limit
         }
+        
+        # 前回のインポート情報がある場合、時間ベースのページネーションを使用
+        if import_progress and import_progress.last_post_timestamp:
+            # Unixタイムスタンプに変換（秒単位）
+            until_timestamp = int(import_progress.last_post_timestamp.timestamp())
+            params["until"] = until_timestamp
+            print(f"前回のインポート情報を使用: until={until_timestamp}")
+            
+            # バックアップとしてカーソル情報も使用（あれば）
+            if import_progress.next_page_cursor:
+                params["after"] = import_progress.next_page_cursor
+                print(f"カーソル情報も使用: after={import_progress.next_page_cursor}")
         
         print(f"Instagram Graph API呼び出し: URL={url}")
         print(f"パラメータ: fields={params['fields']}, limit={params['limit']}")
@@ -598,31 +625,81 @@ def fetch_instagram_posts():
             print(f"Instagram Graph APIエラー: {response.text}")
             return jsonify({'error': f'Instagram API error: {response.text}'}), 400
         
-        posts_data = response.json().get('data', [])
+        response_data = response.json()
+        print(f"レスポンスデータ: {json.dumps(response_data, indent=2)[:500]}...")  # 最初の500文字だけ表示
+        
+        posts_data = response_data.get('data', [])
         print(f"取得した投稿数: {len(posts_data)}")
+        
+        # ページネーション情報を取得（次回用）
+        paging = response_data.get('paging', {})
+        print(f"ページネーション情報: {paging}")
+        
+        next_page_url = paging.get('next')
+        next_page_cursor = None
+        
+        if next_page_url:
+            # URLからカーソル情報を抽出
+            next_page_cursor = extract_cursor_from_url(next_page_url)
+            print(f"次ページのカーソル情報: {next_page_cursor}")
+            
+            # next_page_cursorを保存する処理を追加
+            if next_page_cursor and import_progress:
+                import_progress.next_page_cursor = next_page_cursor
+                db.session.commit()
+                print(f"次ページのカーソル情報を保存しました: {next_page_cursor}")
+        else:
+            print("次ページのURLが見つかりませんでした")
         
         # 投稿データを整形して返す
         posts = []
+        oldest_timestamp = None
+        
         for post in posts_data:
             # キャプションがある投稿のみ処理
             if 'caption' in post:
+                # タイムスタンプを処理
+                post_timestamp = post.get('timestamp')
+                if post_timestamp:
+                    # 最も古い投稿のタイムスタンプを記録
+                    try:
+                        dt = datetime.fromisoformat(post_timestamp.replace('Z', '+00:00'))
+                        if oldest_timestamp is None or dt < oldest_timestamp:
+                            oldest_timestamp = dt
+                    except Exception as e:
+                        print(f"タイムスタンプ変換エラー: {e}")
+                
                 posts.append({
                     'id': post.get('id'),
                     'caption': post.get('caption', ''),
                     'media_type': post.get('media_type'),
                     'media_url': post.get('media_url'),
                     'permalink': post.get('permalink'),
-                    'timestamp': post.get('timestamp'),
+                    'timestamp': post_timestamp,
                     'location': post.get('location', {})
                 })
         
         print(f"処理後の投稿数: {len(posts)}")
+        if len(posts) > 0:
+            print(f"最初の投稿: id={posts[0].get('id')}, timestamp={posts[0].get('timestamp')}")
+            if len(posts) > 1:
+                print(f"最後の投稿: id={posts[-1].get('id')}, timestamp={posts[-1].get('timestamp')}")
+        
+        # インポート進捗情報を返す
+        import_info = {
+            'last_imported_at': import_progress.last_imported_at.isoformat() if import_progress else None,
+            'total_imported_count': import_progress.total_imported_count if import_progress else 0,
+            'has_previous_imports': import_progress is not None,
+            'next_page_available': next_page_url is not None
+        }
+        
         print("=== Instagram投稿取得API終了 ===")
         
         return jsonify({
             'success': True,
             'count': len(posts),
-            'posts': posts
+            'posts': posts,
+            'import_info': import_info
         })
         
     except Exception as e:
@@ -729,7 +806,8 @@ def analyze_instagram_posts():
                         'formatted_address': '',
                         'instagram_post_id': post.get('id'),
                         'instagram_permalink': post.get('permalink'),
-                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption
+                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption,
+                        'timestamp': post.get('timestamp')  # タイムスタンプを明示的に追加
                     }
                     spot_candidates.append(spot_candidate)
                     print(f"DEBUG: Added spot candidate from location metadata: {spot_name}")
@@ -798,8 +876,11 @@ def analyze_instagram_posts():
                         'formatted_address': '',
                         'instagram_post_id': post.get('id'),
                         'instagram_permalink': post.get('permalink'),
-                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption
+                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption,
+                        'timestamp': post.get('timestamp')  # タイムスタンプを明示的に追加
                     }
+                    
+                    print(f"DEBUG: 基本スポット候補を作成: name={basic_spot_candidate['name']}, instagram_post_id={basic_spot_candidate['instagram_post_id']}, timestamp={basic_spot_candidate['timestamp']}")
                     
                     # Google Places APIの検索エンドポイントを呼び出す
                     search_url = "https://places.googleapis.com/v1/places:searchText"
@@ -839,8 +920,11 @@ def analyze_instagram_posts():
                                     'place_id': place.get('id'),
                                     'instagram_post_id': post.get('id'),
                                     'instagram_permalink': post.get('permalink'),
-                                    'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption
+                                    'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption,
+                                    'timestamp': post.get('timestamp')  # タイムスタンプを明示的に追加
                                 }
+                                
+                                print(f"DEBUG: スポット候補を作成: name={spot_candidate['name']}, instagram_post_id={spot_candidate['instagram_post_id']}, timestamp={spot_candidate['timestamp']}")
                                 
                                 # 写真情報を取得
                                 try:
@@ -1024,9 +1108,42 @@ def save_instagram_spots():
     try:
         saved_spots = []
         
+        # 最後にインポートした投稿の情報を追跡
+        last_post_id = None
+        last_post_timestamp = None
+        
+        # スポット候補の情報をログに出力
+        for i, spot_data in enumerate(spot_candidates):
+            print(f"スポット候補 {i+1}/{len(spot_candidates)}: {spot_data.get('name', 'Unknown')}")
+            print(f"  - instagram_post_id: {spot_data.get('instagram_post_id')}")
+            print(f"  - timestamp: {spot_data.get('timestamp')}")
+        
         for i, spot_data in enumerate(spot_candidates):
             print(f"スポット候補 {i+1}/{len(spot_candidates)} を処理中: {spot_data.get('name', 'Unknown')}")
             
+            # 最後にインポートした投稿情報を更新
+            post_id = spot_data.get('instagram_post_id')
+            post_timestamp_str = spot_data.get('timestamp')
+            
+            print(f"投稿情報: post_id={post_id}, timestamp={post_timestamp_str}")
+            
+            if post_id and post_timestamp_str:
+                # タイムスタンプをDatetime型に変換
+                try:
+                    post_timestamp = datetime.fromisoformat(post_timestamp_str.replace('Z', '+00:00'))
+                    print(f"タイムスタンプ変換成功: {post_timestamp}")
+                    
+                    # 最も古い投稿情報を追跡
+                    if last_post_timestamp is None or post_timestamp < last_post_timestamp:
+                        last_post_id = post_id
+                        last_post_timestamp = post_timestamp
+                        print(f"最も古い投稿を更新: ID={post_id}, 日時={post_timestamp}")
+                except Exception as e:
+                    print(f"タイムスタンプ変換エラー: {str(e)}")
+                    print(f"変換に失敗したタイムスタンプ文字列: '{post_timestamp_str}'")
+            else:
+                print(f"投稿IDまたはタイムスタンプが不足しています: post_id={post_id}, timestamp={post_timestamp_str}")
+
             # スポットモデルの作成
             spot = Spot(
                 user_id=current_user.id,
@@ -1344,14 +1461,72 @@ def save_instagram_spots():
                 'category': spot.category
             })
         
+        # インポート進捗情報を更新
+        import_progress = ImportProgress.query.filter_by(
+            user_id=current_user.id, 
+            source='instagram'
+        ).first()
+        
+        if not import_progress:
+            # 初回インポートの場合は新規作成
+            import_progress = ImportProgress(
+                user_id=current_user.id,
+                source='instagram'
+            )
+            db.session.add(import_progress)
+            print(f"新しいインポート進捗情報を作成")
+        
+        # 既存のインポート進捗情報を更新
+        import_progress.last_imported_at = datetime.utcnow()
+        
+        # 更新前の値をログに出力
+        print(f"更新前のインポート進捗情報:")
+        print(f"  - last_post_id: {import_progress.last_post_id}")
+        print(f"  - last_post_timestamp: {import_progress.last_post_timestamp}")
+        print(f"  - next_page_cursor: {import_progress.next_page_cursor}")
+        print(f"  - total_imported_count: {import_progress.total_imported_count}")
+        
+        if last_post_id:
+            import_progress.last_post_id = last_post_id
+            print(f"last_post_idを更新: {last_post_id}")
+        else:
+            print("last_post_idが取得できなかったため更新しません")
+            
+        if last_post_timestamp:
+            import_progress.last_post_timestamp = last_post_timestamp
+            print(f"last_post_timestampを更新: {last_post_timestamp}")
+        else:
+            print("last_post_timestampが取得できなかったため更新しません")
+            
+        # next_page_cursorは保持する（fetch_instagram_posts関数で更新されるため）
+        
+        import_progress.total_imported_count += len(saved_spots)
+        
+        print(f"インポート進捗情報を更新: last_post_id={last_post_id}, last_post_timestamp={last_post_timestamp}, total_count={import_progress.total_imported_count}")
+        
         print(f"データベースに変更をコミット")
         db.session.commit()
+        
+        # 更新後の値をログに出力
+        print(f"更新後のインポート進捗情報:")
+        print(f"  - last_post_id: {import_progress.last_post_id}")
+        print(f"  - last_post_timestamp: {import_progress.last_post_timestamp}")
+        print(f"  - next_page_cursor: {import_progress.next_page_cursor}")
+        print(f"  - total_imported_count: {import_progress.total_imported_count}")
+        
         print(f"コミット成功: {len(saved_spots)}件のスポットを保存")
         
         return jsonify({
             'success': True,
             'count': len(saved_spots),
-            'saved_spots': saved_spots
+            'saved_spots': saved_spots,
+            'import_info': {
+                'last_imported_at': import_progress.last_imported_at.isoformat(),
+                'total_imported_count': import_progress.total_imported_count,
+                'last_post_id': import_progress.last_post_id,
+                'last_post_timestamp': import_progress.last_post_timestamp.isoformat() if import_progress.last_post_timestamp else None,
+                'next_page_cursor': import_progress.next_page_cursor
+            }
         })
         
     except Exception as e:

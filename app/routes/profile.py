@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models.user import User
 from app.models.spot import Spot
+from app.models.import_progress import ImportProgress
 import uuid
 import requests
 from datetime import datetime
@@ -335,6 +336,15 @@ def import_management():
     # Instagram連携状態を確認
     is_instagram_connected = current_user.instagram_token is not None
     
+    # インポート進捗情報を取得
+    import_progress = None
+    if is_instagram_connected:
+        import_progress = ImportProgress.query.filter_by(
+            user_id=current_user.id,
+            source='instagram'
+        ).first()
+    
     return render_template('import.html', 
                           is_instagram_connected=is_instagram_connected,
-                          instagram_username=current_user.instagram_username) 
+                          instagram_username=current_user.instagram_username,
+                          import_progress=import_progress) 

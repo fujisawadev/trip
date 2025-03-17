@@ -192,12 +192,39 @@
               </a>
             </div>
             
+            <!-- インポート情報表示セクション -->
+            {% if import_progress %}
+            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
+              <div class="flex items-start">
+                <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm text-blue-700 mb-1">
+                    <span class="font-medium">最終インポート:</span> {{ import_progress.last_imported_at.strftime('%Y年%m月%d日 %H:%M') }}
+                  </p>
+                  <p class="text-sm text-blue-700">
+                    <span class="font-medium">インポート済み投稿数:</span> {{ import_progress.total_imported_count }}件
+                  </p>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            
             <div id="import-container">
               <button
                 id="start-import-btn"
                 class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors mb-4"
               >
-                <span class="text-base font-medium">インポートを開始</span>
+                <span class="text-base font-medium">
+                  {% if import_progress %}
+                  インポートを続ける（前回の続きから）
+                  {% else %}
+                  インポートを開始
+                  {% endif %}
+                </span>
               </button>
             </div>
           </section>
@@ -458,6 +485,18 @@
           })
           .then(data => {
             console.log('Instagram投稿取得APIのデータ:', data);
+            
+            // インポート情報を表示（あれば）
+            if (data.import_info) {
+              const importInfo = data.import_info;
+              console.log('インポート情報:', importInfo);
+              
+              // 次回のインポートがあるかどうかを表示
+              if (importInfo.has_previous_imports) {
+                loadingText.textContent = `前回のインポートの続きから取得中...（合計${importInfo.total_imported_count}件インポート済み）`;
+              }
+            }
+            
             if (data.success && data.posts && data.posts.length > 0) {
               loadingText.textContent = 'スポット情報を分析中...';
               console.log(`${data.posts.length}件の投稿を分析します`);

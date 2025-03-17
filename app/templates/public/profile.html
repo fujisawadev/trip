@@ -119,6 +119,51 @@
                 min-width: 130px;
             }
         }
+        /* グローバルナビゲーションのスタイル */
+        .global-nav {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            z-index: 100;
+            padding: 16px;
+            max-width: 180px;
+            width: 60%;
+            border-radius: 28px;
+        }
+        .global-nav-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .nav-item {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #94a3b8;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+        }
+        .nav-item.active {
+            color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.08);
+        }
+        .nav-item:hover {
+            color: #1e40af;
+            transform: translateY(-2px);
+        }
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            stroke-width: 2;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-slate-50">
@@ -140,14 +185,14 @@
             </div>
 
             <main>
-                <section class="profile-info flex justify-center items-center px-4 py-2 w-full text-xl font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
-                    <div class="flex flex-col justify-center items-center self-stretch my-auto w-24">
+                <section class="profile-info flex justify-start items-center px-4 py-2 w-full text-xl font-bold leading-none whitespace-nowrap bg-slate-50 text-neutral-900">
+                    <div class="flex flex-row justify-start items-center gap-4 self-stretch my-auto">
                         <img
                             src="{{ url_for('static', filename='default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"
                             alt="Profile picture of {{ user.username }}"
-                            class="object-cover overflow-hidden w-full rounded-full aspect-square min-h-24"
+                            class="object-cover overflow-hidden w-16 h-16 rounded-full"
                         />
-                        <h2 class="mt-2.5 text-center w-full text-lg font-medium">{{ user.username }}</h2>
+                        <h2 class="text-lg font-medium">{{ user.username }}</h2>
                     </div>
                 </section>
 
@@ -245,9 +290,25 @@
                 </section>
             </main>
             
-            <footer class="w-full py-6 text-center text-gray-500 text-sm">
+            <footer class="w-full py-6 pb-28 text-center text-gray-500 text-sm">
                 <p>&copy; 2024 CAPSULE CORP. All rights reserved.</p>
             </footer>
+            
+            <!-- グローバルナビゲーション -->
+            <nav class="global-nav">
+                <div class="global-nav-container">
+                    <a href="/profile" class="nav-item active">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                    </a>
+                    <a href="/map" class="nav-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                        </svg>
+                    </a>
+                </div>
+            </nav>
         </div>
     </header>
 
