@@ -60,6 +60,10 @@ def create_app(config_class=None):
     # CSRFトークンをアプリケーションで利用可能にする
     app.csrf = csrf
     
+    # CSRFプロテクションの設定
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False  # デフォルトでは無効にし、必要なフォームで個別に有効化
+    app.config['WTF_CSRF_TIME_LIMIT'] = 3600 * 24  # 24時間有効（秒単位）
+    
     # メールの初期化
     mail.init_app(app)
     
