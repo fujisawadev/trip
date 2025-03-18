@@ -163,66 +163,136 @@ def process_webhook_entry(entry):
     for event in messaging_events:
         sender_id = event.get('sender', {}).get('id')
         recipient_id = event.get('recipient', {}).get('id')
-        message = event.get('message', {})
-        message_text = message.get('text', '')
         
-        if not message_text:
-            print(f"メッセージ本文が空のため処理をスキップします: {json.dumps(event, indent=2, ensure_ascii=False)}")
-            continue
-        
-        print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}, page_id: {page_id}")
-        
-        # ユーザー情報の取得
-        user = User.query.filter_by(instagram_business_id=page_id).first()
-        
-        if not user:
-            print(f"page_id={page_id}に対応するユーザーが見つかりません。Instagram連携済みのユーザーを検索します。")
-            instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+        # メッセージイベントの処理
+        if 'message' in event:
+            message = event.get('message', {})
+            message_text = message.get('text', '')
             
-            if instagram_users:
-                user_ids = [u.id for u in instagram_users]
-                usernames = [u.instagram_username for u in instagram_users]
-                print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
+            if message_text:
+                print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}, page_id: {page_id}")
                 
-                # 最初のユーザーを使用
-                user = instagram_users[0]
-                print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
+                # ユーザー情報の取得
+                user = User.query.filter_by(instagram_business_id=page_id).first()
                 
-                # ユーザー情報を更新
-                user.instagram_business_id = page_id
-                db.session.commit()
-                print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
+                if not user:
+                    print(f"page_id={page_id}に対応するユーザーが見つかりません。Instagram連携済みのユーザーを検索します。")
+                    instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+                    
+                    if instagram_users:
+                        user_ids = [u.id for u in instagram_users]
+                        usernames = [u.instagram_username for u in instagram_users]
+                        print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
+                        
+                        # 最初のユーザーを使用
+                        user = instagram_users[0]
+                        print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
+                        
+                        # ユーザー情報を更新
+                        user.instagram_business_id = page_id
+                        db.session.commit()
+                        print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
+                    else:
+                        print("Instagram連携済みのユーザーが見つかりません")
+                        continue
+                
+                # メッセージを分析して場所に関する質問かどうかを判断
+                is_location_question, confidence, reasoning = analyze_message(message_text)
+                print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
+                
+                # 自動返信の条件を確認
+                auto_reply_threshold = 0.5  # 確信度の閾値
+                if is_location_question and confidence >= auto_reply_threshold:
+                    print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
+                    
+                    # 実際に返信を送信
+                    reply_message = "この前行った場所ですが、東京の代官山にあるカフェです。カフェの名前はStreamTokyo（ストリームトウキョウ）です。最寄り駅は代官山駅で、落ち着いた雰囲気の素敵なカフェでした。ぜひ行ってみてください！"
+                    
+                    # アクセストークンの取得
+                    access_token = user.instagram_token
+                    if not access_token:
+                        print(f"ユーザーID{user.id}のinstagram_tokenが設定されていません")
+                        continue
+                    
+                    print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
+                    result = send_instagram_reply(access_token, sender_id, reply_message)
+                    
+                    if result:
+                        print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
+                    else:
+                        print(f"自動返信に失敗しました: 送信先={sender_id}")
+                else:
+                    print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
             else:
-                print("Instagram連携済みのユーザーが見つかりません")
-                continue
+                print(f"メッセージ本文が空のため処理をスキップします: {json.dumps(event, indent=2, ensure_ascii=False)}")
         
-        # メッセージを分析して場所に関する質問かどうかを判断
-        is_location_question, confidence, reasoning = analyze_message(message_text)
-        print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
+        # リアクションイベントの処理
+        elif 'reaction' in event:
+            reaction = event.get('reaction', {})
+            reaction_type = reaction.get('reaction')
+            print(f"リアクションを受信: {reaction_type}, 送信者: {sender_id}, 受信者: {recipient_id}")
+            # リアクションの処理が必要な場合はここに追加
         
-        # 自動返信の条件を確認
-        auto_reply_threshold = 0.5  # 確信度の閾値
-        if is_location_question and confidence >= auto_reply_threshold:
-            print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
-            
-            # 実際に返信を送信
-            reply_message = "この前行った場所ですが、東京の代官山にあるカフェです。カフェの名前はStreamTokyo（ストリームトウキョウ）です。最寄り駅は代官山駅で、落ち着いた雰囲気の素敵なカフェでした。ぜひ行ってみてください！"
-            
-            # アクセストークンの取得
-            access_token = user.instagram_token
-            if not access_token:
-                print(f"ユーザーID{user.id}のinstagram_tokenが設定されていません")
-                continue
-            
-            print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
-            result = send_instagram_reply(access_token, sender_id, reply_message)
-            
-            if result:
-                print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
-            else:
-                print(f"自動返信に失敗しました: 送信先={sender_id}")
+        # その他のイベントタイプ
         else:
-            print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
+            print(f"未処理のイベントタイプ: {json.dumps(event, indent=2, ensure_ascii=False)}")
+            
+    # フィールドベースのWebhookでも処理できるようにする
+    # これはInstagram Graph APIのフィールドベースのWebhookに対応するため
+    if 'changes' in entry:
+        changes = entry.get('changes', [])
+        for change in changes:
+            field = change.get('field')
+            value = change.get('value', {})
+            
+            print(f"フィールド変更検出: field={field}, value={json.dumps(value, indent=2, ensure_ascii=False)}")
+            
+            # messagesフィールドの処理
+            if field == 'messages':
+                sender_id = value.get('sender', {}).get('id')
+                recipient_id = value.get('recipient', {}).get('id')
+                message = value.get('message', {})
+                message_text = message.get('text', '')
+                
+                if message_text:
+                    print(f"フィールドベースで受信したメッセージ: {message_text}, 送信者: {sender_id}")
+                    
+                    # ユーザー情報の取得
+                    instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+                    if not instagram_users:
+                        print("Instagram連携済みのユーザーが見つかりません")
+                        continue
+                    
+                    # 最初のユーザーを使用
+                    user = instagram_users[0]
+                    
+                    # メッセージを分析して場所に関する質問かどうかを判断
+                    is_location_question, confidence, reasoning = analyze_message(message_text)
+                    print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
+                    
+                    # 自動返信の条件を確認
+                    auto_reply_threshold = 0.5  # 確信度の閾値
+                    if is_location_question and confidence >= auto_reply_threshold:
+                        print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
+                        
+                        # 実際に返信を送信
+                        reply_message = "この前行った場所ですが、東京の代官山にあるカフェです。カフェの名前はStreamTokyo（ストリームトウキョウ）です。最寄り駅は代官山駅で、落ち着いた雰囲気の素敵なカフェでした。ぜひ行ってみてください！"
+                        
+                        # アクセストークンの取得
+                        access_token = user.instagram_token
+                        if not access_token:
+                            print(f"ユーザーID{user.id}のinstagram_tokenが設定されていません")
+                            continue
+                        
+                        print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
+                        result = send_instagram_reply(access_token, sender_id, reply_message)
+                        
+                        if result:
+                            print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
+                        else:
+                            print(f"自動返信に失敗しました: 送信先={sender_id}")
+                    else:
+                        print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
 
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをキーワードベースで分析する"""
