@@ -78,6 +78,43 @@ def instagram():
             print(f"Error parsing JSON: {str(e)}")
             return "Invalid JSON", 400
         
+        # テストイベントかどうかを判断
+        if 'field' in data and 'value' in data:
+            print("Test webhook event detected")
+            field = data.get('field')
+            value = data.get('value')
+            
+            print(f"Field: {field}, Value: {json.dumps(value, indent=2)}")
+            
+            # messagesのテストイベントを処理
+            if field == 'messages' and isinstance(value, dict):
+                print("Processing test messages event")
+                try:
+                    sender_id = value.get('sender', {}).get('id')
+                    recipient_id = value.get('recipient', {}).get('id')
+                    message = value.get('message', {})
+                    message_text = message.get('text', '')
+                    
+                    print(f"Test message - Text: {message_text}, Sender: {sender_id}, Recipient: {recipient_id}")
+                    
+                    # ユーザー検索と処理
+                    # この部分は実際のイベント処理と同様の処理を行う
+                    user = User.query.filter_by(instagram_username='tsuki_blue_jp').first()
+                    if user and user.autoreply_enabled and user.autoreply_template:
+                        print(f"Found user {user.username} for test message")
+                        # メッセージ分析と返信処理
+                        # 注: テスト時は実際に返信は送信せず、ログのみ出力
+                        is_location_question, confidence, _ = analyze_message(message_text)
+                        print(f"Test message analysis: is_location={is_location_question}, confidence={confidence}")
+                        if is_location_question and confidence >= 0.6:
+                            print(f"Would send reply for test message: {user.autoreply_template}")
+                except Exception as e:
+                    print(f"Error processing test message: {str(e)}")
+                    print(traceback.format_exc())
+            
+            return "Test event processed", 200
+        
+        # 通常のWebhookイベント処理
         # object typeをチェック
         object_type = data.get('object')
         print(f"Object type: {object_type}")
@@ -274,7 +311,7 @@ def analyze_message(message):
 def send_instagram_reply(access_token, recipient_id, message_text):
     """Instagram DMに返信を送信する"""
     try:
-        url = f"https://graph.instagram.com/v18.0/me/messages"
+        url = f"https://graph.instagram.com/v22.0/me/messages"
         
         headers = {
             'Content-Type': 'application/json'
