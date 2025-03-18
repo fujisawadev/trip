@@ -97,6 +97,15 @@ def instagram():
         try:
             data = request.get_json()
             logger.info(f"Parsed JSON data: {json.dumps(data, indent=2)}")
+            
+            # この部分を追加：Instagramのwebhookイベントを処理
+            if data and 'object' in data and data['object'] == 'instagram':
+                logger.info("Instagram webhook event detected, processing entries")
+                for entry in data.get('entry', []):
+                    logger.info(f"Processing webhook entry: {json.dumps(entry)}")
+                    process_webhook_entry(entry)
+            else:
+                logger.warning("Received webhook is not a valid Instagram event or missing required fields")
         except Exception as e:
             logger.error(f"Error parsing JSON: {str(e)}")
         
@@ -196,11 +205,16 @@ def process_message_event(event, page_id):
                 db.session.commit()
                 print(f"ユーザー {user.username} のinstagram_business_idを更新しました: {page_id}")
             else:
-                # 最後の手段として、instagram_usernameでユーザーを検索
-                alt_user = User.query.filter_by(instagram_username='tsuki_blue_jp').first()
-                if alt_user:
-                    print(f"instagram_username='tsuki_blue_jp'のユーザーが存在します。ID: {alt_user.id}, instagram_token有無: {bool(alt_user.instagram_token)}")
-                    user = alt_user
+                # 一般的なinstagram_usernameの検索に変更
+                alt_users = User.query.filter(User.instagram_username.isnot(None)).all()
+                if alt_users:
+                    # ログにすべてのインスタグラム連携済みユーザーを表示
+                    user_list = ", ".join([f"{u.username}({u.instagram_username})" for u in alt_users])
+                    print(f"Instagram連携済みユーザー: {user_list}")
+                    
+                    # 最初のユーザーを使用
+                    user = alt_users[0]
+                    print(f"instagram_usernameが設定されているユーザーを選択: {user.username}, instagram_username={user.instagram_username}, instagram_token有無: {bool(user.instagram_token)}")
                     
                     # instagram_business_idを更新
                     user.instagram_business_id = page_id
@@ -224,9 +238,17 @@ def process_message_event(event, page_id):
             profile_url = current_app.config.get('BASE_URL', '').rstrip('/') + f'/u/{user.username}'
             reply_message = user.autoreply_template.replace('{profile_url}', profile_url)
             
+            # 返信を送信前の詳細ログ
+            print(f"自動返信条件を満たしました - ユーザー: {user.username}, 場所に関する質問: {is_location_question}, 確信度: {confidence}")
+            print(f"自動返信テンプレート: {user.autoreply_template}")
+            print(f"プロフィールURL: {profile_url}")
+            print(f"送信するメッセージ: {reply_message}")
+            
             # 返信を送信
-            send_instagram_reply(user.instagram_token, sender_id, reply_message)
-            print(f"自動返信を送信しました: {reply_message}")
+            result = send_instagram_reply(user.instagram_token, sender_id, reply_message)
+            print(f"自動返信送信結果: {result}, メッセージ: {reply_message}")
+        else:
+            print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
     
     except Exception as e:
         print(f"メッセージイベント処理中にエラーが発生しました: {str(e)}")
@@ -296,6 +318,7 @@ def send_instagram_reply(access_token, recipient_id, message_text):
             'access_token': access_token
         }
         
+        print(f"Instagram APIリクエスト情報: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token) if access_token else 0}")
         response = requests.post(url, headers=headers, json=data)
         
         if response.status_code == 200:
