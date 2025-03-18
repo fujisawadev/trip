@@ -45,18 +45,51 @@ def instagram():
                 return jsonify({"error": "Missing parameters", "received_args": request.args}), 400
         
         # POSTリクエスト（実際のWebhookイベント）を処理
+        print("====== POST webhook request received ======")
+        print(f"Headers: {dict(request.headers)}")
+        try:
+            raw_data = request.data.decode('utf-8')
+            print(f"Raw data: {raw_data}")
+        except:
+            print("Could not decode request data")
+        
+        # シグネチャチェック
         signature = request.headers.get('X-Hub-Signature-256')
-        if not is_request_valid(request, signature):
+        print(f"Signature header: {signature}")
+        
+        # デバッグモードでは署名検証をスキップ
+        skip_validation = os.environ.get('WEBHOOK_SKIP_VALIDATION', 'false').lower() == 'true'
+        if skip_validation:
+            print("Skipping signature validation due to WEBHOOK_SKIP_VALIDATION=true")
+            valid_request = True
+        else:
+            valid_request = is_request_valid(request, signature)
+            print(f"Request validation result: {valid_request}")
+        
+        if not valid_request:
             print("Invalid webhook signature")
             return "Invalid signature", 403
         
         # リクエストボディを取得
-        data = request.get_json()
-        print(f"Received webhook event: {json.dumps(data, indent=2)}")
+        try:
+            data = request.get_json()
+            print(f"Parsed JSON data: {json.dumps(data, indent=2)}")
+        except Exception as e:
+            print(f"Error parsing JSON: {str(e)}")
+            return "Invalid JSON", 400
+        
+        # object typeをチェック
+        object_type = data.get('object')
+        print(f"Object type: {object_type}")
+        if object_type != 'instagram':
+            print(f"Unsupported object type: {object_type}")
+            return "Unsupported object type", 400
         
         # エントリを処理
         entries = data.get('entry', [])
-        for entry in entries:
+        print(f"Number of entries: {len(entries)}")
+        for i, entry in enumerate(entries):
+            print(f"Processing entry {i+1}/{len(entries)}: {json.dumps(entry, indent=2)}")
             process_webhook_entry(entry)
         
         return "OK", 200
