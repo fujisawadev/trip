@@ -15,6 +15,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), nullable=True, index=True, unique=True)
     password_hash = db.Column(db.String(128), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     
     bio = db.Column(db.Text, nullable=True)
@@ -56,6 +57,8 @@ class User(UserMixin, db.Model):
         self.bio = bio
         self.profile_pic_url = profile_pic_url
         self.spots_heading = spots_heading
+        self.created_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
         if password:
             self.set_password(password)
     
