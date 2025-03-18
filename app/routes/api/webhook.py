@@ -225,86 +225,21 @@ def process_webhook_entry(entry):
             print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
 
 def analyze_message(message):
-    """メッセージが場所に関する質問かどうかをAIで分析する"""
+    """メッセージが場所に関する質問かどうかをキーワードベースで分析する"""
     try:
-        # 一時的にOpenAI APIの呼び出しを無効化し、キーワード判定のみを使用
-        print("現在のOpenAI APIの設定に問題があるため、キーワード検出による判定のみを行います")
-        is_location = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
+        # キーワードベースでの判定
+        print(f"キーワードベースで分析します: {message[:30]}...")
+        is_location = any(keyword in message for keyword in ["場所", "どこ", "スポット", "教えて", "行った", "どの辺"])
         confidence = 0.8 if is_location else 0.2
         reasoning = "キーワード検出による判定"
         print(f"キーワード検出結果: is_location={is_location}, confidence={confidence}")
         return is_location, confidence, reasoning
-        
-        """
-        # 以下のコードは現在無効化 - OpenAIのクライアントに問題がある場合
-        # API Keyをチェック
-        if not openai.api_key:
-            print("OpenAI APIキーが設定されていないため、キーワード検出によるフォールバック判定を行います")
-            is_location = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
-            return is_location, 0.8 if is_location else 0.2, "キーワード検出による判定"
-            
-        print(f"OpenAI APIを使用してメッセージを分析します: {message[:30]}...")
-        
-        # プロンプトの準備
-        prompt = f\"\"\"
-あなたはインフルエンサーのDMを分析する専門家です。このメッセージが「場所・スポットに関する質問」かどうかを判断してください。
-場所に関する質問の例：「どこに行ったの？」「その場所教えて」「どこでランチした？」「あのカフェどこ？」など
-
-メッセージ: {message}
-
-次の形式でJSON応答してください:
-{{
-  "is_location_question": true/false,
-  "confidence": 0-1の数値,
-  "reasoning": "判断理由の簡潔な説明"
-}}
-\"\"\"
-        
-        # OpenAI APIを呼び出す方法を試す
-        try:
-            # OpenAIのバージョンをチェック
-            import pkg_resources
-            openai_version = pkg_resources.get_distribution("openai").version
-            print(f"OpenAIライブラリのバージョン: {openai_version}")
-            
-            # 旧式の呼び出し方法を使用
-            print("旧式のOpenAI APIを呼び出します")
-            completion = openai.ChatCompletion.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "あなたはメッセージ分析の専門家です。指示に従って分析結果をJSON形式で返してください。"},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                max_tokens=300
-            )
-            
-            # レスポンスを解析
-            content = completion.choices[0].message.content
-            print(f"OpenAI APIレスポンス: {content[:100]}...")
-            result = json.loads(content)
-            is_location_question = result.get('is_location_question', False)
-            confidence = result.get('confidence', 0.0)
-            reasoning = result.get('reasoning', '')
-            
-        except Exception as e:
-            print(f"OpenAI APIの呼び出しでエラーが発生しました: {str(e)}")
-            print("キーワードベースの判定にフォールバックします")
-            # キーワード検出によるフォールバック
-            is_location_question = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
-            confidence = 0.75 if is_location_question else 0.2
-            reasoning = "キーワード検出によるフォールバック判定（API呼び出しエラー）"
-        
-        print(f"分析結果: is_location_question={is_location_question}, confidence={confidence}, reasoning={reasoning}")
-        return is_location_question, confidence, reasoning
-        """
     
     except Exception as e:
         print(f"メッセージ分析中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
-        # エラーの場合はキーワードベースの判定にフォールバック
-        print("エラーのため、キーワードベースの判定にフォールバックします")
-        is_location = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
+        # エラーの場合も最低限のキーワード検出を行う
+        is_location = "場所" in message or "どこ" in message
         return is_location, 0.7 if is_location else 0.2, "キーワード検出によるフォールバック判定（エラー発生後）"
 
 def send_instagram_reply(access_token, recipient_id, message_text):
