@@ -279,6 +279,49 @@ def instagram_callback():
         if account_type != 'BUSINESS':
             flash(f'Instagram連携にはビジネスアカウントが必要です。現在のアカウントタイプ: {account_type}', 'warning')
             # ビジネスアカウントでない場合でも、一応情報は保存する
+        else:
+            # ビジネスアカウントの場合は追加設定を行う
+            try:
+                # ビジネスアカウント（ページ）情報を取得
+                print("ビジネスアカウント情報の取得を開始")
+                page_info_url = f"https://graph.facebook.com/v22.0/me/accounts?access_token={long_lived_token}"
+                page_response = requests.get(page_info_url)
+                page_info = page_response.json()
+                
+                print(f"ページ情報レスポンス: {page_info}")
+                
+                if 'data' in page_info and len(page_info['data']) > 0:
+                    # ページID（ビジネスアカウントID）を取得
+                    page_id = page_info['data'][0]['id']
+                    print(f"ビジネスアカウントID（ページID）: {page_id}")
+                    
+                    # ウェブフックサブスクリプションを設定
+                    subscribe_url = f"https://graph.facebook.com/v22.0/{page_id}/subscribed_apps"
+                    subscribe_data = {
+                        'access_token': long_lived_token,
+                        'subscribed_fields': 'messages'
+                    }
+                    
+                    print(f"ウェブフックサブスクリプション設定を開始: URL={subscribe_url}")
+                    subscribe_response = requests.post(subscribe_url, data=subscribe_data)
+                    subscribe_result = subscribe_response.json()
+                    
+                    print(f"サブスクリプション結果: {subscribe_result}")
+                    
+                    if subscribe_response.status_code == 200 and subscribe_result.get('success'):
+                        # ビジネスアカウントIDを保存
+                        current_user.instagram_business_id = page_id
+                        print(f"ページをウェブフックにサブスクライブしました: {page_id}")
+                        flash('Instagram DMの自動返信機能の設定が完了しました', 'success')
+                    else:
+                        print(f"ページのサブスクライブに失敗: {subscribe_response.text}")
+                        flash('Instagram DMの自動返信機能の設定に一部問題が発生しました', 'warning')
+                else:
+                    print("ページ情報の取得に失敗または該当するページが見つかりません")
+            except Exception as e:
+                print(f"ビジネスアカウント設定中にエラー: {str(e)}")
+                print(traceback.format_exc())
+                flash('ウェブフック設定中にエラーが発生しました。自動返信機能が正しく動作しない可能性があります。', 'warning')
         
         # ユーザーモデルに保存
         current_user.instagram_token = long_lived_token
@@ -344,4 +387,65 @@ def import_management():
 @login_required
 def autoreply_settings():
     """自動返信設定ページ"""
-    return render_template('autoreply.html', title='自動返信設定') 
+    return render_template('autoreply.html', title='自動返信設定')
+
+@bp.route('/instagram/setup_webhook', methods=['POST'])
+@login_required
+def setup_instagram_webhook():
+    """既存のInstagram連携アカウントに対してウェブフックを設定"""
+    # CSRFトークンの検証
+    if not request.form.get('csrf_token') or not current_app.csrf.validate_csrf(request.form.get('csrf_token')):
+        flash('不正なリクエストです。', 'danger')
+        return redirect(url_for('profile.sns_settings'))
+    
+    if not current_user.instagram_token or not current_user.instagram_username:
+        flash('Instagram連携が完了していません', 'warning')
+        return redirect(url_for('profile.sns_settings'))
+    
+    try:
+        # ページ情報を取得
+        token = current_user.instagram_token
+        print(f"既存アカウントのウェブフック設定を開始: ユーザー={current_user.username}, Instagram={current_user.instagram_username}")
+        
+        page_info_url = f"https://graph.facebook.com/v22.0/me/accounts?access_token={token}"
+        page_response = requests.get(page_info_url)
+        page_info = page_response.json()
+        
+        print(f"ページ情報レスポンス: {page_info}")
+        
+        if 'data' in page_info and len(page_info['data']) > 0:
+            # ページIDを取得して保存
+            page_id = page_info['data'][0]['id']
+            print(f"ビジネスアカウントID（ページID）: {page_id}")
+            
+            # ウェブフックサブスクリプションを設定
+            subscribe_url = f"https://graph.facebook.com/v22.0/{page_id}/subscribed_apps"
+            subscribe_data = {
+                'access_token': token,
+                'subscribed_fields': 'messages'
+            }
+            
+            print(f"ウェブフックサブスクリプション設定を開始: URL={subscribe_url}")
+            subscribe_response = requests.post(subscribe_url, data=subscribe_data)
+            subscribe_result = subscribe_response.json()
+            
+            print(f"サブスクリプション結果: {subscribe_result}")
+            
+            if subscribe_response.status_code == 200 and subscribe_result.get('success'):
+                # ビジネスアカウントIDを保存
+                current_user.instagram_business_id = page_id
+                db.session.commit()
+                flash('Instagram DMの自動返信機能の設定が完了しました', 'success')
+            else:
+                error_msg = subscribe_response.text if hasattr(subscribe_response, 'text') else '不明なエラー'
+                flash(f'ウェブフック設定に失敗しました: {error_msg}', 'danger')
+        else:
+            flash('Instagramビジネスアカウント情報が取得できませんでした', 'danger')
+    
+    except Exception as e:
+        import traceback
+        print(f"ウェブフック設定中にエラー: {str(e)}")
+        print(traceback.format_exc())
+        flash(f'ウェブフック設定中にエラーが発生しました: {str(e)}', 'danger')
+    
+    return redirect(url_for('profile.sns_settings')) 

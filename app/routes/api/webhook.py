@@ -37,6 +37,31 @@ def instagram():
             token = request.args.get('hub.verify_token')
             challenge = request.args.get('hub.challenge')
             
+            # 診断モード - パラメータが指定されていない場合
+            if 'diagnostic' in request.args:
+                logger.info("Webhook診断モードが有効化されました")
+                
+                # 設定情報の表示
+                config_info = {
+                    'webhook_verify_token': current_app.config.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN'),
+                    'app_secret_configured': bool(current_app.config.get('INSTAGRAM_APP_SECRET')),
+                    'skip_validation': os.environ.get('WEBHOOK_SKIP_VALIDATION', 'false').lower() == 'true',
+                    'webhook_url': request.url_root.rstrip('/') + '/webhook/instagram'
+                }
+                
+                # ユーザー数
+                users_with_instagram = User.query.filter(User.instagram_token.isnot(None)).count()
+                
+                # 診断情報をJSON形式で返す
+                return jsonify({
+                    'status': 'active',
+                    'endpoint': '/webhook/instagram',
+                    'config': config_info,
+                    'environment': os.environ.get('FLASK_ENV', 'production'),
+                    'server_time': datetime.utcnow().isoformat(),
+                    'users_with_instagram': users_with_instagram
+                })
+            
             verify_token = current_app.config.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN')
             logger.info(f"Webhook verification attempt: mode={mode}, token={token}, challenge={challenge}, expected_token={verify_token}")
             
