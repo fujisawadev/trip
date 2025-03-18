@@ -21,7 +21,21 @@ mail = Mail()
 
 def create_app(config_class=None):
     """アプリケーションファクトリ"""
+    # 環境変数を確認
+    print(f"Starting application with environment: {os.environ.get('FLASK_ENV', 'production')}")
+    
+    # Flaskアプリケーションの設定
     app = Flask(__name__)
+    
+    # ロギングの設定を強化（特にHeroku環境向け）
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        handlers=[logging.StreamHandler()]
+    )
+    app.logger.setLevel(logging.INFO)
+    app.logger.info("Application starting up with enhanced logging")
     
     # 設定の読み込み
     if config_class is None:
