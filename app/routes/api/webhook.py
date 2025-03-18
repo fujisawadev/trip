@@ -227,6 +227,16 @@ def process_webhook_entry(entry):
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをAIで分析する"""
     try:
+        # 一時的にOpenAI APIの呼び出しを無効化し、キーワード判定のみを使用
+        print("現在のOpenAI APIの設定に問題があるため、キーワード検出による判定のみを行います")
+        is_location = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
+        confidence = 0.8 if is_location else 0.2
+        reasoning = "キーワード検出による判定"
+        print(f"キーワード検出結果: is_location={is_location}, confidence={confidence}")
+        return is_location, confidence, reasoning
+        
+        """
+        # 以下のコードは現在無効化 - OpenAIのクライアントに問題がある場合
         # API Keyをチェック
         if not openai.api_key:
             print("OpenAI APIキーが設定されていないため、キーワード検出によるフォールバック判定を行います")
@@ -236,7 +246,7 @@ def analyze_message(message):
         print(f"OpenAI APIを使用してメッセージを分析します: {message[:30]}...")
         
         # プロンプトの準備
-        prompt = f"""
+        prompt = f\"\"\"
 あなたはインフルエンサーのDMを分析する専門家です。このメッセージが「場所・スポットに関する質問」かどうかを判断してください。
 場所に関する質問の例：「どこに行ったの？」「その場所教えて」「どこでランチした？」「あのカフェどこ？」など
 
@@ -248,7 +258,7 @@ def analyze_message(message):
   "confidence": 0-1の数値,
   "reasoning": "判断理由の簡潔な説明"
 }}
-"""
+\"\"\"
         
         # OpenAI APIを呼び出す方法を試す
         try:
@@ -287,6 +297,7 @@ def analyze_message(message):
         
         print(f"分析結果: is_location_question={is_location_question}, confidence={confidence}, reasoning={reasoning}")
         return is_location_question, confidence, reasoning
+        """
     
     except Exception as e:
         print(f"メッセージ分析中にエラーが発生しました: {str(e)}")
@@ -297,30 +308,39 @@ def analyze_message(message):
         return is_location, 0.7 if is_location else 0.2, "キーワード検出によるフォールバック判定（エラー発生後）"
 
 def send_instagram_reply(access_token, recipient_id, message_text):
-    """Instagram DMに返信を送信する"""
+    """Instagramに直接メッセージを送信する"""
     try:
-        url = f"https://graph.instagram.com/v22.0/me/messages"
+        url = "https://graph.instagram.com/v22.0/me/messages"
+        
+        # リクエストデータの詳細ログ
+        print(f"Instagram APIリクエスト情報: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token)}")
+        
+        payload = {
+            "recipient": {"id": recipient_id},
+            "message": {"text": message_text}
+        }
         
         headers = {
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json"
         }
         
-        data = {
-            'recipient': {'id': recipient_id},
-            'message': {'text': message_text},
-            'access_token': access_token
+        params = {
+            "access_token": access_token
         }
         
-        print(f"Instagram APIリクエスト情報: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token) if access_token else 0}")
-        response = requests.post(url, headers=headers, json=data)
+        print(f"リクエストペイロード: {json.dumps(payload)}")
+        
+        response = requests.post(url, headers=headers, params=params, json=payload)
+        
+        print(f"Instagram API応答: ステータスコード {response.status_code}, レスポンス {response.text}")
         
         if response.status_code == 200:
-            print(f"Instagram返信送信成功: {response.json()}")
+            print("Instagram返信送信成功")
             return True
         else:
             print(f"Instagram返信送信失敗: ステータスコード {response.status_code}, レスポンス {response.text}")
             return False
-    
+        
     except Exception as e:
         print(f"Instagram返信送信中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
