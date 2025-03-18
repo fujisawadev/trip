@@ -92,7 +92,9 @@ def create_app(config_class=None):
     from app.routes.api.autoreply import autoreply_bp
     app.register_blueprint(autoreply_bp)
     
-    from app.routes.api.webhook import webhook_bp
+    from app.routes.api.webhook import webhook_bp, configure_webhook
     app.register_blueprint(webhook_bp)
+    # webhook用のCSRF設定を適用
+    configure_webhook(app)
     
     return app 

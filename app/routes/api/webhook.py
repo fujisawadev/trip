@@ -10,7 +10,6 @@ import hashlib
 import traceback
 import openai
 import logging
-from flask_wtf.csrf import csrf_exempt
 
 # ロガーの設定
 logger = logging.getLogger(__name__)
@@ -22,8 +21,16 @@ if not openai.api_key:
 
 webhook_bp = Blueprint('webhook', __name__, url_prefix='/webhook')
 
+# webhookエンドポイントではCSRF保護を無効化する（アプリケーション起動時に適用）
+def configure_webhook(app):
+    """webhookエンドポイントのCSRF保護を設定"""
+    from flask_wtf.csrf import CSRFProtect
+    csrf = app.extensions.get('csrf', None)
+    if csrf:
+        csrf.exempt(webhook_bp)
+        app.logger.info("Webhook blueprint is now CSRF exempt")
+
 @webhook_bp.route('/instagram', methods=['GET', 'POST'])
-@csrf_exempt
 def instagram():
     """InstagramのWebhookを処理するエンドポイント"""
     try:
