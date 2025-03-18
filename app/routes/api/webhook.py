@@ -153,106 +153,76 @@ def is_request_valid(request, signature):
 
 def process_webhook_entry(entry):
     """Webhookエントリーを処理する"""
-    try:
-        # Instagram Business Accountを特定
-        page_id = entry.get('id')
-        print(f"Webhookエントリー処理: page_id={page_id}, entry={json.dumps(entry, indent=2)}")
-        
-        # メッセージングイベントを処理
-        messaging = entry.get('messaging', [])
-        if messaging:
-            print(f"メッセージイベント検出: {len(messaging)}件")
-            for message_event in messaging:
-                process_message_event(message_event, page_id)
-        else:
-            print("メッセージイベントがありません")
-        
-        # StandbyイベントとChangesイベントも処理可能
-        # standby = entry.get('standby', [])
-        # changes = entry.get('changes', [])
+    page_id = entry.get('id')
+    print(f"Webhookエントリー処理: page_id={page_id}, entry={json.dumps(entry, indent=2, ensure_ascii=False)}")
     
-    except Exception as e:
-        print(f"Webhookエントリー処理中にエラーが発生しました: {str(e)}")
-        print(traceback.format_exc())
-
-def process_message_event(event, page_id):
-    """メッセージイベントを処理する"""
-    try:
-        # 送信者と受信者のID
+    # メッセージイベントの処理
+    messaging_events = entry.get('messaging', [])
+    print(f"メッセージイベント検出: {len(messaging_events)}件")
+    
+    for event in messaging_events:
         sender_id = event.get('sender', {}).get('id')
         recipient_id = event.get('recipient', {}).get('id')
-        
-        # メッセージ内容
         message = event.get('message', {})
-        message_id = message.get('mid')
         message_text = message.get('text', '')
+        
+        if not message_text:
+            print(f"メッセージ本文が空のため処理をスキップします: {json.dumps(event, indent=2, ensure_ascii=False)}")
+            continue
         
         print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}, page_id: {page_id}")
         
-        # ページIDからユーザーを検索
-        # InstagramビジネスアカウントとFacebookページの関連付けからユーザーを特定
+        # ユーザー情報の取得
         user = User.query.filter_by(instagram_business_id=page_id).first()
+        
         if not user:
-            print(f"ページID {page_id} に関連付けられたユーザーが見つかりません")
-            # instagram_business_idが設定されていない場合は、instagram_user_idも試してみる
-            alternate_user = User.query.filter_by(instagram_user_id=recipient_id).first()
-            if alternate_user:
-                print(f"instagram_user_id={recipient_id}でユーザーを見つけました: {alternate_user.username}")
-                user = alternate_user
+            print(f"page_id={page_id}に対応するユーザーが見つかりません。Instagram連携済みのユーザーを検索します。")
+            instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+            
+            if instagram_users:
+                user_ids = [u.id for u in instagram_users]
+                usernames = [u.instagram_username for u in instagram_users]
+                print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
                 
-                # instagram_business_idを更新して将来の検索を容易にする
+                # 最初のユーザーを使用
+                user = instagram_users[0]
+                print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
+                
+                # ユーザー情報を更新
                 user.instagram_business_id = page_id
                 db.session.commit()
-                print(f"ユーザー {user.username} のinstagram_business_idを更新しました: {page_id}")
+                print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
             else:
-                # 一般的なinstagram_usernameの検索に変更
-                alt_users = User.query.filter(User.instagram_username.isnot(None)).all()
-                if alt_users:
-                    # ログにすべてのインスタグラム連携済みユーザーを表示
-                    user_list = ", ".join([f"{u.username}({u.instagram_username})" for u in alt_users])
-                    print(f"Instagram連携済みユーザー: {user_list}")
-                    
-                    # 最初のユーザーを使用
-                    user = alt_users[0]
-                    print(f"instagram_usernameが設定されているユーザーを選択: {user.username}, instagram_username={user.instagram_username}, instagram_token有無: {bool(user.instagram_token)}")
-                    
-                    # instagram_business_idを更新
-                    user.instagram_business_id = page_id
-                    db.session.commit()
-                    print(f"ユーザー {user.username} のinstagram_business_idを更新しました: {page_id}")
-                else:
-                    print("一致するユーザーが見つかりません。DMを処理できません。")
-                    return
+                print("Instagram連携済みのユーザーが見つかりません")
+                continue
         
-        # 自動返信が有効かどうかをチェック
-        if not user.autoreply_enabled or not user.autoreply_template:
-            print(f"ユーザーID {user.id} の自動返信は無効です")
-            return
-        
-        # AIを使ってメッセージを分析
+        # メッセージを分析して場所に関する質問かどうかを判断
         is_location_question, confidence, reasoning = analyze_message(message_text)
         print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
         
-        if is_location_question and confidence >= 0.6:  # 閾値を設定
-            # 自動返信を送信
-            profile_url = current_app.config.get('BASE_URL', '').rstrip('/') + f'/u/{user.username}'
-            reply_message = user.autoreply_template.replace('{profile_url}', profile_url)
+        # 自動返信の条件を確認
+        auto_reply_threshold = 0.5  # 確信度の閾値
+        if is_location_question and confidence >= auto_reply_threshold:
+            print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
             
-            # 返信を送信前の詳細ログ
-            print(f"自動返信条件を満たしました - ユーザー: {user.username}, 場所に関する質問: {is_location_question}, 確信度: {confidence}")
-            print(f"自動返信テンプレート: {user.autoreply_template}")
-            print(f"プロフィールURL: {profile_url}")
-            print(f"送信するメッセージ: {reply_message}")
+            # 実際に返信を送信
+            reply_message = "この前行った場所ですが、東京の代官山にあるカフェです。カフェの名前はStreamTokyo（ストリームトウキョウ）です。最寄り駅は代官山駅で、落ち着いた雰囲気の素敵なカフェでした。ぜひ行ってみてください！"
             
-            # 返信を送信
-            result = send_instagram_reply(user.instagram_token, sender_id, reply_message)
-            print(f"自動返信送信結果: {result}, メッセージ: {reply_message}")
+            # アクセストークンの取得
+            access_token = user.instagram_token
+            if not access_token:
+                print(f"ユーザーID{user.id}のinstagram_tokenが設定されていません")
+                continue
+            
+            print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
+            result = send_instagram_reply(access_token, sender_id, reply_message)
+            
+            if result:
+                print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
+            else:
+                print(f"自動返信に失敗しました: 送信先={sender_id}")
         else:
             print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
-    
-    except Exception as e:
-        print(f"メッセージイベント処理中にエラーが発生しました: {str(e)}")
-        print(traceback.format_exc())
 
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをAIで分析する"""
@@ -280,35 +250,15 @@ def analyze_message(message):
 }}
 """
         
-        # OpenAI APIを呼び出す（旧式の呼び出し方法を使用）
+        # OpenAI APIを呼び出す方法を試す
         try:
-            print("OpenAIクライアントを初期化します")
-            # 新しいOpenAIクライアントAPIを試す
-            client = openai.OpenAI(api_key=openai.api_key)
+            # OpenAIのバージョンをチェック
+            import pkg_resources
+            openai_version = pkg_resources.get_distribution("openai").version
+            print(f"OpenAIライブラリのバージョン: {openai_version}")
             
-            print("OpenAI Chat Completions APIを呼び出します")
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": "あなたはメッセージ分析の専門家です。指示に従って分析結果をJSON形式で返してください。"},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=300
-            )
-            
-            # レスポンスを解析
-            content = response.choices[0].message.content
-            print(f"OpenAI APIレスポンス: {content[:100]}...")
-            result = json.loads(content)
-            is_location_question = result.get('is_location_question', False)
-            confidence = result.get('confidence', 0.0)
-            reasoning = result.get('reasoning', '')
-            
-        except Exception as client_error:
-            print(f"OpenAI新APIでのエラー、旧式の呼び出し方法を試みます: {str(client_error)}")
-            
-            # 旧式の呼び出し方法を試す
+            # 旧式の呼び出し方法を使用
+            print("旧式のOpenAI APIを呼び出します")
             completion = openai.ChatCompletion.create(
                 model="gpt-4o",
                 messages=[
@@ -321,11 +271,19 @@ def analyze_message(message):
             
             # レスポンスを解析
             content = completion.choices[0].message.content
-            print(f"OpenAI APIレスポンス（旧式）: {content[:100]}...")
+            print(f"OpenAI APIレスポンス: {content[:100]}...")
             result = json.loads(content)
             is_location_question = result.get('is_location_question', False)
             confidence = result.get('confidence', 0.0)
             reasoning = result.get('reasoning', '')
+            
+        except Exception as e:
+            print(f"OpenAI APIの呼び出しでエラーが発生しました: {str(e)}")
+            print("キーワードベースの判定にフォールバックします")
+            # キーワード検出によるフォールバック
+            is_location_question = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
+            confidence = 0.75 if is_location_question else 0.2
+            reasoning = "キーワード検出によるフォールバック判定（API呼び出しエラー）"
         
         print(f"分析結果: is_location_question={is_location_question}, confidence={confidence}, reasoning={reasoning}")
         return is_location_question, confidence, reasoning
