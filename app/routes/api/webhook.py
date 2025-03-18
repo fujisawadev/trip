@@ -257,10 +257,13 @@ def process_message_event(event, page_id):
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをAIで分析する"""
     try:
+        # API Keyをチェック
         if not openai.api_key:
-            # API Keyが設定されていない場合はシンプルな判定を行う（開発用）
-            is_location = "場所" in message or "どこ" in message or "スポット" in message
+            print("OpenAI APIキーが設定されていないため、キーワード検出によるフォールバック判定を行います")
+            is_location = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
             return is_location, 0.8 if is_location else 0.2, "キーワード検出による判定"
+            
+        print(f"OpenAI APIを使用してメッセージを分析します: {message[:30]}...")
         
         # プロンプトの準備
         prompt = f"""
@@ -277,31 +280,63 @@ def analyze_message(message):
 }}
 """
         
-        # OpenAI APIを呼び出す
-        client = openai.OpenAI()
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": "あなたはメッセージ分析の専門家です。指示に従って分析結果をJSON形式で返してください。"},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300
-        )
+        # OpenAI APIを呼び出す（旧式の呼び出し方法を使用）
+        try:
+            print("OpenAIクライアントを初期化します")
+            # 新しいOpenAIクライアントAPIを試す
+            client = openai.OpenAI(api_key=openai.api_key)
+            
+            print("OpenAI Chat Completions APIを呼び出します")
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "あなたはメッセージ分析の専門家です。指示に従って分析結果をJSON形式で返してください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300
+            )
+            
+            # レスポンスを解析
+            content = response.choices[0].message.content
+            print(f"OpenAI APIレスポンス: {content[:100]}...")
+            result = json.loads(content)
+            is_location_question = result.get('is_location_question', False)
+            confidence = result.get('confidence', 0.0)
+            reasoning = result.get('reasoning', '')
+            
+        except Exception as client_error:
+            print(f"OpenAI新APIでのエラー、旧式の呼び出し方法を試みます: {str(client_error)}")
+            
+            # 旧式の呼び出し方法を試す
+            completion = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "あなたはメッセージ分析の専門家です。指示に従って分析結果をJSON形式で返してください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=300
+            )
+            
+            # レスポンスを解析
+            content = completion.choices[0].message.content
+            print(f"OpenAI APIレスポンス（旧式）: {content[:100]}...")
+            result = json.loads(content)
+            is_location_question = result.get('is_location_question', False)
+            confidence = result.get('confidence', 0.0)
+            reasoning = result.get('reasoning', '')
         
-        # レスポンスを解析
-        result = json.loads(response.choices[0].message.content)
-        is_location_question = result.get('is_location_question', False)
-        confidence = result.get('confidence', 0.0)
-        reasoning = result.get('reasoning', '')
-        
+        print(f"分析結果: is_location_question={is_location_question}, confidence={confidence}, reasoning={reasoning}")
         return is_location_question, confidence, reasoning
     
     except Exception as e:
         print(f"メッセージ分析中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
-        # エラーの場合はFalseを返す
-        return False, 0.0, "分析エラー"
+        # エラーの場合はキーワードベースの判定にフォールバック
+        print("エラーのため、キーワードベースの判定にフォールバックします")
+        is_location = "場所" in message or "どこ" in message or "スポット" in message or "教えて" in message
+        return is_location, 0.7 if is_location else 0.2, "キーワード検出によるフォールバック判定（エラー発生後）"
 
 def send_instagram_reply(access_token, recipient_id, message_text):
     """Instagram DMに返信を送信する"""
