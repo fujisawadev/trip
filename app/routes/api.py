@@ -576,21 +576,12 @@ def fetch_instagram_posts():
     
     # リクエストからパラメータを取得
     data = request.get_json() or {}
-    limit = data.get('limit', 10)  # デフォルトは10件
-    print(f"リクエストパラメータ: limit={limit}")
+    limit = data.get('limit', 50)  # デフォルトは50件
+    after = data.get('after')  # ページネーションカーソル
+    start_date = data.get('start_date')  # 開始日
+    end_date = data.get('end_date')  # 終了日
     
-    # インポート進捗情報を取得
-    import_progress = ImportProgress.query.filter_by(
-        user_id=current_user.id, 
-        source='instagram'
-    ).first()
-    
-    print(f"インポート進捗情報: {import_progress}")
-    if import_progress:
-        print(f"  - last_post_id: {import_progress.last_post_id}")
-        print(f"  - last_post_timestamp: {import_progress.last_post_timestamp}")
-        print(f"  - next_page_cursor: {import_progress.next_page_cursor}")
-        print(f"  - total_imported_count: {import_progress.total_imported_count}")
+    print(f"リクエストパラメータ: limit={limit}, after={after}, start_date={start_date}, end_date={end_date}")
     
     try:
         # Instagram Graph APIを呼び出す
@@ -601,21 +592,12 @@ def fetch_instagram_posts():
             "limit": limit
         }
         
-        # 前回のインポート情報がある場合、時間ベースのページネーションを使用
-        if import_progress and import_progress.last_post_timestamp:
-            # Unixタイムスタンプに変換（秒単位）
-            until_timestamp = int(import_progress.last_post_timestamp.timestamp())
-            params["until"] = until_timestamp
-            print(f"前回のインポート情報を使用: until={until_timestamp}")
-            
-            # バックアップとしてカーソル情報も使用（あれば）
-            if import_progress.next_page_cursor:
-                params["after"] = import_progress.next_page_cursor
-                print(f"カーソル情報も使用: after={import_progress.next_page_cursor}")
+        # ページネーションカーソルがある場合は追加
+        if after:
+            params["after"] = after
         
         print(f"Instagram Graph API呼び出し: URL={url}")
         print(f"パラメータ: fields={params['fields']}, limit={params['limit']}")
-        print(f"アクセストークン: {current_user.instagram_token[:10]}...{current_user.instagram_token[-10:]}")
         
         response = requests.get(url, params=params)
         
@@ -631,75 +613,33 @@ def fetch_instagram_posts():
         posts_data = response_data.get('data', [])
         print(f"取得した投稿数: {len(posts_data)}")
         
-        # ページネーション情報を取得（次回用）
+        # 期間指定がある場合、投稿をフィルタリング
+        if start_date and end_date:
+            start_dt = datetime.fromisoformat(f"{start_date}T00:00:00+00:00")
+            end_dt = datetime.fromisoformat(f"{end_date}T23:59:59+00:00")
+            
+            filtered_posts = []
+            for post in posts_data:
+                if 'timestamp' in post:
+                    try:
+                        post_dt = datetime.fromisoformat(post['timestamp'].replace('Z', '+00:00'))
+                        if start_dt <= post_dt <= end_dt:
+                            filtered_posts.append(post)
+                    except Exception as e:
+                        print(f"タイムスタンプ変換エラー: {e}")
+                        continue
+            
+            posts_data = filtered_posts
+            print(f"期間フィルタリング後の投稿数: {len(posts_data)}")
+        
+        # ページネーション情報を取得
         paging = response_data.get('paging', {})
         print(f"ページネーション情報: {paging}")
         
-        next_page_url = paging.get('next')
-        next_page_cursor = None
-        
-        if next_page_url:
-            # URLからカーソル情報を抽出
-            next_page_cursor = extract_cursor_from_url(next_page_url)
-            print(f"次ページのカーソル情報: {next_page_cursor}")
-            
-            # next_page_cursorを保存する処理を追加
-            if next_page_cursor and import_progress:
-                import_progress.next_page_cursor = next_page_cursor
-                db.session.commit()
-                print(f"次ページのカーソル情報を保存しました: {next_page_cursor}")
-        else:
-            print("次ページのURLが見つかりませんでした")
-        
-        # 投稿データを整形して返す
-        posts = []
-        oldest_timestamp = None
-        
-        for post in posts_data:
-            # キャプションがある投稿のみ処理
-            if 'caption' in post:
-                # タイムスタンプを処理
-                post_timestamp = post.get('timestamp')
-                if post_timestamp:
-                    # 最も古い投稿のタイムスタンプを記録
-                    try:
-                        dt = datetime.fromisoformat(post_timestamp.replace('Z', '+00:00'))
-                        if oldest_timestamp is None or dt < oldest_timestamp:
-                            oldest_timestamp = dt
-                    except Exception as e:
-                        print(f"タイムスタンプ変換エラー: {e}")
-                
-                posts.append({
-                    'id': post.get('id'),
-                    'caption': post.get('caption', ''),
-                    'media_type': post.get('media_type'),
-                    'media_url': post.get('media_url'),
-                    'permalink': post.get('permalink'),
-                    'timestamp': post_timestamp,
-                    'location': post.get('location', {})
-                })
-        
-        print(f"処理後の投稿数: {len(posts)}")
-        if len(posts) > 0:
-            print(f"最初の投稿: id={posts[0].get('id')}, timestamp={posts[0].get('timestamp')}")
-            if len(posts) > 1:
-                print(f"最後の投稿: id={posts[-1].get('id')}, timestamp={posts[-1].get('timestamp')}")
-        
-        # インポート進捗情報を返す
-        import_info = {
-            'last_imported_at': import_progress.last_imported_at.isoformat() if import_progress else None,
-            'total_imported_count': import_progress.total_imported_count if import_progress else 0,
-            'has_previous_imports': import_progress is not None,
-            'next_page_available': next_page_url is not None
-        }
-        
-        print("=== Instagram投稿取得API終了 ===")
-        
         return jsonify({
             'success': True,
-            'count': len(posts),
-            'posts': posts,
-            'import_info': import_info
+            'posts': posts_data,
+            'paging': paging
         })
         
     except Exception as e:
@@ -1108,49 +1048,25 @@ def save_instagram_spots():
     try:
         saved_spots = []
         
-        # 最後にインポートした投稿の情報を追跡
-        last_post_id = None
-        last_post_timestamp = None
-        
         # スポット候補の情報をログに出力
         for i, spot_data in enumerate(spot_candidates):
             print(f"スポット候補 {i+1}/{len(spot_candidates)}: {spot_data.get('name', 'Unknown')}")
             print(f"  - instagram_post_id: {spot_data.get('instagram_post_id')}")
             print(f"  - timestamp: {spot_data.get('timestamp')}")
+            print(f"  - types: {spot_data.get('types', [])}")
+            print(f"  - formatted_address: {spot_data.get('formatted_address', '')}")
+            print(f"  - photo_reference: {spot_data.get('photo_reference', '')}")
+            print(f"  - summary_location: {spot_data.get('summary_location', '')}")
         
-        for i, spot_data in enumerate(spot_candidates):
-            print(f"スポット候補 {i+1}/{len(spot_candidates)} を処理中: {spot_data.get('name', 'Unknown')}")
-            
-            # 最後にインポートした投稿情報を更新
-            post_id = spot_data.get('instagram_post_id')
-            post_timestamp_str = spot_data.get('timestamp')
-            
-            print(f"投稿情報: post_id={post_id}, timestamp={post_timestamp_str}")
-            
-            if post_id and post_timestamp_str:
-                # タイムスタンプをDatetime型に変換
-                try:
-                    post_timestamp = datetime.fromisoformat(post_timestamp_str.replace('Z', '+00:00'))
-                    print(f"タイムスタンプ変換成功: {post_timestamp}")
-                    
-                    # 最も古い投稿情報を追跡
-                    if last_post_timestamp is None or post_timestamp < last_post_timestamp:
-                        last_post_id = post_id
-                        last_post_timestamp = post_timestamp
-                        print(f"最も古い投稿を更新: ID={post_id}, 日時={post_timestamp}")
-                except Exception as e:
-                    print(f"タイムスタンプ変換エラー: {str(e)}")
-                    print(f"変換に失敗したタイムスタンプ文字列: '{post_timestamp_str}'")
-            else:
-                print(f"投稿IDまたはタイムスタンプが不足しています: post_id={post_id}, timestamp={post_timestamp_str}")
-
-            # スポットモデルの作成
+        for spot_data in spot_candidates:
+            # スポットの基本情報を設定
             spot = Spot(
                 user_id=current_user.id,
-                name=spot_data.get('name', ''),
+                name=spot_data.get('name'),
                 location=spot_data.get('formatted_address', ''),
                 latitude=spot_data.get('latitude'),
                 longitude=spot_data.get('longitude'),
+                category=spot_data.get('types', [])[0] if spot_data.get('types') else None,
                 google_place_id=spot_data.get('place_id'),
                 formatted_address=spot_data.get('formatted_address', ''),
                 summary_location=spot_data.get('summary_location', ''),
@@ -1160,11 +1076,18 @@ def save_instagram_spots():
             )
             
             print(f"スポットモデル作成: {spot.name}, user_id={spot.user_id}")
+            print(f"  - formatted_address: {spot.formatted_address}")
+            print(f"  - google_photo_reference: {spot.google_photo_reference}")
+            print(f"  - summary_location: {spot.summary_location}")
             
             # Google Placesのtypesから日本語カテゴリを生成
             if 'types' in spot_data and spot_data['types']:
-                spot.types = json.dumps(spot_data['types'])
-                print(f"タイプ情報: {spot.types}")
+                try:
+                    spot.types = json.dumps(spot_data['types'])
+                    print(f"タイプ情報設定: {spot.types}")
+                except Exception as e:
+                    print(f"types設定エラー: {str(e)}")
+                    spot.types = json.dumps([])
                 
                 # OpenAI APIを使用して日本語カテゴリを生成
                 if OPENAI_API_KEY:
@@ -1219,7 +1142,7 @@ def save_instagram_spots():
                         spot.category = "その他"
             
             # 日本語のsummary_locationを取得
-            if spot_data.get('place_id'):
+            if spot_data.get('place_id') and (not spot.summary_location or spot.summary_location == ''):
                 try:
                     print(f"日本語のsummary_locationを取得: place_id={spot_data.get('place_id')}")
                     
@@ -1321,10 +1244,23 @@ def save_instagram_spots():
                                 if summary_parts:
                                     spot.summary_location = '、'.join(summary_parts)
                                     print(f"searchTextから日本語のsummary_locationを設定: {spot.summary_location}")
+                            
+                            # フォーマット済み住所が取得できたら更新
+                            if 'formattedAddress' in place and place['formattedAddress'] and not spot.formatted_address:
+                                spot.formatted_address = place['formattedAddress']
+                                print(f"searchTextからformatted_addressを更新: {spot.formatted_address}")
                 except Exception as e:
                     print(f"searchText API呼び出しエラー: {str(e)}")
             
             print(f"スポットをデータベースに追加")
+            saved_spots.append({
+                'name': spot.name,
+                'category': spot.category,
+                'formatted_address': spot.formatted_address,
+                'types': spot.types,
+                'summary_location': spot.summary_location,
+                'google_photo_reference': spot.google_photo_reference
+            })
             db.session.add(spot)
             db.session.flush()  # IDを取得するためのフラッシュ
             print(f"スポットID: {spot.id}")
@@ -1345,188 +1281,44 @@ def save_instagram_spots():
                     api_response = requests.get(url, headers=headers)
                     
                     if api_response.status_code == 200:
-                        data = api_response.json()
+                        place_data = api_response.json()
+                        photos = place_data.get('photos', [])
                         
-                        if 'photos' in data and len(data['photos']) > 0:
-                            # 写真参照情報の配列
-                            photos = data['photos']
-                            photo_references = [photo.get('name', '') for photo in photos if photo.get('name', '')]
-                            
-                            print(f"取得した写真数: {len(photo_references)}")
-                            
-                            # 最初の写真参照情報をスポットに設定（まだ設定されていない場合）
-                            if len(photo_references) > 0 and not spot.google_photo_reference:
-                                spot.google_photo_reference = photo_references[0]
-                                print(f"スポットの写真参照情報を設定: {photo_references[0]}")
-                            
-                            # すべての写真を保存（最大5枚）
-                            for i, photo_reference in enumerate(photo_references[:5]):
-                                # Google Photo ReferenceからURLを生成
-                                photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=800&maxWidthPx=800&key={GOOGLE_MAPS_API_KEY}"
-                                
-                                # 写真モデルを作成
-                                photo = Photo(
-                                    spot_id=spot.id,
-                                    photo_url=photo_url,
-                                    google_photo_reference=photo_reference,
-                                    is_google_photo=True,
-                                    is_primary=(i == 0)  # 最初の写真をプライマリに設定
-                                )
-                                db.session.add(photo)
-                                print(f"写真を追加 ({i+1}/{min(5, len(photo_references))}): {photo_url}")
-                                
-                                # 確実にデータベースに反映させるためにflush
-                                db.session.flush()
-                        else:
-                            print("写真情報が見つかりませんでした")
-                            
-                            # 写真情報が見つからない場合、別のエンドポイントを試す
-                            photo_url = f"https://places.googleapis.com/v1/places/{spot_data.get('place_id')}/photos"
-                            photo_headers = {
-                                'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                                'X-Goog-FieldMask': 'photos.name'
-                            }
-                            
-                            photo_response = requests.get(photo_url, headers=photo_headers)
-                            
-                            if photo_response.status_code == 200:
-                                photo_data = photo_response.json()
-                                photos = photo_data.get('photos', [])
-                                
-                                if photos and len(photos) > 0:
-                                    # 写真参照情報の配列
-                                    photo_references = [photo.get('name', '') for photo in photos if photo.get('name', '')]
+                        if photos and len(photos) > 0:
+                            # 最大5枚の写真を保存
+                            for i, photo in enumerate(photos[:5]):
+                                photo_name = photo.get('name')
+                                if photo_name:
+                                    # 写真URLを生成
+                                    photo_url = f"https://places.googleapis.com/v1/{photo_name}/media?key={GOOGLE_MAPS_API_KEY}&maxHeightPx=800&maxWidthPx=800"
                                     
-                                    print(f"別エンドポイントから取得した写真数: {len(photo_references)}")
-                                    
-                                    # 最初の写真参照情報をスポットに設定（まだ設定されていない場合）
-                                    if len(photo_references) > 0 and not spot.google_photo_reference:
-                                        spot.google_photo_reference = photo_references[0]
-                                        print(f"スポットの写真参照情報を設定: {photo_references[0]}")
-                                    
-                                    # すべての写真を保存（最大5枚）
-                                    for i, photo_reference in enumerate(photo_references[:5]):
-                                        # Google Photo ReferenceからURLを生成
-                                        photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=800&maxWidthPx=800&key={GOOGLE_MAPS_API_KEY}"
-                                        
-                                        # 写真モデルを作成
-                                        photo = Photo(
-                                            spot_id=spot.id,
-                                            photo_url=photo_url,
-                                            google_photo_reference=photo_reference,
-                                            is_google_photo=True,
-                                            is_primary=(i == 0)  # 最初の写真をプライマリに設定
-                                        )
-                                        db.session.add(photo)
-                                        print(f"写真を追加 ({i+1}/{min(5, len(photo_references))}): {photo_url}")
-                                        
-                                        # 確実にデータベースに反映させるためにflush
-                                        db.session.flush()
+                                    # 写真情報を保存
+                                    photo = Photo(
+                                        spot_id=spot.id,
+                                        photo_url=photo_url,
+                                        google_photo_reference=photo_name,
+                                        is_google_photo=True,
+                                        is_primary=(i == 0)  # 最初の写真をプライマリに設定
+                                    )
+                                    db.session.add(photo)
+                                    print(f"写真を追加: photo_name={photo_name}")
                     else:
-                        print(f"Google Places API写真取得エラー: ステータスコード {api_response.status_code}")
-                        print(f"レスポンス: {api_response.text}")
-                except Exception as e:
-                    print(f"写真取得エラー: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-            
-            # raw_dataをJSON互換形式に変換
-            serializable_data = {}
-            for key, value in spot_data.items():
-                # 基本的な型のみを保持
-                if isinstance(value, (str, int, float, bool, list, dict)) or value is None:
-                    serializable_data[key] = value
-            
-            # インポート履歴の記録
-            try:
-                print(f"インポート履歴を記録")
-                history = ImportHistory(
-                    user_id=current_user.id,
-                    source="instagram",
-                    external_id=spot_data.get('instagram_post_id'),
-                    status="success",
-                    spot_id=spot.id,
-                    raw_data=serializable_data
-                )
-                db.session.add(history)
-                print(f"インポート履歴を追加: ID={history.id if hasattr(history, 'id') else 'None'}")
-            except Exception as history_error:
-                print(f"インポート履歴の記録エラー: {str(history_error)}")
-                # インポート履歴の記録に失敗しても処理を続行
-            
-            saved_spots.append({
-                'id': spot.id,
-                'name': spot.name,
-                'location': spot.location,
-                'category': spot.category
-            })
-        
-        # インポート進捗情報を更新
-        import_progress = ImportProgress.query.filter_by(
-            user_id=current_user.id, 
-            source='instagram'
-        ).first()
-        
-        if not import_progress:
-            # 初回インポートの場合は新規作成
-            import_progress = ImportProgress(
-                user_id=current_user.id,
-                source='instagram'
-            )
-            db.session.add(import_progress)
-            print(f"新しいインポート進捗情報を作成")
-        
-        # 既存のインポート進捗情報を更新
-        import_progress.last_imported_at = datetime.utcnow()
-        
-        # 更新前の値をログに出力
-        print(f"更新前のインポート進捗情報:")
-        print(f"  - last_post_id: {import_progress.last_post_id}")
-        print(f"  - last_post_timestamp: {import_progress.last_post_timestamp}")
-        print(f"  - next_page_cursor: {import_progress.next_page_cursor}")
-        print(f"  - total_imported_count: {import_progress.total_imported_count}")
-        
-        if last_post_id:
-            import_progress.last_post_id = last_post_id
-            print(f"last_post_idを更新: {last_post_id}")
-        else:
-            print("last_post_idが取得できなかったため更新しません")
-            
-        if last_post_timestamp:
-            import_progress.last_post_timestamp = last_post_timestamp
-            print(f"last_post_timestampを更新: {last_post_timestamp}")
-        else:
-            print("last_post_timestampが取得できなかったため更新しません")
-            
-        # next_page_cursorは保持する（fetch_instagram_posts関数で更新されるため）
-        
-        import_progress.total_imported_count += len(saved_spots)
-        
-        print(f"インポート進捗情報を更新: last_post_id={last_post_id}, last_post_timestamp={last_post_timestamp}, total_count={import_progress.total_imported_count}")
+                        print(f"写真情報の取得に失敗: status_code={api_response.status_code}")
+                        print(f"エラーレスポンス: {api_response.text}")
+                        
+                except Exception as photo_error:
+                    print(f"写真の取得・保存エラー: {str(photo_error)}")
+                    # 写真の取得に失敗しても処理を続行
         
         print(f"データベースに変更をコミット")
         db.session.commit()
-        
-        # 更新後の値をログに出力
-        print(f"更新後のインポート進捗情報:")
-        print(f"  - last_post_id: {import_progress.last_post_id}")
-        print(f"  - last_post_timestamp: {import_progress.last_post_timestamp}")
-        print(f"  - next_page_cursor: {import_progress.next_page_cursor}")
-        print(f"  - total_imported_count: {import_progress.total_imported_count}")
         
         print(f"コミット成功: {len(saved_spots)}件のスポットを保存")
         
         return jsonify({
             'success': True,
             'count': len(saved_spots),
-            'saved_spots': saved_spots,
-            'import_info': {
-                'last_imported_at': import_progress.last_imported_at.isoformat(),
-                'total_imported_count': import_progress.total_imported_count,
-                'last_post_id': import_progress.last_post_id,
-                'last_post_timestamp': import_progress.last_post_timestamp.isoformat() if import_progress.last_post_timestamp else None,
-                'next_page_cursor': import_progress.next_page_cursor
-            }
+            'saved_spots': saved_spots
         })
         
     except Exception as e:

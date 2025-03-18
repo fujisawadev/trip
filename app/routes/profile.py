@@ -329,22 +329,19 @@ def user_profile(username):
                           spots=spots, 
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 
-@bp.route('/settings/import')
+@bp.route('/import')
 @login_required
 def import_management():
     """インポート管理ページ"""
     # Instagram連携状態を確認
     is_instagram_connected = current_user.instagram_token is not None
     
-    # インポート進捗情報を取得
-    import_progress = None
-    if is_instagram_connected:
-        import_progress = ImportProgress.query.filter_by(
-            user_id=current_user.id,
-            source='instagram'
-        ).first()
-    
     return render_template('import.html', 
                           is_instagram_connected=is_instagram_connected,
-                          instagram_username=current_user.instagram_username,
-                          import_progress=import_progress) 
+                          instagram_username=current_user.instagram_username)
+
+@bp.route('/autoreply')
+@login_required
+def autoreply_settings():
+    """自動返信設定ページ"""
+    return render_template('autoreply.html', title='自動返信設定') 

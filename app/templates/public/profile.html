@@ -297,12 +297,12 @@
             <!-- グローバルナビゲーション -->
             <nav class="global-nav">
                 <div class="global-nav-container">
-                    <a href="/profile" class="nav-item active">
+                    <a href="/{{ user.username }}" class="nav-item active">
                         <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
                     </a>
-                    <a href="/map" class="nav-item">
+                    <a href="/{{ user.username }}/map" class="nav-item">
                         <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                         </svg>
@@ -628,18 +628,37 @@
                 document.body.classList.add('modal-open');
                 
                 // スポット詳細データを取得
-                fetch(`/api/spots/${spotId}`)
+                fetch(`/spot/${spotId}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
                     .then(response => {
                         console.log('API Response Status:', response.status);
-                        return response.json();
+                        return response.text();
                     })
-                    .then(data => {
-                        // APIレスポンスの内容をログに出力
-                        console.log('API Response Data:', data);
-                        console.log('Affiliate Links:', data.affiliate_links);
-                        
+                    .then(html => {
                         // モーダルにスポット詳細を表示
-                        renderSpotDetail(data);
+                        modalContent.innerHTML = html;
+                        
+                        // モーダル内の地図を初期化（必要な場合）
+                        const spot = spots.find(s => s.id === parseInt(spotId));
+                        if (spot && spot.lat && spot.lng && document.getElementById('spot-map-modal')) {
+                            setTimeout(() => {
+                                const modalMap = L.map('spot-map-modal').setView([spot.lat, spot.lng], 15);
+                                
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                }).addTo(modalMap);
+                                
+                                L.marker([spot.lat, spot.lng])
+                                    .addTo(modalMap)
+                                    .bindPopup(spot.name);
+                                
+                                // 地図のサイズ更新
+                                modalMap.invalidateSize();
+                            }, 100);
+                        }
                     })
                     .catch(error => {
                         console.error('Error fetching spot details:', error);
@@ -652,264 +671,14 @@
             });
         });
         
-        // スポット詳細をモーダルにレンダリングする関数
-        function renderSpotDetail(spot) {
-            modalContent.innerHTML = `                <article class="w-full">
-                    <!-- Header Section with Close Button -->
-                    <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none bg-slate-50 text-neutral-900 relative">
-                        <h1 class="flex-1 text-center opacity-0"><!-- スポット名を非表示にするが、スペースは維持 --></h1>
-                        <div class="modal-close absolute right-4 top-4 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </div>
-                    </header>
-
-                    <!-- 余白を追加 -->
-                    <div class="h-4"></div>
-
-                    <!-- Hero Map Section -->
-                    <section class="flex items-start px-4 py-3 w-full" aria-label="Spot location map">
-                        <div id="spot-map-modal" class="w-full rounded-xl aspect-[1.78] min-w-60"></div>
-                    </section>
-
-                    <!-- Business Info Section -->
-                    <section class="flex justify-between items-start px-4 py-3 w-full bg-slate-50" aria-label="Business information">
-                        <div class="flex gap-4 items-start w-full">
-                            <div class="flex flex-col flex-1 shrink justify-center items-start w-full">
-                                <p class="text-sm text-slate-500">
-                                    ${spot.category || "カテゴリ未設定"}
-                                </p>
-                                ${spot.description ? `
-                                <p class="text-base text-neutral-900 mt-2">
-                                    ${spot.description}
-                                </p>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Photos Section -->
-                    <section aria-label="Photo gallery">
-                        <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900">
-                            写真
-                        </h2>
-                        <div class="p-4 w-full">
-                            ${renderPhotos(spot.photos)}
-                        </div>
-                    </section>
-
-                    <!-- Details Section -->
-                    <section aria-label="Booking details">
-                        <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900">
-                            もっと見る
-                        </h2>
-                        ${renderBookingDetails(spot)}
-                    </section>
-                </article>
-            `;
-            
-            // モーダル内の地図を初期化
-            initModalMap(spot);
-        }
-        
-        // 写真ギャラリーをレンダリングする関数
-        function renderPhotos(photos) {
-            if (photos && photos.length > 0) {
-                let html = '<div class="flex flex-wrap gap-3">';
-                photos.forEach((photo, index) => {
-                    html += `
-                        <div class="w-[173px]">
-                            <img
-                                src="${photo.photo_url}"
-                                alt="Spot photo ${index + 1}"
-                                class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
-                            />
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                return html;
-            } else {
-                // デフォルト画像を表示
-                return `
-                    <div class="flex flex-1 gap-3 size-full">
-                        <div class="w-[173px]">
-                            <img
-                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/435c1a8c3da50cd5e582b6fd0814a4a3f3c3b50ef3cf8a010ac0205cee4f32f9?placeholderIfAbsent=true"
-                                alt="Spot photo 1"
-                                class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
-                            />
-                        </div>
-                        <div class="w-[173px]">
-                            <img
-                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/b37c325af37ea799d306ee72897a50a638463c4b30b305522dd879bac2dc2b3d?placeholderIfAbsent=true"
-                                alt="Spot photo 2"
-                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
-                            />
-                        </div>
-                    </div>
-                    <div class="flex flex-1 gap-3 mt-3 size-full">
-                        <div class="w-[173px]">
-                            <img
-                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c4b6eceea17bf421958ffab803902982674183dbd0877d7757c20a985ff83966?placeholderIfAbsent=true"
-                                alt="Spot photo 3"
-                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
-                            />
-                        </div>
-                        <div class="w-[173px]">
-                            <img
-                                src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/6b633b68e920d2d541c15dfbc0f06ca6e1a326e984e57cf41fc1f7a9a6582368?placeholderIfAbsent=true"
-                                alt="Spot photo 4"
-                                class="object-contain flex-1 rounded-xl aspect-square w-[173px]"
-                            />
-                        </div>
-                    </div>
-                `;
+        // モーダル内の閉じるボタンにイベントリスナーを追加
+        document.addEventListener('click', function(event) {
+            if (event.target.closest('.modal-close')) {
+                const modal = document.getElementById('spot-modal');
+                modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
             }
-        }
-        
-        // 予約詳細をレンダリングする関数
-        function renderBookingDetails(spot) {
-            let html = '';
-            
-            // Google Mapsリンク
-            html += `
-                <!-- Google Maps Link -->
-                <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
-                    <img
-                        src="{{ url_for('static', filename='icons/maps/google-maps.svg') }}"
-                        alt="Google Maps logo"
-                        class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
-                    />
-                    <div class="flex flex-col justify-center self-stretch my-auto flex-1">
-                        <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
-                            Google Maps
-                        </h3>
-                        <p class="overflow-hidden max-w-full text-sm text-slate-500">
-                            ルート検索・詳細情報を見る
-                        </p>
-                    </div>
-                    <a href="${spot.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name)}&query_place_id=${spot.google_place_id || ''}`}" 
-                       target="_blank" 
-                       class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
-                        開く
-                    </a>
-                </article>
-            `;
-            
-            // アフィリエイトリンク
-            if (spot.affiliate_links && spot.affiliate_links.length > 0) {
-                spot.affiliate_links.forEach(link => {
-                    // アフィリエイトのアイコンキーがある場合はそれを使用、なければデフォルトアイコン
-                    let iconPath;
-                    if (link.icon_key) {
-                        iconPath = "{{ url_for('static', filename='icons/affiliates/') }}" + link.icon_key + ".svg";
-                    } else {
-                        iconPath = "{{ url_for('static', filename='icons/affiliates/booking-com.svg') }}";
-                    }
-                        
-                    html += `
-                        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
-                            <img
-                                src="${iconPath}"
-                                alt="${link.platform} logo"
-                                class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
-                            />
-                            <div class="flex flex-col justify-center self-stretch my-auto flex-1">
-                                <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
-                                    ${link.title || link.platform}
-                                </h3>
-                                <p class="overflow-hidden max-w-full text-sm text-slate-500">
-                                    予約情報・料金を確認する
-                                </p>
-                            </div>
-                            <a href="${link.url}" 
-                               target="_blank" 
-                               class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
-                                予約
-                            </a>
-                        </article>
-                    `;
-                });
-            }
-            
-            // SNS投稿
-            if (spot.social_posts && spot.social_posts.length > 0) {
-                // プラットフォームごとのアイコンパスを定義
-                const platformIconBase = "{{ url_for('static', filename='icons/social/') }}";
-                
-                spot.social_posts.forEach(post => {
-                    // プラットフォーム名からアイコンパスを生成
-                    const iconPath = platformIconBase + post.platform + ".svg";
-                    
-                    html += `
-                        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
-                            <img
-                                src="${iconPath}"
-                                alt="${post.platform} logo"
-                                class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
-                            />
-                            <div class="flex flex-col justify-center self-stretch my-auto flex-1">
-                                <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
-                                    ${post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
-                                </h3>
-                                <p class="overflow-hidden max-w-full text-sm text-slate-500">
-                                    投稿内容を確認する
-                                </p>
-                            </div>
-                            <a href="${post.post_url}" 
-                               target="_blank" 
-                               class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
-                                見る
-                            </a>
-                        </article>
-                    `;
-                });
-            }
-
-            // フッタースペース
-            html += `<div class="w-full py-8 bg-slate-50"></div>`;
-            
-            return html;
-        }
-        
-        // モーダル内の地図を初期化する関数
-        function initModalMap(spot) {
-            setTimeout(() => {
-                // 地図の初期化
-                let mapOptions = {};
-                if (spot.latitude && spot.longitude) {
-                    mapOptions = { center: [spot.latitude, spot.longitude], zoom: 15 };
-                }
-                
-                const modalMap = initMap('spot-map-modal', mapOptions);
-                
-                // スポットの位置にマーカーを追加
-                if (spot.latitude && spot.longitude) {
-                    const marker = addMarker(modalMap, spot.latitude, spot.longitude);
-                    marker.bindPopup(`<b>${spot.name}</b><br>${spot.location || ''}`).openPopup();
-                } else if (spot.location) {
-                    // 位置情報がない場合は住所から取得を試みる
-                    geocodeAddress(spot.location).then(result => {
-                        if (result) {
-                            modalMap.setView([result.lat, result.lng], 15);
-                            const marker = addMarker(modalMap, result.lat, result.lng);
-                            marker.bindPopup(`<b>${spot.name}</b><br>${spot.location}`).openPopup();
-                        }
-                    });
-                }
-                
-                // モーダル内の閉じるボタンにイベントリスナーを追加
-                const modalCloseButtons = document.querySelectorAll('.modal-close');
-                modalCloseButtons.forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        modal.style.display = 'none';
-                        document.body.classList.remove('modal-open');
-                    });
-                });
-            }, 100); // 少し遅延させてDOMが確実に準備できるようにする
-        }
+        });
         
         // シェア機能の実装
         const shareButton = document.getElementById('share-button');

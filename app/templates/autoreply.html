@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>自動返信設定 | Spacey</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom styles for toggle switch animation */
+      input[type="checkbox"] + div div {
+        transition: transform 0.2s ease-in-out;
+      }
+
+      input[type="checkbox"]:checked + div div {
+        transform: translateX(20px);
+      }
+
+      input[type="checkbox"] + div {
+        transition: background-color 0.2s ease-in-out;
+      }
+
+      input[type="checkbox"]:checked + div {
+        background-color: #e5e7eb;
+      }
+      
+      /* ローディングアニメーション */
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-left-color: #3b82f6;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body class="bg-neutral-50">
+    <div class="mx-auto w-full bg-white max-w-[480px]">
+      <div class="overflow-hidden w-full bg-neutral-50 min-h-[844px]">
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <main>
+          <!-- Header Section -->
+          <header
+            class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-neutral-50"
+          >
+            <a
+              href="{{ url_for('profile.settings') }}"
+              class="flex items-center self-stretch my-auto w-12 min-h-12"
+              aria-label="戻る"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </a>
+            <h1
+              class="flex-1 shrink self-stretch my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-zinc-900"
+            >
+              自動返信設定
+            </h1>
+            <div class="flex items-center self-stretch my-auto w-12">
+              <div
+                class="flex overflow-hidden gap-2 justify-center items-center self-stretch my-auto w-6 rounded-xl max-w-[480px] min-h-12"
+              >
+              </div>
+            </div>
+          </header>
+
+          <!-- Instagram連携状態 -->
+          <section class="mb-6">
+            {% if current_user.instagram_username %}
+            <div class="bg-green-50 border border-green-100 rounded-lg mx-4 p-4">
+              <div class="flex items-center mb-2">
+                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-base font-medium text-green-800">Instagram連携済み</h2>
+                  <p class="text-sm text-green-700">連携中アカウント: {{ current_user.instagram_username }}</p>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border border-yellow-100 rounded-lg mx-4 p-4">
+              <div class="flex items-start mb-4">
+                <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 mt-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-base font-medium text-yellow-800 mb-2">Instagram連携が必要です</h2>
+                  <p class="text-sm text-yellow-700 mb-3">
+                    自動返信機能を利用するには、Instagramビジネスアカウントとの連携が必要です。
+                  </p>
+                </div>
+              </div>
+              <a
+                href="{{ url_for('profile.sns_settings') }}"
+                class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+              >
+                <span class="text-base font-medium">Instagram連携を設定する</span>
+              </a>
+            </div>
+            {% endif %}
+          </section>
+
+          <!-- Response Location Section -->
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900"
+            >
+              対応する場所
+            </h2>
+
+            <!-- Instagram DMs Toggle -->
+            <div
+              class="flex gap-10 justify-between items-center px-4 py-3.5 w-full bg-neutral-50 min-h-[72px]"
+            >
+              <div
+                class="flex flex-col justify-center self-stretch my-auto w-[114px]"
+              >
+                <h3
+                  class="overflow-hidden max-w-full text-base font-medium text-zinc-900 w-[114px]"
+                >
+                  Instagram DMs
+                </h3>
+                <p
+                  class="overflow-hidden max-w-full text-sm whitespace-nowrap text-zinc-700 w-[114px]"
+                  id="toggle-status-text"
+                >
+                  {% if current_user.autoreply_enabled %}オン{% else %}オフ{% endif %}
+                </p>
+              </div>
+              <label class="self-stretch my-auto w-[51px]" {% if not current_user.instagram_username %}aria-disabled="true"{% endif %}>
+                <input 
+                  type="checkbox" 
+                  class="hidden" 
+                  id="dm-toggle"
+                  {% if current_user.autoreply_enabled %}checked{% endif %}
+                  {% if not current_user.instagram_username %}disabled{% endif %}
+                />
+                <div
+                  id="toggle-container"
+                  class="flex p-0.5 {% if current_user.instagram_username %}bg-gray-100{% else %}bg-gray-200{% endif %} rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
+                >
+                  <div
+                    id="toggle-thumb"
+                    class="flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] {% if current_user.autoreply_enabled %}translate-x-[20px]{% endif %}"
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <div class="px-4 mt-2 mb-4">
+              <p class="text-xs text-gray-500">
+                「場所・スポットについての質問」を自動検出し、指定したメッセージで自動返信します
+              </p>
+            </div>
+          </section>
+
+          <!-- Reply Template Section -->
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900"
+            >
+              返信テンプレート
+            </h2>
+            <div
+              class="flex gap-4 flex-col px-4 py-3 w-full text-base whitespace-nowrap text-zinc-900"
+            >
+              <div class="flex-1 shrink w-full basis-0 min-w-40">
+                <label for="message" class="block pb-2 w-full text-sm font-medium text-slate-700">返信メッセージ</label>
+                <textarea
+                  id="message"
+                  class="flex flex-1 p-4 w-full bg-gray-100 rounded-xl min-h-36 resize-none border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例：こんにちは！おすすめの場所はプロフィールページにまとめています。ぜひご覧ください。{profile_url}"
+                  {% if not current_user.instagram_username %}disabled{% endif %}
+                >{{ current_user.autoreply_template or '' }}</textarea>
+                <p class="mt-2 text-xs text-gray-500">
+                  <code>{profile_url}</code> を含めると、あなたのプロフィールページのURLが自動的に挿入されます
+                </p>
+              </div>
+              
+              <div class="mt-4">
+                <h3 class="text-sm font-medium text-slate-700 mb-2">テスト機能</h3>
+                <div class="flex items-end gap-2">
+                  <div class="flex-1">
+                    <label for="test-message" class="block text-xs text-slate-600 mb-1">テストメッセージ</label>
+                    <input 
+                      type="text" 
+                      id="test-message" 
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="例：おすすめの場所を教えてください"
+                      {% if not current_user.instagram_username %}disabled{% endif %}
+                    >
+                  </div>
+                  <button
+                    id="test-btn"
+                    class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    {% if not current_user.instagram_username %}disabled{% endif %}
+                  >
+                    テスト
+                  </button>
+                </div>
+                <div id="test-result" class="mt-2 hidden p-3 rounded-lg max-w-full overflow-hidden"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Save Button Section -->
+          <footer
+            class="mt-8 w-full text-base font-bold text-center text-zinc-900"
+          >
+            <div class="flex items-start px-4 py-3 w-full">
+              <button
+                id="save-btn"
+                class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-blue-500 text-white rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                {% if not current_user.instagram_username %}disabled{% endif %}
+              >
+                <span class="overflow-hidden self-stretch my-auto">
+                  変更を保存
+                </span>
+              </button>
+            </div>
+            <div class="flex w-full bg-neutral-50 min-h-5"></div>
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // 要素の取得
+        const dmToggle = document.getElementById('dm-toggle');
+        const messageTextarea = document.getElementById('message');
+        const saveBtn = document.getElementById('save-btn');
+        const testBtn = document.getElementById('test-btn');
+        const testMessage = document.getElementById('test-message');
+        const testResult = document.getElementById('test-result');
+        const toggleContainer = document.getElementById('toggle-container');
+        const toggleThumb = document.getElementById('toggle-thumb');
+        const toggleLabel = toggleContainer.parentElement;
+        
+        // Instagram連携がされていない場合は処理を中断
+        if (!dmToggle || dmToggle.disabled) return;
+        
+        // トグル状態の更新関数
+        function updateToggleState() {
+          if (!dmToggle.disabled) {
+            const toggleStatusText = document.getElementById('toggle-status-text');
+            if (toggleStatusText) {
+              toggleStatusText.textContent = dmToggle.checked ? 'オン' : 'オフ';
+            }
+            
+            // トグルの視覚的なスタイルを更新
+            if (dmToggle.checked) {
+              toggleThumb.style.transform = 'translateX(20px)';
+            } else {
+              toggleThumb.style.transform = 'translateX(0)';
+            }
+          }
+        }
+        
+        // トグルラベルのクリックイベント
+        toggleLabel.addEventListener('click', function(e) {
+          if (!dmToggle.disabled) {
+            dmToggle.checked = !dmToggle.checked;
+            updateToggleState();
+            e.preventDefault(); // デフォルトの動作を停止
+          }
+        });
+        
+        // トグルコンテナのクリックイベント
+        toggleContainer.addEventListener('click', function(e) {
+          if (!dmToggle.disabled) {
+            dmToggle.checked = !dmToggle.checked;
+            updateToggleState();
+            e.stopPropagation(); // イベントの伝播を停止
+          }
+        });
+        
+        // 保存ボタンのクリックイベント
+        saveBtn.addEventListener('click', async function() {
+          // ボタンをローディング状態に
+          const originalText = saveBtn.innerHTML;
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<div class="spinner mr-2"></div><span>保存中...</span>';
+          
+          try {
+            console.log('Saving settings: ', {
+              enabled: dmToggle.checked,
+              template: messageTextarea.value
+            });
+            
+            // 設定を保存するAPIを呼び出す
+            const response = await fetch('/api/autoreply/settings', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+              },
+              body: JSON.stringify({
+                enabled: dmToggle.checked,
+                template: messageTextarea.value
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error('設定の保存に失敗しました');
+            }
+            
+            const data = await response.json();
+            console.log('Save response: ', data);
+            
+            if (data.success) {
+              // 保存成功
+              showMessage('設定を保存しました', 'success');
+            } else {
+              throw new Error(data.error || '設定の保存に失敗しました');
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            showMessage(error.message || '設定の保存中にエラーが発生しました', 'error');
+          } finally {
+            // ボタンを元に戻す
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+          }
+        });
+        
+        // テストボタンのクリックイベント
+        testBtn.addEventListener('click', async function() {
+          // 入力チェック
+          if (!testMessage.value.trim()) {
+            showTestResult('テストメッセージを入力してください', 'warning');
+            return;
+          }
+          
+          // ボタンをローディング状態に
+          const originalText = testBtn.innerHTML;
+          testBtn.disabled = true;
+          testBtn.innerHTML = '<div class="spinner mr-1"></div><span>処理中</span>';
+          
+          try {
+            // テストAPIを呼び出す
+            const response = await fetch('/api/autoreply/test', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+              },
+              body: JSON.stringify({
+                message: testMessage.value,
+                enabled: dmToggle.checked,
+                template: messageTextarea.value
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error('テストに失敗しました');
+            }
+            
+            const data = await response.json();
+            
+            if (data.is_location_question) {
+              // 場所に関する質問と判定された場合
+              showTestResult(`
+                <div class="p-3 bg-green-50 rounded-lg border border-green-100">
+                  <p class="text-sm font-medium text-green-800 mb-1">✓ 場所に関する質問と判定されました</p>
+                  <p class="text-xs text-green-700 mb-2">自信度: ${Math.round(data.confidence * 100)}%</p>
+                  <div class="p-2 bg-white rounded border border-green-200">
+                    <p class="text-xs text-slate-500 mb-1">自動返信内容：</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-wrap break-words">${data.reply_message}</p>
+                  </div>
+                </div>
+              `, '');
+            } else {
+              // 場所に関する質問ではないと判定された場合
+              showTestResult(`
+                <div class="p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                  <p class="text-sm font-medium text-yellow-800 mb-1">× 場所に関する質問ではないと判定されました</p>
+                  <p class="text-xs text-yellow-700">自信度: ${Math.round(data.confidence * 100)}%</p>
+                </div>
+              `, '');
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            showTestResult(error.message || 'テスト中にエラーが発生しました', 'error');
+          } finally {
+            // ボタンを元に戻す
+            testBtn.disabled = false;
+            testBtn.innerHTML = originalText;
+          }
+        });
+        
+        // テスト結果を表示
+        function showTestResult(message, type) {
+          testResult.innerHTML = message;
+          testResult.classList.remove('hidden');
+        }
+        
+        // メッセージを表示（簡易的なトースト）
+        function showMessage(message, type) {
+          // 既存のメッセージがあれば削除
+          const existingMessage = document.querySelector('.toast-message');
+          if (existingMessage) {
+            existingMessage.remove();
+          }
+          
+          // メッセージ要素を作成
+          const messageElement = document.createElement('div');
+          messageElement.className = `toast-message fixed top-4 right-4 p-3 rounded-lg shadow-lg z-50 transition-opacity duration-300 ${
+            type === 'error' ? 'bg-red-100 text-red-700' : 
+            type === 'warning' ? 'bg-yellow-100 text-yellow-700' : 
+            'bg-green-100 text-green-700'
+          }`;
+          messageElement.textContent = message;
+          
+          // bodyに追加
+          document.body.appendChild(messageElement);
+          
+          // 3秒後に消える
+          setTimeout(() => {
+            messageElement.classList.add('opacity-0');
+            setTimeout(() => {
+              messageElement.remove();
+            }, 300);
+          }, 3000);
+        }
+        
+        // CSRFトークンを取得
+        function getCsrfToken() {
+          return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+      });
+    </script>
+  </body>
+</html> 

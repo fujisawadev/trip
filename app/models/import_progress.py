@@ -13,6 +13,10 @@ class ImportProgress(db.Model):
     next_page_cursor = db.Column(db.String(255), nullable=True)
     total_imported_count = db.Column(db.Integer, default=0, nullable=False)
     
+    # 期間指定関連のカラムを追加
+    import_period_start = db.Column(db.DateTime, nullable=True)
+    import_period_end = db.Column(db.DateTime, nullable=True)
+    
     # リレーションシップ
     user = db.relationship('User', backref=db.backref('import_progress', lazy=True))
     

@@ -1,0 +1,124 @@
+<!-- スポット詳細モーダルの内容 -->
+<article class="w-full">
+    <!-- Header Section with Close Button -->
+    <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none bg-slate-50 text-neutral-900 relative">
+        <h1 class="flex-1 text-center opacity-0"><!-- スポット名を非表示にするが、スペースは維持 --></h1>
+        <div class="modal-close absolute right-4 top-4 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </div>
+    </header>
+
+    <!-- 余白を追加 -->
+    <div class="h-4"></div>
+
+    <!-- Hero Map Section -->
+    <section class="flex items-start px-4 py-3 w-full" aria-label="Spot location map">
+        <div id="spot-map-modal" class="w-full rounded-xl aspect-[1.78] min-w-60"></div>
+    </section>
+
+    <!-- Business Info Section -->
+    <section class="flex justify-between items-start px-4 py-3 w-full bg-slate-50" aria-label="Business information">
+        <div class="flex gap-4 items-start w-full">
+            <div class="flex flex-col flex-1 shrink justify-center items-start w-full">
+                <h2 class="text-xl font-bold mb-2 text-gray-900">{{ spot.name }}</h2>
+                <p class="text-sm text-slate-500">
+                    {{ spot.category or "カテゴリ未設定" }}
+                </p>
+                {% if spot.description %}
+                <p class="text-base text-neutral-900 mt-2">
+                    {{ spot.description }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Photos Section -->
+    <section aria-label="Photo gallery">
+        <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900">
+            写真
+        </h2>
+        <div class="p-4 w-full">
+            {% if photos and photos|length > 0 %}
+                <div class="flex flex-wrap gap-3">
+                    {% for photo in photos %}
+                        <div class="w-[173px]">
+                            <img
+                                src="{{ photo.photo_url }}"
+                                alt="Spot photo {{ loop.index }}"
+                                class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
+                            />
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="flex flex-1 gap-3 size-full">
+                    <div class="w-[173px]">
+                        <img
+                            src="{{ url_for('static', filename='images/default_profile.png') }}"
+                            alt="Spot photo 1"
+                            class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
+                        />
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Details Section -->
+    <section aria-label="Booking details">
+        <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900">
+            もっと見る
+        </h2>
+        
+        <!-- Google Maps Link -->
+        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
+            <img
+                src="{{ url_for('static', filename='icons/maps/google-maps.svg') }}"
+                alt="Google Maps logo"
+                class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
+                onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'"
+            />
+            <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
+                    Google Maps
+                </h3>
+                <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                    ルート検索・詳細情報を見る
+                </p>
+            </div>
+            <a href="https://www.google.com/maps/search/?api=1&query={{ spot.name|urlencode }}&query_place_id={{ spot.google_place_id or '' }}" 
+               target="_blank" 
+               class="flex justify-center items-center px-4 py-2 rounded-xl bg-blue-500 text-white shrink-0">
+                開く
+            </a>
+        </article>
+        
+        <!-- フッタースペース -->
+        <div class="w-full py-8 bg-slate-50"></div>
+    </section>
+</article>
+
+<script>
+    // モーダルが表示された後に地図を初期化
+    setTimeout(() => {
+        if (document.getElementById('spot-map-modal')) {
+            const modalMap = L.map('spot-map-modal').setView([{{ spot.latitude or 35.6895 }}, {{ spot.longitude or 139.6917 }}], {{ spot.latitude and spot.longitude and 15 or 5 }});
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(modalMap);
+            
+            {% if spot.latitude and spot.longitude %}
+            L.marker([{{ spot.latitude }}, {{ spot.longitude }}])
+                .addTo(modalMap)
+                .bindPopup('{{ spot.name }}');
+            {% endif %}
+            
+            // 地図のサイズ更新
+            modalMap.invalidateSize();
+        }
+    }, 100);
+</script> 

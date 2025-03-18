@@ -43,13 +43,36 @@
             <ul>
               <li>
                 <a
-                  href="{{ url_for('profile.account_settings') }}"
+                  href="{{ url_for('auth.change_email') }}"
                   class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
                 >
                   <span
                     class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
                   >
-                    メールアドレス・パスワードの変更
+                    メールアドレスの変更
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a8942ef94de70f6be86076b32f21fb7eeb55e9fc6f63cbd4335d85d1d53e854a?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="{{ url_for('auth.change_password') }}"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    パスワードの変更
                   </span>
                   <span class="self-stretch my-auto w-7">
                     <span
@@ -80,62 +103,6 @@
                     >
                       <img
                         src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c648220a638e85c52c230d08f607e4a1e3ed340de4f369a4cce758dd5c9d1ccb?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
-                </a>
-              </li>
-            </ul>
-          </section>
-
-          <section>
-            <h2
-              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
-            >
-              自動化機能
-            </h2>
-            <ul>
-              <li>
-                <a
-                  href="{{ url_for('profile.import_management') }}"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    スポットのインポート
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/ecb4aff9060ebdaad64b081bde998253773947cedb7eab5639c90c9f0cb94153?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    コメント・DMの対応
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/e2759add37cb2c553b2cac5916c67c783f8dd8bd9d2fbbf6819f40e569cadd46?placeholderIfAbsent=true"
                         alt="Navigate"
                         class="object-contain self-stretch my-auto w-6 aspect-square"
                       />
@@ -224,8 +191,49 @@
                   </span>
                 </a>
               </li>
+              <li>
+                <a
+                  href="{{ url_for('profile.import_management') }}"
+                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
+                >
+                  <span
+                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
+                  >
+                    インポート機能
+                  </span>
+                  <span class="self-stretch my-auto w-7">
+                    <span
+                      class="flex flex-1 justify-center items-center w-7 h-full"
+                    >
+                      <img
+                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c648220a638e85c52c230d08f607e4a1e3ed340de4f369a4cce758dd5c9d1ccb?placeholderIfAbsent=true"
+                        alt="Navigate"
+                        class="object-contain self-stretch my-auto w-6 aspect-square"
+                      />
+                    </span>
+                  </span>
+                </a>
+              </li>
             </ul>
           </section>
+
+          <!-- 自動返信設定 -->
+          <a href="{{ url_for('profile.autoreply_settings') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+            <div class="flex items-center">
+              <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-base font-medium text-gray-800">自動返信設定</h3>
+                <p class="text-sm text-gray-500">DMの自動返信機能を設定</p>
+              </div>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
 
           <div class="flex w-full bg-slate-50 min-h-5"></div>
         </nav>

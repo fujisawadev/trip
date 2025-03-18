@@ -137,7 +137,7 @@
           class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
         >
           <a
-            href="{{ url_for('profile.settings') }}"
+            href="{{ url_for('profile.mypage') }}"
             class="flex items-center self-stretch my-auto w-12 min-h-12"
             aria-label="戻る"
           >
@@ -159,21 +159,6 @@
         </header>
 
         <main class="px-4 py-2">
-          <!-- 機能説明セクション -->
-          <section class="bg-white rounded-lg p-5 shadow-sm mb-6">
-            <p class="text-sm text-slate-600 mb-4">
-              Instagramの投稿からスポット情報を自動的に抽出し、マイページに追加する機能です。
-            </p>
-            
-            <h3 class="text-base font-medium text-neutral-900 mb-2">主な機能</h3>
-            <ul class="text-sm text-slate-600 list-disc pl-5 space-y-2">
-              <li>Instagram投稿のキャプションからスポット名を自動抽出</li>
-              <li>Google Mapsと連携して正確な位置情報を取得</li>
-              <li>写真や詳細情報を自動的に取得</li>
-              <li>マイページに非公開状態で保存（後から編集可能）</li>
-            </ul>
-          </section>
-
           <!-- Instagram連携状態に応じた表示 -->
           {% if is_instagram_connected %}
           <!-- インポート機能 -->
@@ -192,38 +177,42 @@
               </a>
             </div>
             
-            <!-- インポート情報表示セクション -->
-            {% if import_progress %}
-            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
-              <div class="flex items-start">
-                <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p class="text-sm text-blue-700 mb-1">
-                    <span class="font-medium">最終インポート:</span> {{ import_progress.last_imported_at.strftime('%Y年%m月%d日 %H:%M') }}
-                  </p>
-                  <p class="text-sm text-blue-700">
-                    <span class="font-medium">インポート済み投稿数:</span> {{ import_progress.total_imported_count }}件
-                  </p>
-                </div>
-              </div>
-            </div>
-            {% endif %}
-            
             <div id="import-container">
+              <!-- 期間選択フォーム -->
+              <div class="mb-4">
+                <div class="flex gap-4">
+                  <div class="flex-1">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                      開始日
+                    </label>
+                    <input 
+                      type="date" 
+                      id="start-date" 
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                  </div>
+                  <div class="flex-1">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                      終了日
+                    </label>
+                    <input 
+                      type="date" 
+                      id="end-date" 
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                  </div>
+                </div>
+                <p class="mt-2 text-xs text-slate-500">
+                  ※ インポートしたい投稿の期間を指定してください
+                </p>
+              </div>
+
               <button
                 id="start-import-btn"
                 class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors mb-4"
               >
                 <span class="text-base font-medium">
-                  {% if import_progress %}
-                  インポートを続ける（前回の続きから）
-                  {% else %}
                   インポートを開始
-                  {% endif %}
                 </span>
               </button>
             </div>
@@ -449,109 +438,169 @@
         }
         
         // インポート処理を開始
-        function startImport() {
+        async function startImport() {
           console.log('インポート処理を開始します');
+          
+          // 期間の取得
+          const startDate = document.getElementById('start-date').value;
+          const endDate = document.getElementById('end-date').value;
+          
+          // バリデーション
+          if (!startDate || !endDate) {
+            alert('期間を指定してください');
+            return;
+          }
+          
+          if (new Date(startDate) > new Date(endDate)) {
+            alert('開始日は終了日より前の日付を指定してください');
+            return;
+          }
+          
           // UIをリセット
           resetModalUI();
           
-          // ローディング表示
-          loadingText.textContent = 'Instagram投稿を取得中...';
+          // モーダルを表示
+          importModal.classList.remove('hidden');
           
-          // CSRFトークンを取得して表示
-          const csrfToken = getCsrfToken();
-          console.log('CSRFトークン:', csrfToken);
-          
-          // Instagram投稿を取得
-          console.log('Instagram投稿を取得するAPIを呼び出します');
-          fetch('/api/import/instagram/fetch', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-              limit: 20  // 取得する投稿数
-            })
-          })
-          .then(response => {
-            console.log('Instagram投稿取得APIのレスポンス:', response.status, response.statusText);
-            if (!response.ok) {
-              return response.text().then(text => {
-                console.error('エラーレスポンスの詳細:', text);
-                throw new Error(`Instagram投稿の取得に失敗しました (${response.status}: ${response.statusText})`);
-              });
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log('Instagram投稿取得APIのデータ:', data);
+          try {
+            // 投稿の取得を開始
+            const posts = await fetchPostsInPeriod(startDate, endDate);
+            console.log(`期間内の投稿を${posts.length}件取得しました`);
             
-            // インポート情報を表示（あれば）
-            if (data.import_info) {
-              const importInfo = data.import_info;
-              console.log('インポート情報:', importInfo);
-              
-              // 次回のインポートがあるかどうかを表示
-              if (importInfo.has_previous_imports) {
-                loadingText.textContent = `前回のインポートの続きから取得中...（合計${importInfo.total_imported_count}件インポート済み）`;
-              }
+            if (posts.length === 0) {
+              throw new Error('指定された期間内の投稿が見つかりませんでした');
             }
             
-            if (data.success && data.posts && data.posts.length > 0) {
-              loadingText.textContent = 'スポット情報を分析中...';
-              console.log(`${data.posts.length}件の投稿を分析します`);
-              
-              // スポット候補を生成
-              return fetch('/api/import/instagram/analyze', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                  posts: data.posts
-                })
-              });
-            } else {
-              console.error('Instagram投稿が見つかりませんでした', data);
-              throw new Error('Instagram投稿が見つかりませんでした');
-            }
-          })
-          .then(response => {
-            console.log('スポット分析APIのレスポンス:', response.status, response.statusText);
-            if (!response.ok) {
-              return response.text().then(text => {
-                console.error('エラーレスポンスの詳細:', text);
-                throw new Error(`スポット情報の分析に失敗しました (${response.status}: ${response.statusText})`);
-              });
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log('スポット分析APIのデータ:', data);
-            if (data.success && data.spot_candidates && data.spot_candidates.length > 0) {
-              // スポット候補を表示
-              spotCandidates = data.spot_candidates;
-              console.log(`${spotCandidates.length}件のスポット候補が見つかりました`);
-              displaySpotCandidates(spotCandidates);
-              
-              // 結果表示
-              loadingContainer.classList.add('hidden');
-              resultContainer.classList.remove('hidden');
-              spotCount.textContent = spotCandidates.length;
-            } else {
-              console.error('スポット候補が見つかりませんでした', data);
-              throw new Error('スポット候補が見つかりませんでした');
-            }
-          })
-          .catch(error => {
+            // スポット分析を開始
+            await analyzeAndDisplayPosts(posts);
+            
+          } catch (error) {
             console.error('インポート処理中のエラー:', error);
-            
-            // エラー表示
             loadingContainer.classList.add('hidden');
             errorContainer.classList.remove('hidden');
             errorMessage.textContent = error.message || 'インポート処理中にエラーが発生しました。時間をおいて再度お試しください。';
-          });
+          }
+        }
+        
+        // 指定期間内の投稿を取得
+        async function fetchPostsInPeriod(startDate, endDate) {
+          const allPosts = [];
+          let nextPageToken = null;
+          let shouldContinue = true;
+          
+          while (shouldContinue) {
+            loadingText.textContent = `Instagram投稿を取得中...（${allPosts.length}件取得済み）`;
+            
+            try {
+              const response = await fetch('/api/import/instagram/fetch', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({
+                  limit: 50,
+                  after: nextPageToken,
+                  start_date: startDate,
+                  end_date: endDate
+                })
+              });
+              
+              if (!response.ok) {
+                throw new Error(`Instagram投稿の取得に失敗しました (${response.status}: ${response.statusText})`);
+              }
+              
+              const data = await response.json();
+              
+              if (!data.success) {
+                throw new Error(data.error || 'Instagram投稿の取得に失敗しました');
+              }
+              
+              // 期間内の投稿を追加
+              if (data.posts && data.posts.length > 0) {
+                allPosts.push(...data.posts);
+              }
+              
+              // ページネーションの処理
+              nextPageToken = data.paging?.cursors?.after;
+              
+              // 終了条件の判定
+              shouldContinue = shouldContinueFetching(
+                data.posts,
+                startDate,
+                nextPageToken
+              );
+              
+            } catch (error) {
+              console.error('投稿取得中のエラー:', error);
+              throw error;
+            }
+          }
+          
+          return allPosts;
+        }
+        
+        // 投稿取得を続けるかどうかを判定
+        function shouldContinueFetching(posts, startDate, nextPageToken) {
+          if (!nextPageToken) {
+            return false;  // これ以上のページがない
+          }
+          
+          if (posts.length === 0) {
+            return false;  // 投稿がない
+          }
+          
+          // 最も古い投稿のタイムスタンプを取得
+          const oldestPost = posts[posts.length - 1];
+          const oldestTimestamp = new Date(oldestPost.timestamp);
+          const startDateTime = new Date(startDate);
+          
+          // 開始日より古い投稿に到達したら終了
+          if (oldestTimestamp < startDateTime) {
+            return false;
+          }
+          
+          return true;  // 続行
+        }
+        
+        // 投稿の分析と表示
+        async function analyzeAndDisplayPosts(posts) {
+          loadingText.textContent = 'スポット情報を分析中...';
+          
+          try {
+            const response = await fetch('/api/import/instagram/analyze', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+              },
+              body: JSON.stringify({ posts })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`スポット情報の分析に失敗しました (${response.status}: ${response.statusText})`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+              throw new Error(data.error || 'スポット情報の分析に失敗しました');
+            }
+            
+            // スポット候補を表示
+            spotCandidates = data.spot_candidates;
+            console.log(`${spotCandidates.length}件のスポット候補が見つかりました`);
+            displaySpotCandidates(spotCandidates);
+            
+            // 結果表示
+            loadingContainer.classList.add('hidden');
+            resultContainer.classList.remove('hidden');
+            spotCount.textContent = spotCandidates.length;
+            
+          } catch (error) {
+            console.error('分析中のエラー:', error);
+            throw error;
+          }
         }
         
         // スポット候補を表示

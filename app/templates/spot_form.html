@@ -17,8 +17,8 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""></script>
     <!-- Leaflet Control Geocoder -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.js"></script>
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.css" /> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-control-geocoder/2.4.0/Control.Geocoder.js"></script> -->
     <style>
       /* 地図のスタイル */
       #location-map {
@@ -299,12 +299,12 @@
           <div class="flex justify-between items-center w-full">
             <span class="text-base font-bold text-neutral-900">公開状態</span>
             <label
-              class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer"
+              class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer toggle-bg transition-colors duration-200 {% if not is_edit or (is_edit and spot.is_active) %}bg-blue-300{% endif %}"
               role="switch"
             >
               <input type="checkbox" name="is_active" class="toggle-switch sr-only" {% if not is_edit or (is_edit and spot.is_active) %}checked{% endif %} />
               <span
-                class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-transform duration-200"
+                class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-all duration-200 {% if not is_edit or (is_edit and spot.is_active) %}bg-blue-500{% endif %}"
               ></span>
             </label>
           </div>
@@ -323,6 +323,12 @@
     <style>
       .toggle-switch:checked + .toggle-slider {
         transform: translateX(20px);
+      }
+      .toggle-switch:checked + .toggle-slider {
+        background-color: #3b82f6; /* bg-blue-500 */
+      }
+      .toggle-switch:checked ~ .toggle-bg {
+        background-color: #93c5fd; /* bg-blue-300 */
       }
       .preview-item {
         position: relative;

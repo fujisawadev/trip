@@ -54,6 +54,13 @@ def create_app(config_class=None):
     app.config['INSTAGRAM_CLIENT_SECRET'] = os.environ.get('INSTAGRAM_CLIENT_SECRET')
     app.config['INSTAGRAM_REDIRECT_URI'] = os.environ.get('INSTAGRAM_REDIRECT_URI')
     
+    # Instagram Webhook設定
+    app.config['INSTAGRAM_WEBHOOK_VERIFY_TOKEN'] = os.environ.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN')
+    app.config['INSTAGRAM_APP_SECRET'] = os.environ.get('INSTAGRAM_APP_SECRET')
+    
+    # ベースURL設定
+    app.config['BASE_URL'] = os.environ.get('BASE_URL', 'http://localhost:5000')
+    
     # ルートの登録
     from app.routes import auth, main, profile, public, spot, api
     app.register_blueprint(auth.bp, url_prefix='/auth')
@@ -62,5 +69,12 @@ def create_app(config_class=None):
     app.register_blueprint(public.public_bp)
     app.register_blueprint(spot.bp)
     app.register_blueprint(api.api_bp)
+    
+    # 自動返信APIルートとWebhookルートの登録
+    from app.routes.api.autoreply import autoreply_bp
+    app.register_blueprint(autoreply_bp)
+    
+    from app.routes.api.webhook import webhook_bp
+    app.register_blueprint(webhook_bp)
     
     return app 

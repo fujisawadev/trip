@@ -2,42 +2,104 @@
  * 地図関連のユーティリティ関数
  */
 
-// 地図インスタンスを初期化する
-function initMap(elementId, options = {}) {
-  const defaultOptions = {
-    center: [35.6812, 139.7671], // 東京をデフォルト中心に
-    zoom: 13,
-    scrollWheelZoom: true
-  };
-  
-  const mapOptions = { ...defaultOptions, ...options };
-  const map = L.map(elementId, mapOptions);
-  
-  // OpenStreetMapのタイルレイヤーを追加
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
-  }).addTo(map);
-  
-  return map;
+// 地図を初期化する関数
+function initMap(elementId) {
+    const map = L.map(elementId, {
+        zoomControl: false
+    }).setView([36.5748, 139.2394], 5);
+    
+    // OpenStreetMapのタイルレイヤーを追加
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    return map;
 }
 
-// マーカーを追加する
-function addMarker(map, lat, lng, options = {}) {
-  if (!lat || !lng) return null;
-  
-  const marker = L.marker([lat, lng], options);
-  marker.addTo(map);
-  return marker;
+// マーカーを追加する関数
+function addMarker(map, lat, lng) {
+    const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+            className: 'custom-marker',
+            html: '<div class="marker-pin"></div>',
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+        })
+    }).addTo(map);
+    
+    return marker;
 }
 
-// 複数のマーカーを表示し、すべてが見えるようにビューを調整する
+// マーカーを表示し、地図の表示範囲を調整する関数
 function showMarkersAndFitBounds(map, markers) {
-  if (!markers || markers.length === 0) return;
-  
-  const group = L.featureGroup(markers);
-  map.fitBounds(group.getBounds(), { padding: [30, 30] });
+    if (markers.length === 0) return;
+    
+    // マーカーの位置を取得
+    const bounds = L.latLngBounds(markers.map(marker => marker.getLatLng()));
+    
+    // 地図の表示範囲を調整（パディングを追加）
+    map.fitBounds(bounds, {
+        padding: [50, 50]
+    });
 }
+
+// スポット詳細をモーダルに表示する関数
+function renderSpotDetail(spot) {
+    const container = document.getElementById('modal-content-container');
+    
+    // スポットの写真を取得
+    const photos = spot.photos || [];
+    const mainPhoto = photos[0] || { photo_url: '/static/images/default_profile.png' };
+    
+    // モーダルコンテンツを生成
+    const content = `
+        <div class="spot-detail">
+            <div class="spot-photos">
+                <img src="${mainPhoto.photo_url}" alt="${spot.name}" class="w-full h-48 object-cover">
+            </div>
+            <div class="spot-info p-4">
+                <h2 class="text-xl font-bold mb-2">${spot.name}</h2>
+                <p class="text-gray-600 mb-4">${spot.location || ''}</p>
+                <div class="spot-description text-gray-700">
+                    ${spot.description || '説明はありません。'}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = content;
+}
+
+// カスタムマーカーのスタイルを追加
+const style = document.createElement('style');
+style.textContent = `
+    .custom-marker {
+        background: transparent;
+        border: none;
+    }
+    .marker-pin {
+        width: 30px;
+        height: 30px;
+        border-radius: 50% 50% 50% 0;
+        background: #3b82f6;
+        position: absolute;
+        transform: rotate(-45deg);
+        left: 50%;
+        top: 50%;
+        margin: -15px 0 0 -15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .marker-pin::after {
+        content: '';
+        width: 24px;
+        height: 24px;
+        margin: 3px 0 0 3px;
+        background: #fff;
+        position: absolute;
+        border-radius: 50%;
+    }
+`;
+document.head.appendChild(style);
 
 // 住所から緯度経度を取得する（ジオコーディング）
 async function geocodeAddress(address) {

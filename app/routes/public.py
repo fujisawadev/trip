@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, abort, jsonify, redirect, Response, url_for
+from flask import Blueprint, render_template, abort, jsonify, redirect, Response, url_for, request
 from app.models import User, Spot, Photo, SocialAccount
 from app import db
 from sqlalchemy.orm import joinedload
@@ -98,14 +98,25 @@ def spot_detail(spot_id):
     
     # スポットに関連する写真を取得
     photos = Photo.query.filter_by(spot_id=spot_id).all()
-    print(f"スポット詳細 {spot_id}: 写真数={len(photos)}")
     
-    # 不要なGoogle Places API呼び出しを削除
-    # 写真情報はすでにPhotoモデルに保存されているため、再度APIを呼び出す必要はない
+    # リクエストヘッダーからモーダル表示かどうかを判定
+    is_modal = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
-    return render_template('public/spot_detail.html', 
-                          spot=spot,
-                          photos=photos)
+    # スポットの所有者情報を確実に取得
+    user = spot.user
+    if not user:
+        user = User.query.get(spot.user_id)
+    
+    if is_modal:
+        return render_template('public/spot_detail_modal.html', 
+                             spot=spot,
+                             photos=photos,
+                             user=user)
+    else:
+        return render_template('public/spot_detail.html', 
+                             spot=spot,
+                             photos=photos,
+                             user=user)
 
 @public_bp.route('/test_koshien_photo')
 def test_koshien_photo():
@@ -256,3 +267,86 @@ def photo_proxy(photo_reference):
     
     # すべての方法が失敗した場合、404エラーを返す（デフォルト画像へのリダイレクトを削除）
     return jsonify({'error': '画像の取得に失敗しました'}), 404 
+
+@public_bp.route('/<username>/map')
+def username_map(username):
+    """ユーザーのマップページを表示"""
+    user = User.query.filter_by(username=username).first_or_404()
+    
+    # アクティブなスポットを取得
+    spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
+    
+    # スポットをJSONシリアライズ可能な形式に変換
+    spots_data = []
+    for spot in spots:
+        spot_dict = {
+            'id': spot.id,
+            'name': spot.name,
+            'location': spot.location,
+            'latitude': spot.latitude,
+            'longitude': spot.longitude,
+            'category': spot.category,
+            'description': spot.description,
+            'user_id': spot.user_id,  # ユーザーIDを追加
+            'photos': [{'photo_url': photo.photo_url} for photo in spot.photos] if spot.photos else []
+        }
+        spots_data.append(spot_dict)
+    
+    # ソーシャルアカウント情報を取得
+    social_accounts = SocialAccount.query.filter_by(user_id=user.id).all()
+    
+    return render_template('public/map.html',
+                         user=user,
+                         spots=spots_data,
+                         social_accounts=social_accounts,
+                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY}) 
+
+@public_bp.route('/api/spots/<int:spot_id>')
+def spot_api(spot_id):
+    """スポット詳細をJSON形式で返すAPIエンドポイント"""
+    try:
+        # スポットとそれに関連する写真を一度に取得
+        spot = Spot.query.options(joinedload(Spot.user)).get_or_404(spot_id)
+        
+        # 非公開のスポットの場合は404を返す
+        if not spot.is_active:
+            return jsonify({'error': 'スポットが見つかりません'}), 404
+        
+        # スポットに関連する写真を取得
+        photos = Photo.query.filter_by(spot_id=spot_id).all()
+        
+        # JSONレスポンス用のデータを構築
+        spot_data = {
+            'id': spot.id,
+            'name': spot.name,
+            'description': spot.description,
+            'location': spot.location,
+            'category': spot.category,
+            'latitude': spot.latitude,
+            'longitude': spot.longitude,
+            'google_place_id': spot.google_place_id,
+            'created_at': spot.created_at.strftime('%Y-%m-%d'),
+            'user': {
+                'id': spot.user.id,
+                'username': spot.user.username
+            },
+            'photos': []
+        }
+        
+        # 写真データを追加
+        for photo in photos:
+            spot_data['photos'].append({
+                'id': photo.id,
+                'photo_url': photo.photo_url,
+                'is_google_photo': photo.is_google_photo
+            })
+        
+        # アフィリエイトリンクやSNS投稿などのダミーデータを追加（実際のデータがあれば置き換える）
+        spot_data['affiliate_links'] = []
+        spot_data['social_posts'] = []
+        
+        print(f"API Response for spot {spot_id}: {spot_data}")
+        return jsonify(spot_data)
+    except Exception as e:
+        print(f"API Error for spot {spot_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500 
