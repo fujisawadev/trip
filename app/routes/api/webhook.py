@@ -21,6 +21,9 @@ webhook_bp = Blueprint('webhook', __name__, url_prefix='/webhook')
 def instagram():
     """InstagramのWebhookを処理するエンドポイント"""
     try:
+        print(f"Webhook accessed with method: {request.method}")
+        print(f"Request args: {request.args}")
+        
         if request.method == 'GET':
             # Webhook検証リクエストの処理（初回設定時のみ使用）
             mode = request.args.get('hub.mode')
@@ -28,13 +31,18 @@ def instagram():
             challenge = request.args.get('hub.challenge')
             
             verify_token = current_app.config.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN')
+            print(f"Webhook verification attempt: mode={mode}, token={token}, challenge={challenge}, expected_token={verify_token}")
             
-            if mode == 'subscribe' and token == verify_token:
-                print(f"Webhook verified with token: {token}, challenge: {challenge}")
-                return challenge
+            if mode and token and challenge:  # すべてのパラメータが存在するか確認
+                if mode == 'subscribe' and token == verify_token:
+                    print(f"Webhook verified with token: {token}, challenge: {challenge}")
+                    return challenge
+                else:
+                    print(f"Webhook verification failed. Mode: {mode}, Token: {token}, Expected: {verify_token}")
+                    return jsonify({"error": "Verification Failed", "mode": mode, "token_match": token == verify_token}), 403
             else:
-                print(f"Webhook verification failed. Mode: {mode}, Token: {token}, Expected: {verify_token}")
-                return "Verification Failed", 403
+                print("Missing required parameters for webhook verification")
+                return jsonify({"error": "Missing parameters", "received_args": request.args}), 400
         
         # POSTリクエスト（実際のWebhookイベント）を処理
         signature = request.headers.get('X-Hub-Signature-256')
@@ -61,6 +69,11 @@ def instagram():
 def is_request_valid(request, signature):
     """リクエストの署名を検証する"""
     if not signature:
+        print("No signature in request")
+        # 開発環境の場合は署名なしでも許可することができる
+        if os.environ.get('WEBHOOK_SKIP_VALIDATION', 'false').lower() == 'true':
+            print("Skipping validation due to WEBHOOK_SKIP_VALIDATION=true")
+            return True
         return False
     
     # 環境変数からApp Secretを取得
@@ -70,15 +83,21 @@ def is_request_valid(request, signature):
         return False
     
     # sha256署名を検証
-    expected_signature = hmac.new(
-        app_secret.encode('utf-8'),
-        request.data,
-        hashlib.sha256
-    ).hexdigest()
-    
-    received_signature = signature.replace('sha256=', '')
-    
-    return hmac.compare_digest(expected_signature, received_signature)
+    try:
+        expected_signature = hmac.new(
+            app_secret.encode('utf-8'),
+            request.data,
+            hashlib.sha256
+        ).hexdigest()
+        
+        received_signature = signature.replace('sha256=', '')
+        
+        is_valid = hmac.compare_digest(expected_signature, received_signature)
+        print(f"Signature validation: {is_valid}")
+        return is_valid
+    except Exception as e:
+        print(f"Error validating signature: {str(e)}")
+        return False
 
 def process_webhook_entry(entry):
     """Webhookエントリーを処理する"""
