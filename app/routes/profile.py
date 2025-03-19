@@ -565,37 +565,10 @@ def facebook_callback():
             print(f"Raw response: {response.text}")
             pages_data = {}
         
-        # Alt Pages APIが空データを返した場合の特別処理
+        # ページデータが空の場合はエラーメッセージを表示
         if not pages_data.get('data'):
-            print("Both API attempts returned empty data, attempting manual solution")
-            
-            # Meta Developerのデバッガーやトークン情報から、ページIDが存在することが確認できている場合
-            # このページIDを直接使用する実験的オプション
-            manual_page_id = '615561948304677'  # "Spacey - dev" ページID
-            print(f"Using manually specified page ID: {manual_page_id}")
-            
-            # ページ情報を取得
-            page_info_url = f"https://graph.facebook.com/v22.0/{manual_page_id}?fields=name,access_token&access_token={access_token}&appsecret_proof={appsecret_proof}"
-            print(f"Manual page info URL: {page_info_url}")
-            
-            page_info_response = requests.get(page_info_url, headers=headers)
-            print(f"Page Info API Status Code: {page_info_response.status_code}")
-            
-            try:
-                page_info = page_info_response.json()
-                print(f"Page info response: {page_info}")
-                
-                if 'error' not in page_info and page_info.get('id'):
-                    # 手動で指定したページ情報を使用
-                    pages = [{
-                        'id': page_info.get('id'),
-                        'name': page_info.get('name', 'Spacey - dev'),
-                        'access_token': page_info.get('access_token', access_token)
-                    }]
-                    pages_data['data'] = pages
-                    print(f"Using manually retrieved page info: {pages}")
-            except Exception as e:
-                print(f"Error parsing page info response: {str(e)}")
+            flash('接続可能なFacebookページが見つかりませんでした。ビジネスアカウントと接続されているか確認してください。', 'warning')
+            return redirect(url_for('profile.autoreply_settings'))
         
         if 'error' in pages_data:
             error_message = pages_data.get('error', {}).get('message', '不明なエラー')
