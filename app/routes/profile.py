@@ -536,15 +536,54 @@ def facebook_callback():
         
         facebook_user_id = user_info.get('id')
         
+        print(f"Facebook User ID: {facebook_user_id}")
+        
         # ページ一覧を取得
         pages_url = f"https://graph.facebook.com/v17.0/{facebook_user_id}/accounts?access_token={access_token}&appsecret_proof={appsecret_proof}"
-        response = requests.get(pages_url)
-        pages_data = response.json()
+        print(f"Pages URL: {pages_url}")
         
-        print(f"Pages response: {pages_data}")
+        # リクエストヘッダーを設定
+        headers = {
+            'User-Agent': 'Trip App/1.0',
+            'Content-Type': 'application/json'
+        }
+        
+        # APIリクエストを送信
+        response = requests.get(pages_url, headers=headers)
+        print(f"Pages API Status Code: {response.status_code}")
+        print(f"Pages API Response Headers: {response.headers}")
+        
+        try:
+            pages_data = response.json()
+            print(f"Pages response (full): {pages_data}")
+        except Exception as e:
+            print(f"Error parsing pages response: {str(e)}")
+            print(f"Raw response: {response.text}")
+            pages_data = {}
+        
+        # データが空の場合、別のエンドポイントを試す
+        if not pages_data.get('data'):
+            print("First attempt returned empty data, trying /me/accounts endpoint")
+            alt_pages_url = f"https://graph.facebook.com/v17.0/me/accounts?access_token={access_token}&appsecret_proof={appsecret_proof}"
+            print(f"Alternative Pages URL: {alt_pages_url}")
+            
+            alt_response = requests.get(alt_pages_url, headers=headers)
+            print(f"Alt Pages API Status Code: {alt_response.status_code}")
+            
+            try:
+                alt_pages_data = alt_response.json()
+                print(f"Alt Pages response: {alt_pages_data}")
+                if alt_pages_data.get('data'):
+                    pages_data = alt_pages_data
+                    print("Using alternative endpoint data")
+            except Exception as e:
+                print(f"Error parsing alternative pages response: {str(e)}")
         
         if 'error' in pages_data:
             error_message = pages_data.get('error', {}).get('message', '不明なエラー')
+            error_code = pages_data.get('error', {}).get('code', 'unknown')
+            error_type = pages_data.get('error', {}).get('type', 'unknown')
+            print(f"Pages API Error: {error_type} ({error_code}) - {error_message}")
             flash(f'ページ情報の取得に失敗しました: {error_message}', 'danger')
             return redirect(url_for('profile.autoreply_settings'))
         
