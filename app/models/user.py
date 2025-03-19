@@ -38,6 +38,12 @@ class User(UserMixin, db.Model):
     instagram_connected_at = db.Column(db.DateTime, nullable=True)
     instagram_business_id = db.Column(db.String(64), nullable=True)  # InstagramビジネスアカウントID
     
+    # Facebook連携情報
+    facebook_token = db.Column(db.String(255), nullable=True)  # Facebook認証トークン
+    facebook_page_id = db.Column(db.String(64), nullable=True)  # FacebookページID
+    facebook_connected_at = db.Column(db.DateTime, nullable=True)  # Facebook連携日時
+    webhook_subscription_id = db.Column(db.String(64), nullable=True)  # webhookサブスクリプションID
+    
     # 自動返信設定
     autoreply_enabled = db.Column(db.Boolean, default=False)  # 有効/無効フラグ
     autoreply_template = db.Column(db.Text, nullable=True)  # 返信テンプレート

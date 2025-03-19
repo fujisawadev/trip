@@ -53,6 +53,14 @@ class Config:
     INSTAGRAM_CLIENT_ID = os.environ.get('INSTAGRAM_CLIENT_ID')
     INSTAGRAM_CLIENT_SECRET = os.environ.get('INSTAGRAM_CLIENT_SECRET')
     
+    # Facebook API設定
+    FACEBOOK_APP_ID = os.environ.get('FACEBOOK_APP_ID')
+    FACEBOOK_APP_SECRET = os.environ.get('FACEBOOK_APP_SECRET')
+    
+    # Instagram Webhook設定
+    INSTAGRAM_WEBHOOK_VERIFY_TOKEN = os.environ.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'instagram_webhook_verify_token')
+    INSTAGRAM_APP_SECRET = os.environ.get('INSTAGRAM_APP_SECRET')
+    
     @staticmethod
     def init_app(app):
         """アプリケーション初期化時の追加設定"""

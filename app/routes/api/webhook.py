@@ -172,8 +172,14 @@ def process_webhook_entry(entry):
             if message_text:
                 print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}, page_id: {page_id}")
                 
-                # ユーザー情報の取得
-                user = User.query.filter_by(instagram_business_id=page_id).first()
+                # ユーザー情報の取得 - まずFacebook Page IDで検索
+                user = User.query.filter_by(facebook_page_id=page_id).first()
+                
+                if not user:
+                    print(f"facebook_page_id={page_id}に対応するユーザーが見つかりません。Instagram Business IDで検索します。")
+                    
+                    # Instagram Business IDで検索
+                    user = User.query.filter_by(instagram_business_id=page_id).first()
                 
                 if not user:
                     print(f"page_id={page_id}に対応するユーザーが見つかりません。Instagram連携済みのユーザーを検索します。")
@@ -189,12 +195,18 @@ def process_webhook_entry(entry):
                         print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
                         
                         # ユーザー情報を更新
-                        user.instagram_business_id = page_id
-                        db.session.commit()
-                        print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
+                        if not user.facebook_page_id:
+                            user.facebook_page_id = page_id
+                            db.session.commit()
+                            print(f"ユーザーのfacebook_page_idを{page_id}に更新しました")
                     else:
                         print("Instagram連携済みのユーザーが見つかりません")
                         continue
+                
+                # ユーザーの自動返信が有効かチェック
+                if not user.autoreply_enabled:
+                    print(f"ユーザーID{user.id}の自動返信が無効です")
+                    continue
                 
                 # メッセージを分析して場所に関する質問かどうかを判断
                 is_location_question, confidence, reasoning = analyze_message(message_text)
@@ -205,13 +217,20 @@ def process_webhook_entry(entry):
                 if is_location_question and confidence >= auto_reply_threshold:
                     print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
                     
-                    # 実際に返信を送信
-                    reply_message = "この前行った場所ですが、東京の代官山にあるカフェです。カフェの名前はStreamTokyo（ストリームトウキョウ）です。最寄り駅は代官山駅で、落ち着いた雰囲気の素敵なカフェでした。ぜひ行ってみてください！"
+                    # 返信メッセージのテンプレートを取得
+                    template = user.autoreply_template
+                    if not template:
+                        print(f"ユーザーID{user.id}の返信テンプレートが設定されていません")
+                        continue
                     
-                    # アクセストークンの取得
-                    access_token = user.instagram_token
+                    # プロフィールURLを構築
+                    profile_url = f"https://{request.host}/u/{user.username}"
+                    reply_message = template.replace('{profile_url}', profile_url)
+                    
+                    # アクセストークンの取得（Facebook連携済みの場合はFacebookトークンを優先）
+                    access_token = user.facebook_token or user.instagram_token
                     if not access_token:
-                        print(f"ユーザーID{user.id}のinstagram_tokenが設定されていません")
+                        print(f"ユーザーID{user.id}のトークンが設定されていません")
                         continue
                     
                     print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
@@ -257,14 +276,33 @@ def process_webhook_entry(entry):
                 if message_text:
                     print(f"フィールドベースで受信したメッセージ: {message_text}, 送信者: {sender_id}")
                     
-                    # ユーザー情報の取得
-                    instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
-                    if not instagram_users:
-                        print("Instagram連携済みのユーザーが見つかりません")
-                        continue
+                    # ページIDの取得
+                    page_id = entry.get('id')
                     
-                    # 最初のユーザーを使用
-                    user = instagram_users[0]
+                    # ユーザー情報の取得 - まずFacebook Page IDで検索
+                    user = User.query.filter_by(facebook_page_id=page_id).first()
+                    
+                    if not user:
+                        print(f"facebook_page_id={page_id}に対応するユーザーが見つかりません。Instagram連携済みのユーザーを検索します。")
+                        # Instagram連携済みのユーザーを検索
+                        instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+                        if not instagram_users:
+                            print("Instagram連携済みのユーザーが見つかりません")
+                            continue
+                        
+                        # 最初のユーザーを使用
+                        user = instagram_users[0]
+                        
+                        # ユーザー情報を更新
+                        if not user.facebook_page_id:
+                            user.facebook_page_id = page_id
+                            db.session.commit()
+                            print(f"ユーザーのfacebook_page_idを{page_id}に更新しました")
+                    
+                    # ユーザーの自動返信が有効かチェック
+                    if not user.autoreply_enabled:
+                        print(f"ユーザーID{user.id}の自動返信が無効です")
+                        continue
                     
                     # メッセージを分析して場所に関する質問かどうかを判断
                     is_location_question, confidence, reasoning = analyze_message(message_text)
@@ -275,13 +313,20 @@ def process_webhook_entry(entry):
                     if is_location_question and confidence >= auto_reply_threshold:
                         print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
                         
-                        # 実際に返信を送信
-                        reply_message = "この前行った場所ですが、東京の代官山にあるカフェです。カフェの名前はStreamTokyo（ストリームトウキョウ）です。最寄り駅は代官山駅で、落ち着いた雰囲気の素敵なカフェでした。ぜひ行ってみてください！"
+                        # 返信メッセージのテンプレートを取得
+                        template = user.autoreply_template
+                        if not template:
+                            print(f"ユーザーID{user.id}の返信テンプレートが設定されていません")
+                            continue
                         
-                        # アクセストークンの取得
-                        access_token = user.instagram_token
+                        # プロフィールURLを構築
+                        profile_url = f"https://{request.host}/u/{user.username}"
+                        reply_message = template.replace('{profile_url}', profile_url)
+                        
+                        # アクセストークンの取得（Facebook連携済みの場合はFacebookトークンを優先）
+                        access_token = user.facebook_token or user.instagram_token
                         if not access_token:
-                            print(f"ユーザーID{user.id}のinstagram_tokenが設定されていません")
+                            print(f"ユーザーID{user.id}のトークンが設定されていません")
                             continue
                         
                         print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")

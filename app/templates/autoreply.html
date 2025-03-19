@@ -100,6 +100,46 @@
                 </div>
               </div>
             </div>
+            
+            <!-- Facebook連携状態 -->
+            {% if current_user.facebook_page_id %}
+            <div class="bg-green-50 border border-green-100 rounded-lg mx-4 p-4 mt-4">
+              <div class="flex items-center mb-2">
+                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-base font-medium text-green-800">Facebook連携済み</h2>
+                  <p class="text-sm text-green-700">DM自動返信機能が有効です</p>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border border-yellow-100 rounded-lg mx-4 p-4 mt-4">
+              <div class="flex items-start">
+                <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 mt-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-base font-medium text-yellow-800 mb-2">DM自動返信機能を有効化するには追加設定が必要です</h2>
+                  <p class="text-sm text-yellow-700 mb-3">
+                    DM自動返信機能を使用するには、Facebookとの連携と通知設定が必要です。
+                  </p>
+                  <a
+                    href="{{ url_for('profile.connect_facebook') }}"
+                    class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+                  >
+                    <span class="text-base font-medium">Facebook連携を設定する</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            
             {% else %}
             <div class="bg-yellow-50 border border-yellow-100 rounded-lg mx-4 p-4">
               <div class="flex items-start mb-4">

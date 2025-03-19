@@ -402,6 +402,213 @@ def autoreply_settings():
     """自動返信設定ページ"""
     return render_template('autoreply.html', title='自動返信設定')
 
+@bp.route('/connect/facebook')
+@login_required
+def connect_facebook():
+    """Facebookとの連携を開始（DM自動返信機能用）"""
+    # Instagram連携が済んでいることを確認
+    if not current_user.instagram_token or not current_user.instagram_username:
+        flash('先にInstagram連携を行ってください', 'warning')
+        return redirect(url_for('profile.autoreply_settings'))
+    
+    # Facebook認証用のURLを生成
+    client_id = current_app.config.get('FACEBOOK_APP_ID')
+    
+    if not client_id:
+        flash('Facebook連携の設定が完了していません。管理者にお問い合わせください。', 'danger')
+        return redirect(url_for('profile.autoreply_settings'))
+    
+    # リダイレクトURIを設定
+    redirect_uri = request.host_url.rstrip('/') + url_for('profile.facebook_callback')
+    
+    # デバッグ情報を表示
+    print(f"Facebook App ID: {client_id}")
+    print(f"Facebook App Secret: {current_app.config.get('FACEBOOK_APP_SECRET')}")
+    print(f"Redirect URI: {redirect_uri}")
+    
+    # CSRF対策のstateパラメータを生成
+    state = str(uuid.uuid4())
+    session['facebook_auth_state'] = state
+    
+    # 必要なスコープ
+    scope = "pages_show_list,pages_manage_metadata"
+    
+    # Facebook認証URLを生成
+    auth_url = f"https://www.facebook.com/v17.0/dialog/oauth?client_id={client_id}&redirect_uri={redirect_uri}&state={state}&scope={scope}"
+    
+    print(f"Auth URL: {auth_url}")
+    
+    # Facebook認証ページにリダイレクト
+    return redirect(auth_url)
+
+@bp.route('/facebook/callback')
+@login_required
+def facebook_callback():
+    """Facebook認証後のコールバック処理"""
+    # 認証コードを取得
+    code = request.args.get('code')
+    error = request.args.get('error')
+    error_reason = request.args.get('error_reason')
+    state = request.args.get('state')
+    
+    # エラーチェック
+    if error:
+        flash(f'Facebook連携に失敗しました: {error_reason}', 'danger')
+        return redirect(url_for('profile.autoreply_settings'))
+    
+    if not code:
+        flash('認証コードが取得できませんでした。', 'danger')
+        return redirect(url_for('profile.autoreply_settings'))
+    
+    # CSRF対策の状態チェック
+    if not session.get('facebook_auth_state') or session.get('facebook_auth_state') != state:
+        flash('セキュリティ上の問題が発生しました。もう一度お試しください。', 'danger')
+        return redirect(url_for('profile.autoreply_settings'))
+    
+    # セッションから状態を削除
+    session.pop('facebook_auth_state', None)
+    
+    # アクセストークンを取得するためのリクエストを準備
+    client_id = current_app.config.get('FACEBOOK_APP_ID')
+    client_secret = current_app.config.get('FACEBOOK_APP_SECRET')
+    
+    # リダイレクトURIを設定
+    redirect_uri = request.host_url.rstrip('/') + url_for('profile.facebook_callback')
+    
+    print(f"Callback - Redirect URI: {redirect_uri}")
+    
+    if not client_id or not client_secret:
+        flash('Facebook連携の設定が完了していません。管理者にお問い合わせください。', 'danger')
+        return redirect(url_for('profile.autoreply_settings'))
+    
+    try:
+        # アクセストークンを取得（POSTリクエスト）
+        token_url = 'https://graph.facebook.com/v17.0/oauth/access_token'
+        params = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'redirect_uri': redirect_uri,
+            'code': code
+        }
+        
+        # GETリクエストを送信
+        response = requests.get(token_url, params=params)
+        token_data = response.json()
+        
+        print(f"Token response: {token_data}")
+        
+        if 'error' in token_data:
+            error_message = token_data.get('error', {}).get('message', '不明なエラー')
+            flash(f'アクセストークンの取得に失敗しました: {error_message}', 'danger')
+            return redirect(url_for('profile.autoreply_settings'))
+        
+        # アクセストークンを取得
+        access_token = token_data.get('access_token')
+        
+        if not access_token:
+            flash('アクセストークンの取得に失敗しました。', 'danger')
+            return redirect(url_for('profile.autoreply_settings'))
+        
+        # ユーザー情報を取得
+        user_info_url = f"https://graph.facebook.com/v17.0/me?fields=id,name&access_token={access_token}"
+        response = requests.get(user_info_url)
+        user_info = response.json()
+        
+        print(f"User info response: {user_info}")
+        
+        if 'error' in user_info:
+            error_message = user_info.get('error', {}).get('message', '不明なエラー')
+            flash(f'ユーザー情報の取得に失敗しました: {error_message}', 'danger')
+            return redirect(url_for('profile.autoreply_settings'))
+        
+        facebook_user_id = user_info.get('id')
+        
+        # ページ一覧を取得
+        pages_url = f"https://graph.facebook.com/v17.0/{facebook_user_id}/accounts?access_token={access_token}"
+        response = requests.get(pages_url)
+        pages_data = response.json()
+        
+        print(f"Pages response: {pages_data}")
+        
+        if 'error' in pages_data:
+            error_message = pages_data.get('error', {}).get('message', '不明なエラー')
+            flash(f'ページ情報の取得に失敗しました: {error_message}', 'danger')
+            return redirect(url_for('profile.autoreply_settings'))
+        
+        pages = pages_data.get('data', [])
+        
+        if not pages:
+            flash('接続可能なFacebookページが見つかりませんでした。ビジネスアカウントとして設定されているか確認してください。', 'warning')
+            return redirect(url_for('profile.autoreply_settings'))
+        
+        # 最初のページを使用
+        page = pages[0]
+        page_id = page.get('id')
+        page_name = page.get('name')
+        page_access_token = page.get('access_token')
+        
+        # ページトークンを長期トークンに変換
+        long_lived_url = f"https://graph.facebook.com/v17.0/oauth/access_token?grant_type=fb_exchange_token&client_id={client_id}&client_secret={client_secret}&fb_exchange_token={page_access_token}"
+        response = requests.get(long_lived_url)
+        long_lived_data = response.json()
+        
+        print(f"Long-lived token response: {long_lived_data}")
+        
+        if 'error' in long_lived_data:
+            error_message = long_lived_data.get('error', {}).get('message', '不明なエラー')
+            flash(f'長期アクセストークンの取得に失敗しました: {error_message}', 'danger')
+            return redirect(url_for('profile.autoreply_settings'))
+        
+        long_lived_token = long_lived_data.get('access_token')
+        
+        # Webhookサブスクリプションを設定
+        success, message = subscribe_to_webhook(page_id, long_lived_token)
+        
+        # ユーザーモデルに保存
+        current_user.facebook_token = long_lived_token
+        current_user.facebook_page_id = page_id
+        current_user.facebook_connected_at = datetime.utcnow()
+        db.session.commit()
+        
+        if success:
+            flash(f'Facebook連携が完了しました。ページ名: {page_name}', 'success')
+        else:
+            flash(f'Facebook連携は完了しましたが、Webhook設定に問題がありました: {message}', 'warning')
+        
+    except Exception as e:
+        import traceback
+        print(f"Facebook連携中にエラーが発生しました: {str(e)}")
+        print(traceback.format_exc())
+        flash(f'Facebook連携中にエラーが発生しました: {str(e)}', 'danger')
+    
+    return redirect(url_for('profile.autoreply_settings'))
+
+def subscribe_to_webhook(page_id, page_access_token):
+    """指定されたページのwebhookサブスクリプションを設定"""
+    try:
+        app_id = current_app.config.get('FACEBOOK_APP_ID')
+        webhook_url = request.host_url.rstrip('/') + '/webhook/instagram'
+        
+        # ページにサブスクリプションを設定
+        url = f"https://graph.facebook.com/v17.0/{page_id}/subscribed_apps"
+        params = {
+            'access_token': page_access_token,
+            'subscribed_fields': 'messages,messaging_postbacks',
+        }
+        
+        response = requests.post(url, params=params)
+        data = response.json()
+        
+        print(f"Subscribe webhook response: {data}")
+        
+        if response.status_code == 200 and data.get('success'):
+            return True, "Webhookサブスクリプションが成功しました"
+        else:
+            return False, f"Webhook登録エラー: {data.get('error', {}).get('message', '不明なエラー')}"
+    
+    except Exception as e:
+        return False, f"Webhook設定中にエラー: {str(e)}"
+
 @bp.route('/instagram/setup_webhook', methods=['POST'])
 @login_required
 def setup_instagram_webhook():
@@ -424,54 +631,5 @@ def setup_instagram_webhook():
         flash('Instagram連携が完了していません', 'warning')
         return redirect(url_for('profile.sns_settings'))
     
-    try:
-        # 直接Instagram IDを使用
-        token = current_user.instagram_token
-        print(f"既存アカウントのウェブフック設定を開始: ユーザー={current_user.username}, Instagram={current_user.instagram_username}")
-        
-        # まずInstagram IDを確認/更新
-        instagram_id_url = f"https://graph.instagram.com/me?fields=id,username&access_token={token}"
-        ig_response = requests.get(instagram_id_url)
-        ig_info = ig_response.json()
-        
-        print(f"Instagram ID情報レスポンス: {ig_info}")
-        
-        if 'id' in ig_info:
-            # InstagramのビジネスアカウントIDを直接使用
-            ig_business_id = ig_info['id']
-            print(f"Instagram Business ID: {ig_business_id}")
-            
-            # ビジネスアカウントIDを保存
-            current_user.instagram_business_id = ig_business_id
-            db.session.commit()
-            print(f"Instagram Business IDを更新しました: {ig_business_id}")
-            
-            # メッセージングAPIの購読設定を試みる - 正しいエンドポイントとパラメータを使用
-            try:
-                # Facebookアプリの情報を使用したWebhook設定
-                app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
-                app_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
-                
-                if not app_id or not app_secret:
-                    raise ValueError("InstagramアプリIDまたはシークレットが設定されていません")
-                
-                # まずページトークンを取得する必要がある - このステップはデモ用で実際には異なる場合がある
-                print("WebhookサブスクリプションはAPIの制限のため難しい場合があります")
-                print("Instagramへの連携は成功しました。Webhookは手動で設定する必要がある場合があります")
-                
-                # ユーザーに通知
-                flash('Instagram連携は成功しました。現在のAPIではWebhook自動設定ができないため、必要に応じて管理者に手動設定を依頼してください。', 'info')
-            except Exception as sub_error:
-                print(f"サブスクリプション設定中にエラー: {str(sub_error)}")
-                # ユーザーに見せるメッセージはより穏やかなものに
-                flash('Instagram連携は成功しましたが、通知設定は別途必要です。', 'info')
-        else:
-            flash('Instagramビジネスアカウント情報が取得できませんでした', 'danger')
-    
-    except Exception as e:
-        import traceback
-        print(f"ウェブフック設定中にエラー: {str(e)}")
-        print(traceback.format_exc())
-        flash(f'ウェブフック設定中にエラーが発生しました: {str(e)}', 'danger')
-    
-    return redirect(url_for('profile.sns_settings')) 
+    # 新しいFacebook認証フローにリダイレクト
+    return redirect(url_for('profile.autoreply_settings')) 
