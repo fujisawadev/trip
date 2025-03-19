@@ -9,6 +9,8 @@ from app.models.import_progress import ImportProgress
 import uuid
 import requests
 from datetime import datetime
+import hashlib
+import hmac
 
 bp = Blueprint('profile', __name__)
 
@@ -511,6 +513,17 @@ def facebook_callback():
         
         # ユーザー情報を取得
         user_info_url = f"https://graph.facebook.com/v17.0/me?fields=id,name&access_token={access_token}"
+        
+        # appsecret_proofを生成（HMAC-SHA256ハッシュ）
+        appsecret_proof = hmac.new(
+            client_secret.encode('utf-8'),
+            access_token.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
+        # appsecret_proofをパラメータに追加
+        user_info_url = f"{user_info_url}&appsecret_proof={appsecret_proof}"
+        
         response = requests.get(user_info_url)
         user_info = response.json()
         
@@ -524,7 +537,7 @@ def facebook_callback():
         facebook_user_id = user_info.get('id')
         
         # ページ一覧を取得
-        pages_url = f"https://graph.facebook.com/v17.0/{facebook_user_id}/accounts?access_token={access_token}"
+        pages_url = f"https://graph.facebook.com/v17.0/{facebook_user_id}/accounts?access_token={access_token}&appsecret_proof={appsecret_proof}"
         response = requests.get(pages_url)
         pages_data = response.json()
         
@@ -546,6 +559,13 @@ def facebook_callback():
         page_id = page.get('id')
         page_name = page.get('name')
         page_access_token = page.get('access_token')
+        
+        # ページトークン用のappsecret_proof生成
+        page_appsecret_proof = hmac.new(
+            client_secret.encode('utf-8'),
+            page_access_token.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
         
         # ページトークンを長期トークンに変換
         long_lived_url = f"https://graph.facebook.com/v17.0/oauth/access_token?grant_type=fb_exchange_token&client_id={client_id}&client_secret={client_secret}&fb_exchange_token={page_access_token}"
@@ -587,12 +607,21 @@ def subscribe_to_webhook(page_id, page_access_token):
     """指定されたページのwebhookサブスクリプションを設定"""
     try:
         app_id = current_app.config.get('FACEBOOK_APP_ID')
+        client_secret = current_app.config.get('FACEBOOK_APP_SECRET')
         webhook_url = request.host_url.rstrip('/') + '/webhook/instagram'
+        
+        # appsecret_proofを生成
+        appsecret_proof = hmac.new(
+            client_secret.encode('utf-8'),
+            page_access_token.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
         
         # ページにサブスクリプションを設定
         url = f"https://graph.facebook.com/v17.0/{page_id}/subscribed_apps"
         params = {
             'access_token': page_access_token,
+            'appsecret_proof': appsecret_proof,
             'subscribed_fields': 'messages,messaging_postbacks',
         }
         
