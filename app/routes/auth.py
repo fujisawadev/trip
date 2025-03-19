@@ -128,7 +128,7 @@ def change_email():
         db.session.commit()
         
         flash('メールアドレスが更新されました。', 'success')
-        return redirect(url_for('profile.account_settings'))
+        return redirect(url_for('profile.settings'))
     
     return render_template('change_email.html', user=current_user)
 
@@ -166,7 +166,7 @@ def change_password():
         db.session.commit()
         
         flash('パスワードが更新されました。', 'success')
-        return redirect(url_for('profile.account_settings'))
+        return redirect(url_for('profile.settings'))
     
     return render_template('change_password.html')
 
