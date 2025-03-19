@@ -41,11 +41,38 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+      
+      /* グローバルナビゲーション用のスタイル */
+      .global-nav {
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0;
+        width: 100%;
+      }
+      .nav-item svg {
+        margin-bottom: 4px;
+      }
+      body {
+        padding-bottom: 64px; /* ナビゲーションの高さ分の余白を追加 */
+        background-color: white; /* 背景色を白に設定 */
+        min-height: 100vh;
+      }
+      .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 64px); /* 画面の高さからナビゲーションの高さを引いた分 */
+        background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
+      }
     </style>
   </head>
-  <body class="bg-neutral-50">
-    <div class="mx-auto w-full bg-white max-w-[480px]">
-      <div class="overflow-hidden w-full bg-neutral-50 min-h-[844px]">
+  <body>
+    <div id="app" class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
         <!-- フラッシュメッセージ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -58,98 +85,35 @@
         {% endwith %}
         
         <main>
-          <!-- Header Section -->
-          <header
-            class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-neutral-50"
-          >
-            <a
-              href="{{ url_for('profile.settings') }}"
-              class="flex items-center self-stretch my-auto w-12 min-h-12"
-              aria-label="戻る"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </a>
-            <h1
-              class="flex-1 shrink self-stretch my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-zinc-900"
-            >
-              自動返信設定
+          <!-- ヘッダー -->
+          <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50">
+            <div class="w-[90px] flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
+            <h1 class="flex-1 text-lg font-bold text-center text-neutral-900">
+              Spacey AI
             </h1>
-            <div class="flex items-center self-stretch my-auto w-12">
-              <div
-                class="flex overflow-hidden gap-2 justify-center items-center self-stretch my-auto w-6 rounded-xl max-w-[480px] min-h-12"
-              >
-              </div>
-            </div>
-          </header>
+            <div class="w-[90px] flex justify-end"><!-- 右側の空白スペース（バランス用） --></div>
+          </nav>
 
-          <!-- Instagram連携状態 -->
-          <section class="mb-6">
-            {% if current_user.instagram_username %}
-            <div class="bg-green-50 border border-green-100 rounded-lg mx-4 p-4">
-              <div class="flex items-center mb-2">
-                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="text-base font-medium text-green-800">Instagram連携済み</h2>
-                  <p class="text-sm text-green-700">連携中アカウント: {{ current_user.instagram_username }}</p>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Facebook連携状態 -->
-            {% if current_user.facebook_page_id %}
-            <div class="bg-green-50 border border-green-100 rounded-lg mx-4 p-4 mt-4">
-              <div class="flex items-center mb-2">
-                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="text-base font-medium text-green-800">DM自動返信機能が有効化されています</h2>
-                  <p class="text-sm text-green-700">InstagramのDMに自動で返信することができます</p>
-                </div>
-              </div>
-              <form action="{{ url_for('profile.disconnect_facebook') }}" method="POST" class="mt-3">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" 
-                  class="flex justify-center items-center px-3 py-2 w-full bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-                  onclick="return confirm('DM自動返信機能を無効化してもよろしいですか？')">
-                  <span class="text-sm font-medium">DM自動返信機能を無効化する</span>
-                </button>
-              </form>
-            </div>
-            {% else %}
-            <div class="bg-yellow-50 border border-yellow-100 rounded-lg mx-4 p-4 mt-4">
-              <div class="flex items-start">
-                <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 mt-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 class="text-base font-medium text-yellow-800 mb-2">DM自動返信機能を有効化するには追加設定が必要です</h2>
-                  <p class="text-sm text-yellow-700 mb-3">
-                    InstagramのDM自動返信機能を使用するには、認証設定が必要です。
-                  </p>
-                  <a
-                    href="{{ url_for('profile.connect_facebook') }}"
-                    class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
-                  >
-                    <span class="text-base font-medium">DM自動返信機能を有効化する</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-            {% endif %}
-            
-            {% else %}
-            <div class="bg-yellow-50 border border-yellow-100 rounded-lg mx-4 p-4">
+          <!-- タブナビゲーション -->
+          <div class="flex w-full border-b border-gray-200 mb-4">
+            <a href="{{ url_for('profile.import_management') }}" class="flex-1 py-2 px-4 text-center font-medium text-gray-500 hover:text-gray-700">
+              インポート
+            </a>
+            <a href="{{ url_for('profile.autoreply_settings') }}" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-blue-500 text-blue-600">
+              自動返信
+            </a>
+          </div>
+
+          <!-- DMに自動返信をする Section - 常に表示 -->
+          <section class="px-4 mb-8">
+            <h2 class="text-lg font-bold text-neutral-900 mb-3">DMに自動返信をする</h2>
+            <p class="text-sm text-slate-600 mb-4">
+              DMに「場所・スポットについての質問」がきた場合のみAIが検出し、返信テンプレートの内容を自動で返信します
+            </p>
+
+            {% if not current_user.instagram_username %}
+            <!-- Instagram未連携の場合 -->
+            <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-6">
               <div class="flex items-start mb-4">
                 <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 mt-1">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,9 +121,9 @@
                   </svg>
                 </div>
                 <div>
-                  <h2 class="text-base font-medium text-yellow-800 mb-2">Instagram連携が必要です</h2>
+                  <h3 class="text-base font-medium text-yellow-800 mb-2">Facebookページとの連携が必要です</h3>
                   <p class="text-sm text-yellow-700 mb-3">
-                    自動返信機能を利用するには、Instagramビジネスアカウントとの連携が必要です。
+                    機能を利用するには、Instgramアカウントと紐づいたFacebookページとの連携が必要です(Meta社公式のルールに基づく)
                   </p>
                 </div>
               </div>
@@ -167,50 +131,63 @@
                 href="{{ url_for('profile.sns_settings') }}"
                 class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
               >
-                <span class="text-base font-medium">Instagram連携を設定する</span>
+                <span class="text-base font-medium">AI基本設定ページへ</span>
               </a>
             </div>
-            {% endif %}
-          </section>
-
-          <!-- Response Location Section -->
-          <section>
-            <h2
-              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900"
-            >
-              対応する場所
-            </h2>
-
+            {% elif not current_user.facebook_page_id %}
+            <!-- Instagramは連携済み、Facebookは未連携の場合 -->
+            <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-6">
+              <div class="flex items-start">
+                <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 mt-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-base font-medium text-yellow-800 mb-2">DM自動返信機能の設定が必要です</h3>
+                  <p class="text-sm text-yellow-700 mb-3">
+                    Instagram DMの自動返信機能を利用するには、AI基本設定ページでDM自動返信機能を有効化する必要があります。
+                  </p>
+                  <a
+                    href="{{ url_for('profile.sns_settings') }}"
+                    class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+                  >
+                    <span class="text-base font-medium">AI基本設定ページへ</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <!-- Instagram連携済み、Facebook連携済みの場合 -->
             <!-- Instagram DMs Toggle -->
             <div
-              class="flex gap-10 justify-between items-center px-4 py-3.5 w-full bg-neutral-50 min-h-[72px]"
+              class="flex gap-10 justify-between items-center py-3.5 w-full bg-neutral-50 min-h-[72px] px-4 rounded-lg mb-4"
             >
               <div
-                class="flex flex-col justify-center self-stretch my-auto w-[114px]"
+                class="flex flex-col justify-center self-stretch my-auto"
               >
                 <h3
-                  class="overflow-hidden max-w-full text-base font-medium text-zinc-900 w-[114px]"
+                  class="overflow-hidden text-base font-medium text-zinc-900"
                 >
                   Instagram DMs
                 </h3>
                 <p
-                  class="overflow-hidden max-w-full text-sm whitespace-nowrap text-zinc-700 w-[114px]"
+                  class="overflow-hidden text-sm whitespace-nowrap text-zinc-700"
                   id="toggle-status-text"
                 >
-                  {% if current_user.autoreply_enabled %}オン{% else %}オフ{% endif %}
+                  {% if current_user.autoreply_enabled %}オン{% else %}オフ{% endif %} (連携中: {{ current_user.instagram_username }})
                 </p>
               </div>
-              <label class="self-stretch my-auto w-[51px]" {% if not current_user.instagram_username %}aria-disabled="true"{% endif %}>
+              <label class="self-stretch my-auto w-[51px]">
                 <input 
                   type="checkbox" 
                   class="hidden" 
                   id="dm-toggle"
                   {% if current_user.autoreply_enabled %}checked{% endif %}
-                  {% if not current_user.instagram_username %}disabled{% endif %}
                 />
                 <div
                   id="toggle-container"
-                  class="flex p-0.5 {% if current_user.instagram_username %}bg-gray-100{% else %}bg-gray-200{% endif %} rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
+                  class="flex p-0.5 bg-gray-100 rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
                 >
                   <div
                     id="toggle-thumb"
@@ -219,83 +196,88 @@
                 </div>
               </label>
             </div>
-
-            <div class="px-4 mt-2 mb-4">
-              <p class="text-xs text-gray-500">
-                「場所・スポットについての質問」を自動検出し、指定したメッセージで自動返信します
-              </p>
-            </div>
-          </section>
-
-          <!-- Reply Template Section -->
-          <section>
-            <h2
-              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap min-h-[47px] text-neutral-900"
-            >
-              返信テンプレート
-            </h2>
-            <div
-              class="flex gap-4 flex-col px-4 py-3 w-full text-base whitespace-nowrap text-zinc-900"
-            >
-              <div class="flex-1 shrink w-full basis-0 min-w-40">
-                <label for="message" class="block pb-2 w-full text-sm font-medium text-slate-700">返信メッセージ</label>
-                <textarea
-                  id="message"
-                  class="flex flex-1 p-4 w-full bg-gray-100 rounded-xl min-h-36 resize-none border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="例：こんにちは！おすすめの場所はプロフィールページにまとめています。ぜひご覧ください。{profile_url}"
-                  {% if not current_user.instagram_username %}disabled{% endif %}
-                >{{ current_user.autoreply_template or '' }}</textarea>
-                <p class="mt-2 text-xs text-gray-500">
-                  <code>{profile_url}</code> を含めると、あなたのプロフィールページのURLが自動的に挿入されます
-                </p>
-              </div>
-              
-              <div class="mt-4">
-                <h3 class="text-sm font-medium text-slate-700 mb-2">テスト機能</h3>
-                <div class="flex items-end gap-2">
-                  <div class="flex-1">
-                    <label for="test-message" class="block text-xs text-slate-600 mb-1">テストメッセージ</label>
-                    <input 
-                      type="text" 
-                      id="test-message" 
-                      class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="例：おすすめの場所を教えてください"
-                      {% if not current_user.instagram_username %}disabled{% endif %}
-                    >
-                  </div>
-                  <button
-                    id="test-btn"
-                    class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    {% if not current_user.instagram_username %}disabled{% endif %}
-                  >
-                    テスト
-                  </button>
+          
+            <!-- Reply Template Section -->
+            <section class="mb-8">
+              <h2 class="text-lg font-bold text-neutral-900 mb-3">返信テンプレート</h2>
+              <div class="flex gap-4 flex-col w-full text-base text-zinc-900">
+                <div class="flex-1 shrink w-full basis-0 min-w-40">
+                  <label for="message" class="block pb-2 w-full text-sm font-medium text-slate-700">返信メッセージ</label>
+                  <textarea
+                    id="message"
+                    class="flex flex-1 p-4 w-full bg-gray-100 rounded-xl min-h-36 resize-none border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="例：こんにちは！おすすめの場所はプロフィールページにまとめています。ぜひご覧ください。{profile_url}"
+                  >{{ current_user.autoreply_template or '' }}</textarea>
+                  <p class="mt-2 text-xs text-gray-500">
+                    <code>{profile_url}</code> を含めると、あなたのプロフィールページのURLが自動的に挿入されます
+                  </p>
                 </div>
-                <div id="test-result" class="mt-2 hidden p-3 rounded-lg max-w-full overflow-hidden"></div>
+                
+                <div class="mt-4">
+                  <h3 class="text-sm font-medium text-slate-700 mb-2">テスト機能</h3>
+                  <div class="flex items-end gap-2">
+                    <div class="flex-1">
+                      <label for="test-message" class="block text-xs text-slate-600 mb-1">テストメッセージ</label>
+                      <input 
+                        type="text" 
+                        id="test-message" 
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="例：おすすめの場所を教えてください"
+                      >
+                    </div>
+                    <button
+                      id="test-btn"
+                      class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+                    >
+                      テスト
+                    </button>
+                  </div>
+                  <div id="test-result" class="mt-2 hidden p-3 rounded-lg max-w-full overflow-hidden"></div>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <!-- Save Button Section -->
-          <footer
-            class="mt-8 w-full text-base font-bold text-center text-zinc-900"
-          >
-            <div class="flex items-start px-4 py-3 w-full">
-              <button
-                id="save-btn"
-                class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-blue-500 text-white rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                {% if not current_user.instagram_username %}disabled{% endif %}
-              >
-                <span class="overflow-hidden self-stretch my-auto">
-                  変更を保存
-                </span>
-              </button>
-            </div>
-            <div class="flex w-full bg-neutral-50 min-h-5"></div>
-          </footer>
+            <!-- Save Button Section -->
+            <footer class="mb-8">
+              <div class="flex items-start w-full">
+                <button
+                  id="save-btn"
+                  class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-blue-500 text-white rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:bg-blue-600 transition-colors"
+                >
+                  <span class="overflow-hidden self-stretch my-auto">
+                    変更を保存
+                  </span>
+                </button>
+              </div>
+            </footer>
+            {% endif %}
+          </section>
         </main>
       </div>
     </div>
+
+    <!-- グローバルナビゲーション -->
+    <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
+      <a href="{{ url_for('profile.mypage') }}" class="nav-item text-slate-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span class="text-xs">ホーム</span>
+      </a>
+      <a href="{{ url_for('profile.import_management') }}" class="nav-item text-blue-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        <span class="text-xs">AI機能</span>
+      </a>
+      <a href="{{ url_for('profile.settings') }}" class="nav-item text-slate-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span class="text-xs">設定</span>
+      </a>
+    </nav>
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
@@ -318,7 +300,10 @@
           if (!dmToggle.disabled) {
             const toggleStatusText = document.getElementById('toggle-status-text');
             if (toggleStatusText) {
-              toggleStatusText.textContent = dmToggle.checked ? 'オン' : 'オフ';
+              const instagramUsername = "{{ current_user.instagram_username }}";
+              toggleStatusText.textContent = dmToggle.checked ? 
+                `オン (連携中: ${instagramUsername})` : 
+                `オフ (連携中: ${instagramUsername})`;
             }
             
             // トグルの視覚的なスタイルを更新

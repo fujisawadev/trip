@@ -44,6 +44,32 @@
         min-height: calc(100vh - 70px); /* 画面の高さからナビゲーションの高さを引いた分 */
         background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
       }
+      /* 新規スポット追加ボタン */
+      .add-spot-btn {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background-color: #3b82f6;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+        transition: all 0.2s ease-in-out;
+      }
+      .add-spot-btn:hover {
+        transform: scale(1.05);
+        background-color: #2563eb;
+      }
+      @media (min-width: 480px) {
+        .add-spot-btn {
+          right: calc(50% - 240px + 20px);
+        }
+      }
     </style>
   </head>
   <body>
@@ -239,7 +265,7 @@
             {% else %}
               <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] no-spots-message">
                 <div class="flex flex-col justify-center self-stretch my-auto w-full text-center">
-                  <p class="text-slate-500">スポットがまだありません。下部の「新規スポット」ボタンからスポットを追加してください。</p>
+                  <p class="text-slate-500">スポットがまだありません。右下の「+」ボタンからスポットを追加してください。</p>
                 </div>
               </article>
             {% endif %}
@@ -248,19 +274,26 @@
       </div>
     </header>
 
+    <!-- 新規スポット追加ボタン -->
+    <a href="{{ url_for('spot.add_spot') }}" class="add-spot-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+    </a>
+
     <!-- 固定フッターナビゲーション -->
     <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
-      <a href="{{ url_for('spot.add_spot') }}" class="nav-item text-slate-500 hover:text-slate-700">
+      <a href="{{ url_for('profile.mypage') }}" class="nav-item text-blue-500 hover:text-blue-700">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2" />
         </svg>
-        <span class="text-xs">新規スポット</span>
+        <span class="text-xs">ホーム</span>
       </a>
       <a href="{{ url_for('profile.import_management') }}" class="nav-item text-slate-500 hover:text-slate-700">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
         </svg>
-        <span class="text-xs">AI</span>
+        <span class="text-xs">AI機能</span>
       </a>
       <a href="{{ url_for('profile.settings') }}" class="nav-item text-slate-500 hover:text-slate-700">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -466,7 +499,7 @@
             noSpotsMessage.querySelector('p').textContent = '選択した条件に一致するスポットが見つかりませんでした';
           } else if (spotItems.length === 0) {
             noSpotsMessage.style.display = 'flex';
-            noSpotsMessage.querySelector('p').textContent = 'スポットがまだありません。下部の「新規スポット」ボタンからスポットを追加してください。';
+            noSpotsMessage.querySelector('p').textContent = 'スポットがまだありません。右下の「+」ボタンからスポットを追加してください。';
           } else {
             noSpotsMessage.style.display = 'none';
           }

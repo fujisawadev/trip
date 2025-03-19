@@ -363,14 +363,21 @@ def disconnect_instagram():
         flash(f'リクエスト検証エラー: {str(e)}', 'danger')
         return redirect(url_for('profile.sns_settings'))
     
-    # 連携情報をクリア
+    # Instagram連携情報をクリア
     current_user.instagram_token = None
     current_user.instagram_user_id = None
     current_user.instagram_username = None
     current_user.instagram_connected_at = None
+    
+    # Instagram連携解除時にはFacebook/Webhook情報も一緒にクリア
+    current_user.facebook_token = None
+    current_user.facebook_page_id = None
+    current_user.webhook_subscription_id = None
+    current_user.facebook_connected_at = None
+    
     db.session.commit()
     
-    flash('Instagram連携を解除しました。', 'success')
+    flash('Instagram連携を解除しました。Webhook設定も合わせて無効化されました。', 'success')
     return redirect(url_for('profile.sns_settings'))
 
 @bp.route('/user/<username>')
@@ -736,13 +743,13 @@ def disconnect_facebook():
         csrf_token = request.form.get('csrf_token')
         if not csrf_token:
             flash('CSRFトークンがありません。', 'danger')
-            return redirect(url_for('profile.autoreply_settings'))
+            return redirect(url_for('profile.sns_settings'))
         
         # CSRFトークン検証は必要に応じてフォームクラスで実施するか、
         # 標準的なルートでシンプルに保護する
     except Exception as e:
         flash(f'リクエスト検証エラー: {str(e)}', 'danger')
-        return redirect(url_for('profile.autoreply_settings'))
+        return redirect(url_for('profile.sns_settings'))
     
     # 連携情報をクリア
     current_user.facebook_token = None
@@ -753,4 +760,4 @@ def disconnect_facebook():
     db.session.commit()
     
     flash('DM自動返信機能を無効化しました', 'success')
-    return redirect(url_for('profile.autoreply_settings')) 
+    return redirect(url_for('profile.sns_settings')) 

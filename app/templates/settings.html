@@ -8,30 +8,57 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* グローバルナビゲーション用のスタイル */
+      .global-nav {
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0;
+        width: 100%;
+      }
+      .nav-item svg {
+        margin-bottom: 4px;
+      }
+      body {
+        padding-bottom: 64px; /* ナビゲーションの高さ分の余白を追加 */
+        background-color: white; /* 背景色を白に設定 */
+        min-height: 100vh;
+      }
+      .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 64px); /* 画面の高さからナビゲーションの高さを引いた分 */
+        background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
+      }
+    </style>
   </head>
   <body>
-    <main class="mx-auto w-full bg-white max-w-[480px]">
-      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
-        <header
-          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
-        >
-          <a
-            href="{{ url_for('profile.mypage') }}"
-            class="flex items-center self-stretch my-auto w-12 min-h-12"
-            aria-label="Back"
-          >
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/530ba24044e6e74956375eb77fc1ebcc5351550489918a61b691830e0ea84a92?placeholderIfAbsent=true"
-              alt="Back"
-              class="object-contain self-stretch my-auto w-6 aspect-square"
-            />
-          </a>
-          <h1
-            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-          >
+    <main class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <!-- ヘッダー -->
+        <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50">
+          <div class="w-[90px] flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
+          <h1 class="flex-1 text-lg font-bold text-center text-neutral-900">
             設定
           </h1>
-        </header>
+          <div class="w-[90px] flex justify-end"><!-- 右側の空白スペース（バランス用） --></div>
+        </nav>
 
         <nav>
           <section>
@@ -42,72 +69,67 @@
             </h2>
             <ul>
               <li>
-                <a
-                  href="{{ url_for('auth.change_email') }}"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    メールアドレスの変更
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a8942ef94de70f6be86076b32f21fb7eeb55e9fc6f63cbd4335d85d1d53e854a?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
+                <a href="{{ url_for('auth.change_email') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">メールアドレスの変更</h3>
+                      <p class="text-sm text-gray-500">アカウントのメールアドレスを変更</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </a>
               </li>
               <li>
-                <a
-                  href="{{ url_for('auth.change_password') }}"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    パスワードの変更
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/a8942ef94de70f6be86076b32f21fb7eeb55e9fc6f63cbd4335d85d1d53e854a?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
+                <a href="{{ url_for('auth.change_password') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">パスワードの変更</h3>
+                      <p class="text-sm text-gray-500">アカウントパスワードを更新</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </a>
               </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              Spacey AI
+            </h2>
+            <ul>
               <li>
-                <a
-                  href="{{ url_for('profile.sns_settings') }}"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    SNS連携
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c648220a638e85c52c230d08f607e4a1e3ed340de4f369a4cce758dd5c9d1ccb?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
+                <a href="{{ url_for('profile.sns_settings') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">AI基本設定</h3>
+                      <p class="text-sm text-gray-500">ソーシャルメディアアカウントを連携</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </a>
               </li>
             </ul>
@@ -121,123 +143,92 @@
             </h2>
             <ul>
               <li>
-                <a
-                  href="https://docs.google.com/forms/d/e/1FAIpQLSee4ngZv7aS50YUGpVRXIAF4r5hZW6asHoXz3UQb1SNCrq-hA/viewform"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                  target="_blank"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    サポート
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/596804d915d05d8babf4f0758c7a5adf7f3053b8d1440c2fd3f91c8f3971db31?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSee4ngZv7aS50YUGpVRXIAF4r5hZW6asHoXz3UQb1SNCrq-hA/viewform" 
+                   class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                   target="_blank">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">サポート</h3>
+                      <p class="text-sm text-gray-500">サポートフォームへアクセス</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </a>
               </li>
               <li>
-                <a
-                  href="https://taichijp.notion.site/a91e76cf7e154e50a8a8870f79d01276"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                  target="_blank"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    特商法
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/7ef95a677b9b348e5274a3237f9503f793b4ae6e041eea9df5206d26e5624f8d?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
+                <a href="https://taichijp.notion.site/a91e76cf7e154e50a8a8870f79d01276" 
+                   class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                   target="_blank">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">特商法</h3>
+                      <p class="text-sm text-gray-500">特定商取引法に基づく表記</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </a>
               </li>
               <li>
-                <a
-                  href="{{ url_for('auth.logout') }}"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    ログアウト
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/7ef95a677b9b348e5274a3237f9503f793b4ae6e041eea9df5206d26e5624f8d?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="{{ url_for('profile.import_management') }}"
-                  class="flex justify-between items-center px-4 w-full bg-slate-50 min-h-14"
-                >
-                  <span
-                    class="overflow-hidden flex-1 shrink self-stretch my-auto text-base whitespace-nowrap basis-0 min-w-60 text-neutral-900"
-                  >
-                    インポート機能
-                  </span>
-                  <span class="self-stretch my-auto w-7">
-                    <span
-                      class="flex flex-1 justify-center items-center w-7 h-full"
-                    >
-                      <img
-                        src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/c648220a638e85c52c230d08f607e4a1e3ed340de4f369a4cce758dd5c9d1ccb?placeholderIfAbsent=true"
-                        alt="Navigate"
-                        class="object-contain self-stretch my-auto w-6 aspect-square"
-                      />
-                    </span>
-                  </span>
+                <a href="{{ url_for('auth.logout') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">ログアウト</h3>
+                      <p class="text-sm text-gray-500">アカウントからログアウト</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
                 </a>
               </li>
             </ul>
           </section>
 
-          <!-- 自動返信設定 -->
-          <a href="{{ url_for('profile.autoreply_settings') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
-            <div class="flex items-center">
-              <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-base font-medium text-gray-800">自動返信設定</h3>
-                <p class="text-sm text-gray-500">DMの自動返信機能を設定</p>
-              </div>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </a>
-
           <div class="flex w-full bg-slate-50 min-h-5"></div>
         </nav>
       </div>
     </main>
+
+    <!-- グローバルナビゲーション -->
+    <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
+      <a href="{{ url_for('profile.mypage') }}" class="nav-item text-slate-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span class="text-xs">ホーム</span>
+      </a>
+      <a href="{{ url_for('profile.import_management') }}" class="nav-item text-slate-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        <span class="text-xs">AI機能</span>
+      </a>
+      <a href="{{ url_for('profile.settings') }}" class="nav-item text-blue-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span class="text-xs">設定</span>
+      </a>
+    </nav>
   </body>
 </html>
