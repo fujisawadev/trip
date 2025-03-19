@@ -420,7 +420,7 @@ def autoreply_settings():
 @bp.route('/connect/facebook')
 @login_required
 def connect_facebook():
-    """Facebookとの連携を開始するエンドポイント"""
+    """DM自動返信機能の有効化（Facebookとの連携）"""
     # CSRFトークンを設定
     session['facebook_csrf_token'] = str(uuid.uuid4())
     
@@ -450,7 +450,7 @@ def connect_facebook():
 @bp.route('/facebook/callback')
 @login_required
 def facebook_callback():
-    """Facebook認証後のコールバック処理"""
+    """Facebook認証後のコールバック処理（DM自動返信機能の有効化）"""
     # 認証コードを取得
     code = request.args.get('code')
     error = request.args.get('error')
@@ -459,7 +459,7 @@ def facebook_callback():
     
     # エラーチェック
     if error:
-        flash(f'Facebook連携に失敗しました: {error_reason}', 'danger')
+        flash(f'DM自動返信機能の有効化に失敗しました: {error_reason}', 'danger')
         return redirect(url_for('profile.autoreply_settings'))
     
     if not code:
@@ -467,12 +467,12 @@ def facebook_callback():
         return redirect(url_for('profile.autoreply_settings'))
     
     # CSRF対策の状態チェック
-    if not session.get('facebook_auth_state') or session.get('facebook_auth_state') != state:
+    if state != session.get('facebook_csrf_token'):
         flash('セキュリティ上の問題が発生しました。もう一度お試しください。', 'danger')
         return redirect(url_for('profile.autoreply_settings'))
     
     # セッションから状態を削除
-    session.pop('facebook_auth_state', None)
+    session.pop('facebook_csrf_token', None)
     
     # アクセストークンを取得するためのリクエストを準備
     client_id = current_app.config.get('FACEBOOK_APP_ID')
@@ -681,15 +681,15 @@ def facebook_callback():
             return redirect(url_for('profile.autoreply_settings'))
         
         if success:
-            flash(f'Facebook連携が完了しました。ページ名: {page_name}', 'success')
+            flash('DM自動返信機能を有効化しました', 'success')
         else:
-            flash(f'Facebook連携は完了しましたが、Webhook設定に問題がありました: {message}', 'warning')
+            flash('DM自動返信機能を有効化しましたが、通知設定に問題がありました: {message}', 'warning')
         
     except Exception as e:
         import traceback
-        print(f"Facebook連携中にエラーが発生しました: {str(e)}")
+        print(f"DM自動返信機能の有効化中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
-        flash(f'Facebook連携中にエラーが発生しました: {str(e)}', 'danger')
+        flash(f'DM自動返信機能の有効化中にエラーが発生しました: {str(e)}', 'danger')
     
     return redirect(url_for('profile.autoreply_settings'))
 
@@ -751,4 +751,33 @@ def setup_instagram_webhook():
         return redirect(url_for('profile.sns_settings'))
     
     # 新しいFacebook認証フローにリダイレクト
+    return redirect(url_for('profile.autoreply_settings'))
+
+@bp.route('/disconnect/facebook', methods=['POST'])
+@login_required
+def disconnect_facebook():
+    """DM自動返信機能を無効化（Facebook連携解除）"""
+    # CSRFトークンの検証
+    try:
+        # トークンの存在チェック
+        csrf_token = request.form.get('csrf_token')
+        if not csrf_token:
+            flash('CSRFトークンがありません。', 'danger')
+            return redirect(url_for('profile.autoreply_settings'))
+        
+        # CSRFトークン検証は必要に応じてフォームクラスで実施するか、
+        # 標準的なルートでシンプルに保護する
+    except Exception as e:
+        flash(f'リクエスト検証エラー: {str(e)}', 'danger')
+        return redirect(url_for('profile.autoreply_settings'))
+    
+    # 連携情報をクリア
+    current_user.facebook_token = None
+    current_user.facebook_page_id = None
+    current_user.webhook_subscription_id = None
+    current_user.facebook_connected_at = None
+    # 自動返信設定はそのまま保持する（再連携時に使えるように）
+    db.session.commit()
+    
+    flash('DM自動返信機能を無効化しました', 'success')
     return redirect(url_for('profile.autoreply_settings')) 

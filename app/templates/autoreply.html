@@ -111,10 +111,18 @@
                   </svg>
                 </div>
                 <div>
-                  <h2 class="text-base font-medium text-green-800">Facebook連携済み</h2>
-                  <p class="text-sm text-green-700">DM自動返信機能が有効です</p>
+                  <h2 class="text-base font-medium text-green-800">DM自動返信機能が有効化されています</h2>
+                  <p class="text-sm text-green-700">InstagramのDMに自動で返信することができます</p>
                 </div>
               </div>
+              <form action="{{ url_for('profile.disconnect_facebook') }}" method="POST" class="mt-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" 
+                  class="flex justify-center items-center px-3 py-2 w-full bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                  onclick="return confirm('DM自動返信機能を無効化してもよろしいですか？')">
+                  <span class="text-sm font-medium">DM自動返信機能を無効化する</span>
+                </button>
+              </form>
             </div>
             {% else %}
             <div class="bg-yellow-50 border border-yellow-100 rounded-lg mx-4 p-4 mt-4">
@@ -127,13 +135,13 @@
                 <div>
                   <h2 class="text-base font-medium text-yellow-800 mb-2">DM自動返信機能を有効化するには追加設定が必要です</h2>
                   <p class="text-sm text-yellow-700 mb-3">
-                    DM自動返信機能を使用するには、Facebookとの連携と通知設定が必要です。
+                    InstagramのDM自動返信機能を使用するには、認証設定が必要です。
                   </p>
                   <a
                     href="{{ url_for('profile.connect_facebook') }}"
                     class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
                   >
-                    <span class="text-base font-medium">Facebook連携を設定する</span>
+                    <span class="text-base font-medium">DM自動返信機能を有効化する</span>
                   </a>
                 </div>
               </div>
