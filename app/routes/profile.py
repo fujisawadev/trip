@@ -420,37 +420,28 @@ def autoreply_settings():
 @bp.route('/connect/facebook')
 @login_required
 def connect_facebook():
-    """Facebookとの連携を開始（DM自動返信機能用）"""
-    # Instagram連携が済んでいることを確認
-    if not current_user.instagram_token or not current_user.instagram_username:
-        flash('先にInstagram連携を行ってください', 'warning')
-        return redirect(url_for('profile.autoreply_settings'))
+    """Facebookとの連携を開始するエンドポイント"""
+    # CSRFトークンを設定
+    session['facebook_csrf_token'] = str(uuid.uuid4())
     
-    # Facebook認証用のURLを生成
-    client_id = current_app.config.get('FACEBOOK_APP_ID')
-    
-    if not client_id:
-        flash('Facebook連携の設定が完了していません。管理者にお問い合わせください。', 'danger')
-        return redirect(url_for('profile.autoreply_settings'))
-    
-    # リダイレクトURIを設定
-    redirect_uri = request.host_url.rstrip('/') + url_for('profile.facebook_callback')
-    
-    # デバッグ情報を表示
-    print(f"Facebook App ID: {client_id}")
+    # Facebook認証URLを構築
+    app_id = current_app.config.get('FACEBOOK_APP_ID')
+    redirect_uri = url_for('profile.facebook_callback', _external=True)
+    print(f"Facebook App ID: {app_id}")
     print(f"Facebook App Secret: {current_app.config.get('FACEBOOK_APP_SECRET')}")
     print(f"Redirect URI: {redirect_uri}")
     
-    # CSRF対策のstateパラメータを生成
-    state = str(uuid.uuid4())
-    session['facebook_auth_state'] = state
+    # 認証スコープを設定
+    scopes = [
+        'pages_show_list', 
+        'pages_manage_metadata', 
+        'pages_read_engagement',
+        'pages_manage_posts',
+        'pages_messaging',
+        'business_management'  # ビジネス管理のスコープを追加
+    ]
     
-    # 必要なスコープ
-    scope = "pages_show_list,pages_manage_metadata,pages_read_engagement,pages_manage_posts,pages_messaging"
-    
-    # Facebook認証URLを生成
-    auth_url = f"https://www.facebook.com/v22.0/dialog/oauth?client_id={client_id}&redirect_uri={redirect_uri}&state={state}&scope={scope}"
-    
+    auth_url = f"https://www.facebook.com/v22.0/dialog/oauth?client_id={app_id}&redirect_uri={redirect_uri}&state={session['facebook_csrf_token']}&scope={','.join(scopes)}"
     print(f"Auth URL: {auth_url}")
     
     # Facebook認証ページにリダイレクト
