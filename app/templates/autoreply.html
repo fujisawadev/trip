@@ -88,8 +88,8 @@
           <!-- ヘッダー -->
           <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50">
             <div class="w-[90px] flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
-            <h1 class="flex-1 text-lg font-bold text-center text-neutral-900">
-              Spacey AI
+            <h1 class="flex-1 text-lg font-bold text-center basis-0 min-w-60 flex items-center justify-center">
+              <span class="bg-gradient-to-r from-blue-500 to-indigo-600 text-transparent bg-clip-text">Spacey AI</span>
             </h1>
             <div class="w-[90px] flex justify-end"><!-- 右側の空白スペース（バランス用） --></div>
           </nav>
@@ -99,17 +99,27 @@
             <a href="{{ url_for('profile.import_management') }}" class="flex-1 py-2 px-4 text-center font-medium text-gray-500 hover:text-gray-700">
               インポート
             </a>
-            <a href="{{ url_for('profile.autoreply_settings') }}" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-blue-500 text-blue-600">
+            <a href="{{ url_for('profile.autoreply_settings') }}" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-gray-600 text-gray-700">
               自動返信
             </a>
           </div>
 
           <!-- DMに自動返信をする Section - 常に表示 -->
           <section class="px-4 mb-8">
-            <h2 class="text-lg font-bold text-neutral-900 mb-3">DMに自動返信をする</h2>
-            <p class="text-sm text-slate-600 mb-4">
-              DMに「場所・スポットについての質問」がきた場合のみAIが検出し、返信テンプレートの内容を自動で返信します
-            </p>
+            <h2 class="text-lg font-bold text-neutral-900 mb-3 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              DMに自動返信をする
+            </h2>
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-4">
+              <p class="text-sm text-slate-700 mb-2">
+                フォロワーからのDMに「場所・スポットについての質問」がきた場合、AIが自動で検出します。
+              </p>
+              <p class="text-sm text-slate-700">
+                <span class="text-blue-600 font-medium">✨ 24時間対応可能</span>な自動返信で、あなたの代わりにプロフィールページを紹介しましょう！
+              </p>
+            </div>
 
             {% if not current_user.instagram_username %}
             <!-- Instagram未連携の場合 -->
@@ -161,21 +171,27 @@
             <!-- Instagram連携済み、Facebook連携済みの場合 -->
             <!-- Instagram DMs Toggle -->
             <div
-              class="flex gap-10 justify-between items-center py-3.5 w-full bg-neutral-50 min-h-[72px] px-4 rounded-lg mb-4"
+              class="flex gap-10 justify-between items-center py-3.5 w-full bg-white shadow-sm border border-gray-100 min-h-[72px] px-4 rounded-lg mb-4"
             >
               <div
                 class="flex flex-col justify-center self-stretch my-auto"
               >
                 <h3
-                  class="overflow-hidden text-base font-medium text-zinc-900"
+                  class="overflow-hidden text-base font-medium text-zinc-900 flex items-center"
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
                   Instagram DMs
                 </h3>
                 <p
                   class="overflow-hidden text-sm whitespace-nowrap text-zinc-700"
                   id="toggle-status-text"
                 >
-                  {% if current_user.autoreply_enabled %}オン{% else %}オフ{% endif %} (連携中: {{ current_user.instagram_username }})
+                  <span class="{% if current_user.autoreply_enabled %}text-green-600 font-medium{% else %}text-gray-500{% endif %}">
+                    {% if current_user.autoreply_enabled %}オン{% else %}オフ{% endif %}
+                  </span> 
+                  (連携中: {{ current_user.instagram_username }})
                 </p>
               </div>
               <label class="self-stretch my-auto w-[51px]">
@@ -187,7 +203,7 @@
                 />
                 <div
                   id="toggle-container"
-                  class="flex p-0.5 bg-gray-100 rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
+                  class="flex p-0.5 {% if current_user.autoreply_enabled %}bg-green-100{% else %}bg-gray-100{% endif %} rounded-2xl min-h-[31px] w-[51px] cursor-pointer"
                 >
                   <div
                     id="toggle-thumb"
@@ -199,7 +215,12 @@
           
             <!-- Reply Template Section -->
             <section class="mb-8">
-              <h2 class="text-lg font-bold text-neutral-900 mb-3">返信テンプレート</h2>
+              <h2 class="text-lg font-bold text-neutral-900 mb-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                返信テンプレート
+              </h2>
               <div class="flex gap-4 flex-col w-full text-base text-zinc-900">
                 <div class="flex-1 shrink w-full basis-0 min-w-40">
                   <label for="message" class="block pb-2 w-full text-sm font-medium text-slate-700">返信メッセージ</label>
@@ -214,25 +235,32 @@
                 </div>
                 
                 <div class="mt-4">
-                  <h3 class="text-sm font-medium text-slate-700 mb-2">テスト機能</h3>
-                  <div class="flex items-end gap-2">
-                    <div class="flex-1">
-                      <label for="test-message" class="block text-xs text-slate-600 mb-1">テストメッセージ</label>
-                      <input 
-                        type="text" 
-                        id="test-message" 
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="例：おすすめの場所を教えてください"
+                  <h3 class="text-sm font-medium text-slate-700 mb-2 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    テスト機能
+                  </h3>
+                  <div class="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border border-gray-100">
+                    <div class="flex items-end gap-2">
+                      <div class="flex-1">
+                        <label for="test-message" class="block text-xs text-slate-600 mb-1">テストメッセージ</label>
+                        <input 
+                          type="text" 
+                          id="test-message" 
+                          class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="例：おすすめの場所を教えてください"
+                        >
+                      </div>
+                      <button
+                        id="test-btn"
+                        class="px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors"
                       >
+                        テスト
+                      </button>
                     </div>
-                    <button
-                      id="test-btn"
-                      class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
-                    >
-                      テスト
-                    </button>
+                    <div id="test-result" class="mt-2 hidden p-3 rounded-lg max-w-full overflow-hidden"></div>
                   </div>
-                  <div id="test-result" class="mt-2 hidden p-3 rounded-lg max-w-full overflow-hidden"></div>
                 </div>
               </div>
             </section>
@@ -242,8 +270,11 @@
               <div class="flex items-start w-full">
                 <button
                   id="save-btn"
-                  class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-blue-500 text-white rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:bg-blue-600 transition-colors"
+                  class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
                   <span class="overflow-hidden self-stretch my-auto">
                     変更を保存
                   </span>
@@ -266,9 +297,9 @@
       </a>
       <a href="{{ url_for('profile.import_management') }}" class="nav-item text-blue-500 hover:text-blue-700">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
-        <span class="text-xs">AI機能</span>
+        <span class="text-xs">Spacey AI</span>
       </a>
       <a href="{{ url_for('profile.settings') }}" class="nav-item text-slate-500 hover:text-blue-700">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
