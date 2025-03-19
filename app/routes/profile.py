@@ -402,6 +402,19 @@ def import_management():
 @login_required
 def autoreply_settings():
     """自動返信設定ページ"""
+    # ログインユーザーを明示的に取得
+    user_id = current_user.id
+    print(f"Autoreply settings for user ID: {user_id}")
+    
+    # 念のため、データベースから直接ユーザーを取得
+    user = User.query.get(user_id)
+    if not user:
+        flash('ユーザー情報が取得できませんでした', 'danger')
+        return redirect(url_for('main.index'))
+    
+    print(f"Loaded user for autoreply: {user.id} - {user.username}")
+    print(f"Facebook connection status: Token: {'Yes' if user.facebook_token else 'No'}, Page ID: {user.facebook_page_id}")
+    
     return render_template('autoreply.html', title='自動返信設定')
 
 @bp.route('/connect/facebook')
@@ -637,11 +650,44 @@ def facebook_callback():
         # Webhookサブスクリプションを設定
         success, message = subscribe_to_webhook(page_id, long_lived_token)
         
+        # ユーザー情報のデバッグ出力
+        print(f"Current user ID: {current_user.id}")
+        print(f"Current user username: {current_user.username}")
+        print(f"Current user email: {current_user.email}")
+        
         # ユーザーモデルに保存
-        current_user.facebook_token = long_lived_token
-        current_user.facebook_page_id = page_id
-        current_user.facebook_connected_at = datetime.utcnow()
-        db.session.commit()
+        try:
+            # 念のため、current_userがロードされているか確認
+            if not current_user or not current_user.is_authenticated:
+                print("WARNING: current_user not properly loaded!")
+                # セッションからユーザーIDを取得して明示的にロード
+                user_id = session.get('_user_id')
+                print(f"Session user_id: {user_id}")
+                if user_id:
+                    user = User.query.get(int(user_id))
+                    if user:
+                        print(f"Loaded user from session: {user.id} - {user.username}")
+                        # 明示的にロードしたユーザーに保存
+                        user.facebook_token = long_lived_token
+                        user.facebook_page_id = page_id
+                        user.facebook_connected_at = datetime.utcnow()
+                        db.session.commit()
+                        print(f"Updated user {user.id} with Facebook data")
+                    else:
+                        print(f"Could not load user with ID {user_id}")
+            else:
+                # 通常のフロー
+                current_user.facebook_token = long_lived_token
+                current_user.facebook_page_id = page_id
+                current_user.facebook_connected_at = datetime.utcnow()
+                db.session.commit()
+                print(f"Updated current_user {current_user.id} with Facebook data")
+        except Exception as save_error:
+            print(f"Error saving user data: {str(save_error)}")
+            import traceback
+            print(traceback.format_exc())
+            flash('Facebook連携の設定中にエラーが発生しました。', 'danger')
+            return redirect(url_for('profile.autoreply_settings'))
         
         if success:
             flash(f'Facebook連携が完了しました。ページ名: {page_name}', 'success')
