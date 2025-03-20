@@ -8,6 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
   </head>
   <body class="bg-slate-100 min-h-screen flex items-center justify-center">
     <form
@@ -34,9 +35,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
-                {{ message }}
-              </div>
+              <div class="flask-flash-message hidden" data-category="{{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}

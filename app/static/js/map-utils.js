@@ -3,10 +3,18 @@
  */
 
 // 地図を初期化する関数
-function initMap(elementId) {
+function initMap(elementId, options = {}) {
+    const defaultOptions = {
+        zoomControl: false,
+        center: [36.5748, 139.2394],
+        zoom: 5
+    };
+    
+    const mapOptions = { ...defaultOptions, ...options };
+    
     const map = L.map(elementId, {
-        zoomControl: false
-    }).setView([36.5748, 139.2394], 5);
+        zoomControl: mapOptions.zoomControl
+    }).setView(mapOptions.center, mapOptions.zoom);
     
     // OpenStreetMapのタイルレイヤーを追加
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -17,17 +25,34 @@ function initMap(elementId) {
 }
 
 // マーカーを追加する関数
-function addMarker(map, lat, lng) {
-    const marker = L.marker([lat, lng], {
+function addMarker(map, lat, lng, options = {}) {
+    console.log('addMarker関数が呼ばれました:', { map, lat, lng, options });
+    
+    if (!map) {
+        console.error('マップオブジェクトがnullです');
+        return null;
+    }
+    
+    const markerOptions = {
         icon: L.divIcon({
             className: 'custom-marker',
             html: '<div class="marker-pin"></div>',
             iconSize: [30, 30],
             iconAnchor: [15, 30]
-        })
-    }).addTo(map);
+        }),
+        ...options
+    };
     
-    return marker;
+    console.log('作成するマーカーのオプション:', markerOptions);
+    
+    try {
+        const marker = L.marker([lat, lng], markerOptions).addTo(map);
+        console.log('マーカー作成成功:', marker);
+        return marker;
+    } catch (error) {
+        console.error('マーカー作成中にエラーが発生しました:', error);
+        return null;
+    }
 }
 
 // マーカーを表示し、地図の表示範囲を調整する関数

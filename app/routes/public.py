@@ -113,7 +113,8 @@ def spot_detail(spot_id):
                              photos=photos,
                              user=user)
     else:
-        return render_template('public/spot_detail.html', 
+        # 非モーダル表示でもモーダル用テンプレートを使用
+        return render_template('public/spot_detail_modal.html', 
                              spot=spot,
                              photos=photos,
                              user=user)

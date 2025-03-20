@@ -8,6 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
     <style>
       .toggle-switch:checked + .toggle-slider {
         transform: translateX(20px);
@@ -79,9 +80,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
-                {{ message }}
-              </div>
+              <div class="flask-flash-message hidden" data-category="{{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -228,38 +227,36 @@
             {% if spots %}
               {% for spot in spots %}
                 <article class="flex justify-between items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] spot-article" data-category="{{ spot.category }}">
-                  <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center w-full cursor-pointer" style="max-width: calc(100% - 60px);">
-                    {% if spot.photos and spot.photos|length > 0 %}
-                      <img
-                        src="{{ spot.photos[0].photo_url }}"
-                        alt="{{ spot.name }}"
-                        class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
-                      />
-                    {% else %}
-                      <div class="shrink-0 self-stretch my-auto w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center">
-                        <span class="text-slate-400 text-xs">No Image</span>
-                      </div>
-                    {% endif %}
+                  <a href="{{ url_for('spot.edit_spot', spot_id=spot.id) }}" class="flex gap-4 items-center w-full cursor-pointer">
+                    <div class="relative">
+                      {% if spot.is_active %}
+                      <div class="absolute top-0 left-0 w-3 h-3 bg-green-500 rounded-full z-10 transform -translate-x-1 -translate-y-1 border border-white"></div>
+                      {% else %}
+                      <div class="absolute top-0 left-0 w-3 h-3 bg-slate-400 rounded-full z-10 transform -translate-x-1 -translate-y-1 border border-white"></div>
+                      {% endif %}
+                      {% if spot.photos and spot.photos|length > 0 %}
+                        <img
+                          src="{{ spot.photos[0].photo_url }}"
+                          alt="{{ spot.name }}"
+                          class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                        />
+                      {% else %}
+                        <div class="shrink-0 self-stretch my-auto w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center">
+                          <span class="text-slate-400 text-xs">No Image</span>
+                        </div>
+                      {% endif %}
+                    </div>
                     <div class="flex flex-col justify-center self-stretch my-auto flex-1 min-w-0">
-                      <h4 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900 text-ellipsis">
-                        {{ spot.name }}
-                      </h4>
+                      <div class="flex items-center gap-2">
+                        <h4 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900 text-ellipsis">
+                          {{ spot.name }}
+                        </h4>
+                      </div>
                       <p class="overflow-hidden text-sm text-slate-500 whitespace-nowrap text-ellipsis">
                         {{ spot.summary_location or spot.location }}
                       </p>
                     </div>
                   </a>
-                  <div class="self-stretch my-auto w-[51px] flex-shrink-0">
-                    <label
-                      class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer toggle-bg transition-colors duration-200 {% if spot.is_active %}bg-blue-300{% endif %}"
-                      role="switch"
-                    >
-                      <input type="checkbox" class="toggle-switch sr-only" {% if spot.is_active %}checked{% endif %} data-spot-id="{{ spot.id }}" />
-                      <span
-                        class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-all duration-200 {% if spot.is_active %}bg-blue-500{% endif %}"
-                      ></span>
-                    </label>
-                  </div>
                 </article>
               {% endfor %}
             {% else %}
@@ -319,59 +316,12 @@
       
       // トグルスイッチの機能を設定する関数
       function setupToggleSwitches() {
-        const toggleSwitches = document.querySelectorAll('.toggle-switch');
-        
-        toggleSwitches.forEach(toggle => {
-          toggle.addEventListener('change', function() {
-            const spotId = this.dataset.spotId;
-            const isActive = this.checked;
-            
-            // トグルスライダーとバックグラウンドの色を変更
-            const slider = this.nextElementSibling;
-            const bg = this.closest('.toggle-bg');
-            
-            if (isActive) {
-              slider.classList.add('bg-blue-500');
-              bg.classList.add('bg-blue-300');
-            } else {
-              slider.classList.remove('bg-blue-500');
-              bg.classList.remove('bg-blue-300');
-            }
-            
-            // サーバーにスポットの状態を更新するリクエストを送信
-            updateSpotStatus(spotId, isActive, this);
-          });
-        });
+        // トグルスイッチを削除したため、この関数は空にしておく
       }
       
       // スポットの状態を更新する関数
       function updateSpotStatus(spotId, isActive, toggleElement) {
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-        
-        fetch('/spot/' + spotId + '/toggle_status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-          },
-          body: JSON.stringify({ is_active: isActive })
-        })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return response.json();
-        })
-        .then(data => {
-          console.log('Status updated successfully:', data);
-        })
-        .catch(error => {
-          console.error('Error updating status:', error);
-          // エラーが発生した場合は元の状態に戻す
-          if (toggleElement) {
-            toggleElement.checked = !isActive;
-          }
-        });
+        // この関数も使わなくなったため空にしておく
       }
       
       // 見出し編集の切り替え

@@ -376,7 +376,7 @@ def spot_detail(spot_id, username):
     spot = Spot.query.filter_by(id=spot_id, user_id=user.id, is_active=True).first_or_404()
     # スポットに関連する写真を取得
     photos = Photo.query.filter_by(spot_id=spot_id).all()
-    return render_template('public/spot_detail.html', spot=spot, user=user, photos=photos)
+    return render_template('public/spot_detail_modal.html', spot=spot, user=user, photos=photos)
 
 @bp.route('/spot/<spot_id>')
 def spot_detail_simple(spot_id):
@@ -385,4 +385,4 @@ def spot_detail_simple(spot_id):
     user = User.query.filter_by(id=spot.user_id).first_or_404()
     # スポットに関連する写真を取得
     photos = Photo.query.filter_by(spot_id=spot_id).all()
-    return render_template('public/spot_detail.html', spot=spot, user=user, photos=photos) 
+    return render_template('public/spot_detail_modal.html', spot=spot, user=user, photos=photos) 

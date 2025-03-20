@@ -1,8 +1,8 @@
 import os
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from app import db
+from app import db, csrf
 from app.models.user import User
 from app.models.spot import Spot
 from app.models.import_progress import ImportProgress
@@ -11,6 +11,7 @@ import requests
 from datetime import datetime
 import hashlib
 import hmac
+import json
 
 bp = Blueprint('profile', __name__)
 
@@ -317,7 +318,7 @@ def instagram_callback():
                         print("Instagramへの連携は成功しました。Webhookは手動で設定する必要がある場合があります")
                         
                         # ユーザーに通知
-                        flash('Instagram連携は成功しました。現在のAPIではWebhook自動設定ができないため、必要に応じて管理者に手動設定を依頼してください。', 'info')
+                        flash('Instagram連携は成功しました。', 'info')
                     except Exception as sub_error:
                         print(f"サブスクリプション設定中にエラー: {str(sub_error)}")
                         # ユーザーに見せるメッセージはより穏やかなものに
@@ -345,6 +346,159 @@ def instagram_callback():
     
     return redirect(url_for('profile.sns_settings'))
 
+# Meta APIを使用してアクセストークンを失効させる
+def revoke_meta_token(access_token, app_id=None):
+    """
+    Meta APIを使用してアクセストークンを失効させる
+    
+    Args:
+        access_token (str): 失効させるアクセストークン
+        app_id (str, optional): アプリID（デバッグトークンに使用）
+    
+    Returns:
+        bool: 成功したかどうか
+    """
+    if not access_token:
+        return False
+    
+    try:
+        # アプリIDが指定されていない場合は設定から取得
+        if not app_id:
+            app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
+        
+        # トークンの失効リクエスト
+        revoke_url = f"https://graph.facebook.com/v18.0/me/permissions"
+        params = {
+            'access_token': access_token
+        }
+        
+        # APIリクエストとレスポンスをログに記録
+        current_app.logger.info(f"Revoking Meta token - URL: {revoke_url}, Params: {json.dumps({'access_token': '[REDACTED]'})}")
+        
+        response = requests.delete(revoke_url, params=params)
+        
+        # レスポンスの詳細をログに記録（トークン情報はマスク）
+        current_app.logger.info(f"Meta token revocation response - Status: {response.status_code}, Body: {response.text}")
+        
+        # 成功レスポンスは {"success": true} が返ってくる
+        if response.status_code == 200:
+            result = response.json()
+            return result.get('success', False)
+        
+        # エラーレスポンスの場合はログに記録
+        current_app.logger.error(f"Meta token revocation failed: {response.text}")
+        return False
+    
+    except Exception as e:
+        current_app.logger.exception(f"Error revoking Meta token: {str(e)}")
+        return False
+
+# Meta Webhookサブスクリプションを解除する
+def unsubscribe_webhook(app_id, app_secret, subscription_id=None):
+    """
+    Meta Webhookサブスクリプションを解除する
+    
+    Args:
+        app_id (str): アプリID
+        app_secret (str): アプリシークレット
+        subscription_id (str, optional): 特定のサブスクリプションIDを削除する場合
+    
+    Returns:
+        bool: 成功したかどうか
+    """
+    try:
+        # アプリアクセストークンを生成
+        app_access_token = f"{app_id}|{app_secret}"
+        
+        # すべてのWebhookサブスクリプションを削除
+        webhook_url = f"https://graph.facebook.com/v18.0/{app_id}/subscriptions"
+        
+        if subscription_id:
+            # 特定のサブスクリプションのみを削除
+            params = {
+                'access_token': app_access_token,
+                'object': 'instagram',
+                'callback_url': '',  # 空のコールバックURLは削除を意味する
+                'subscription_id': subscription_id
+            }
+            # アクセストークンを隠してログ記録
+            log_params = params.copy()
+            log_params['access_token'] = '[REDACTED]'
+            current_app.logger.info(f"Unsubscribing specific webhook - URL: {webhook_url}, Params: {json.dumps(log_params)}")
+            
+            response = requests.delete(webhook_url, params=params)
+        else:
+            # すべてのサブスクリプションを削除
+            params = {
+                'access_token': app_access_token,
+                'object': 'instagram'
+            }
+            # アクセストークンを隠してログ記録
+            log_params = params.copy()
+            log_params['access_token'] = '[REDACTED]'
+            current_app.logger.info(f"Unsubscribing all webhooks - URL: {webhook_url}, Params: {json.dumps(log_params)}")
+            
+            response = requests.delete(webhook_url, params=params)
+        
+        # レスポンスをログに記録
+        current_app.logger.info(f"Webhook unsubscription response - Status: {response.status_code}, Body: {response.text}")
+        
+        # 成功レスポンスは {"success": true} が返ってくる
+        if response.status_code == 200:
+            result = response.json()
+            return result.get('success', False)
+        
+        # エラーレスポンスの場合はログに記録
+        current_app.logger.error(f"Webhook unsubscription failed: {response.text}")
+        return False
+    
+    except Exception as e:
+        current_app.logger.exception(f"Error unsubscribing webhook: {str(e)}")
+        return False
+
+# ページのWebhookフィールドサブスクリプションを解除する
+def unsubscribe_page_webhook(page_id, page_access_token):
+    """
+    ページのWebhookフィールドサブスクリプションを解除する
+    
+    Args:
+        page_id (str): FacebookページID
+        page_access_token (str): ページアクセストークン
+    
+    Returns:
+        bool: 成功したかどうか
+    """
+    try:
+        if not page_id or not page_access_token:
+            return False
+            
+        # ページのサブスクリプションを削除
+        webhook_url = f"https://graph.facebook.com/v18.0/{page_id}/subscribed_apps"
+        params = {
+            'access_token': page_access_token
+        }
+        
+        # アクセストークンを隠してログ記録
+        current_app.logger.info(f"Unsubscribing page webhook - Page ID: {page_id}, URL: {webhook_url}")
+        
+        response = requests.delete(webhook_url, params=params)
+        
+        # レスポンスをログに記録
+        current_app.logger.info(f"Page webhook unsubscription response - Status: {response.status_code}, Body: {response.text}")
+        
+        # 成功レスポンスは {"success": true} が返ってくる
+        if response.status_code == 200:
+            result = response.json()
+            return result.get('success', False)
+        
+        # エラーレスポンスの場合はログに記録
+        current_app.logger.error(f"Page webhook unsubscription failed: {response.text}")
+        return False
+    
+    except Exception as e:
+        current_app.logger.exception(f"Error unsubscribing page webhook: {str(e)}")
+        return False
+
 @bp.route('/disconnect/instagram', methods=['POST'])
 @login_required
 def disconnect_instagram():
@@ -363,21 +517,95 @@ def disconnect_instagram():
         flash(f'リクエスト検証エラー: {str(e)}', 'danger')
         return redirect(url_for('profile.sns_settings'))
     
+    # Meta側での連携解除処理
+    instagram_token = current_user.instagram_token
+    facebook_token = current_user.facebook_token
+    facebook_page_id = current_user.facebook_page_id
+    webhook_subscription_id = current_user.webhook_subscription_id
+    
+    # API設定を取得
+    app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
+    app_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
+    
+    # 連携解除の結果を追跡
+    api_success = True
+    error_details = []
+    
+    try:
+        # 1. Instagramトークンの失効処理
+        if instagram_token:
+            revoke_success = revoke_meta_token(instagram_token, app_id)
+            if revoke_success:
+                print(f"Instagram token successfully revoked for user {current_user.id}")
+            else:
+                api_success = False
+                error_details.append("Instagramトークンの失効処理")
+                print(f"Failed to revoke Instagram token for user {current_user.id}")
+        
+        # 2. Facebookトークンの失効処理（存在する場合）
+        if facebook_token:
+            revoke_success = revoke_meta_token(facebook_token, app_id)
+            if revoke_success:
+                print(f"Facebook token successfully revoked for user {current_user.id}")
+            else:
+                api_success = False
+                error_details.append("Facebookトークンの失効処理")
+                print(f"Failed to revoke Facebook token for user {current_user.id}")
+        
+        # 3. ページのWebhookサブスクリプション解除（存在する場合）
+        if facebook_page_id and facebook_token:
+            unsubscribe_success = unsubscribe_page_webhook(facebook_page_id, facebook_token)
+            if unsubscribe_success:
+                print(f"Page webhook successfully unsubscribed for page {facebook_page_id}")
+            else:
+                api_success = False
+                error_details.append("ページWebhookの解除")
+                print(f"Failed to unsubscribe page webhook for page {facebook_page_id}")
+        
+        # 4. Webhookサブスクリプション解除（存在する場合）
+        if webhook_subscription_id:
+            unsubscribe_success = unsubscribe_webhook(app_id, app_secret, webhook_subscription_id)
+            if unsubscribe_success:
+                print(f"Webhook subscription {webhook_subscription_id} successfully removed")
+            else:
+                api_success = False
+                error_details.append("アプリWebhookの解除")
+                print(f"Failed to remove webhook subscription {webhook_subscription_id}")
+    except Exception as e:
+        api_success = False
+        error_details.append(f"APIエラー: {str(e)}")
+        print(f"Error during Instagram disconnection: {str(e)}")
+    
     # Instagram連携情報をクリア
-    current_user.instagram_token = None
-    current_user.instagram_user_id = None
-    current_user.instagram_username = None
-    current_user.instagram_connected_at = None
+    try:
+        current_user.instagram_token = None
+        current_user.instagram_user_id = None
+        current_user.instagram_username = None
+        current_user.instagram_connected_at = None
+        
+        # Instagram連携解除時にはFacebook/Webhook情報も一緒にクリア
+        current_user.facebook_token = None
+        current_user.facebook_page_id = None
+        current_user.webhook_subscription_id = None
+        current_user.facebook_connected_at = None
+        
+        db.session.commit()
+        db_success = True
+    except Exception as e:
+        db_success = False
+        error_details.append(f"データベースエラー: {str(e)}")
+        print(f"Database error during Instagram disconnection: {str(e)}")
+        db.session.rollback()
     
-    # Instagram連携解除時にはFacebook/Webhook情報も一緒にクリア
-    current_user.facebook_token = None
-    current_user.facebook_page_id = None
-    current_user.webhook_subscription_id = None
-    current_user.facebook_connected_at = None
+    # 結果に応じたフラッシュメッセージを表示
+    if api_success and db_success:
+        flash('Instagram連携を完全に解除しました。自動返信機能も無効化されました。', 'success')
+    elif db_success:
+        error_str = '、'.join(error_details)
+        flash(f'Instagram連携はローカルで解除されましたが、Meta側での処理中にエラーが発生しました（{error_str}）。', 'warning')
+    else:
+        flash('Instagram連携解除中にエラーが発生しました。管理者にお問い合わせください。', 'danger')
     
-    db.session.commit()
-    
-    flash('Instagram連携を解除しました。Webhook設定も合わせて無効化されました。', 'success')
     return redirect(url_for('profile.sns_settings'))
 
 @bp.route('/user/<username>')
@@ -752,13 +980,161 @@ def disconnect_facebook():
         flash(f'リクエスト検証エラー: {str(e)}', 'danger')
         return redirect(url_for('profile.sns_settings'))
     
-    # 連携情報をクリア
-    current_user.facebook_token = None
-    current_user.facebook_page_id = None
-    current_user.webhook_subscription_id = None
-    current_user.facebook_connected_at = None
-    # 自動返信設定はそのまま保持する（再連携時に使えるように）
-    db.session.commit()
+    # Meta側での連携解除処理
+    facebook_token = current_user.facebook_token
+    facebook_page_id = current_user.facebook_page_id
+    webhook_subscription_id = current_user.webhook_subscription_id
     
-    flash('DM自動返信機能を無効化しました', 'success')
-    return redirect(url_for('profile.sns_settings')) 
+    # API設定を取得
+    app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
+    app_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
+    
+    # 連携解除の結果を追跡
+    api_success = True
+    error_details = []
+    
+    try:
+        # 1. Facebookトークンの失効処理
+        if facebook_token:
+            revoke_success = revoke_meta_token(facebook_token, app_id)
+            if revoke_success:
+                print(f"Facebook token successfully revoked for user {current_user.id}")
+            else:
+                api_success = False
+                error_details.append("Facebookトークンの失効処理")
+                print(f"Failed to revoke Facebook token for user {current_user.id}")
+        
+        # 2. ページのWebhookサブスクリプション解除
+        if facebook_page_id and facebook_token:
+            unsubscribe_success = unsubscribe_page_webhook(facebook_page_id, facebook_token)
+            if unsubscribe_success:
+                print(f"Page webhook successfully unsubscribed for page {facebook_page_id}")
+            else:
+                api_success = False
+                error_details.append("ページWebhookの解除")
+                print(f"Failed to unsubscribe page webhook for page {facebook_page_id}")
+        
+        # 3. Webhookサブスクリプション解除
+        if webhook_subscription_id:
+            unsubscribe_success = unsubscribe_webhook(app_id, app_secret, webhook_subscription_id)
+            if unsubscribe_success:
+                print(f"Webhook subscription {webhook_subscription_id} successfully removed")
+            else:
+                api_success = False
+                error_details.append("アプリWebhookの解除")
+                print(f"Failed to remove webhook subscription {webhook_subscription_id}")
+    except Exception as e:
+        api_success = False
+        error_details.append(f"APIエラー: {str(e)}")
+        print(f"Error during Facebook disconnection: {str(e)}")
+    
+    # 連携情報をクリア
+    try:
+        current_user.facebook_token = None
+        current_user.facebook_page_id = None
+        current_user.webhook_subscription_id = None
+        current_user.facebook_connected_at = None
+        # 自動返信設定はそのまま保持する（再連携時に使えるように）
+        db.session.commit()
+        db_success = True
+    except Exception as e:
+        db_success = False
+        error_details.append(f"データベースエラー: {str(e)}")
+        print(f"Database error during Facebook disconnection: {str(e)}")
+        db.session.rollback()
+    
+    # 結果に応じたフラッシュメッセージを表示
+    if api_success and db_success:
+        flash('DM自動返信機能を完全に無効化しました', 'success')
+    elif db_success:
+        error_str = '、'.join(error_details)
+        flash(f'DM自動返信機能はローカルで無効化されましたが、Meta側での処理中にエラーが発生しました（{error_str}）。', 'warning')
+    else:
+        flash('DM自動返信機能の無効化中にエラーが発生しました。管理者にお問い合わせください。', 'danger')
+    
+    return redirect(url_for('profile.sns_settings'))
+
+# データ削除エンドポイントはCSRF保護から除外
+@csrf.exempt
+@bp.route('/meta/data-deletion', methods=['POST'])
+def meta_data_deletion_callback():
+    """Metaプラットフォームからのデータ削除リクエストを処理するエンドポイント
+    
+    Meta Developers設定の「データ削除リクエスト」で設定するコールバックURL
+    https://developers.facebook.com/docs/development/create-an-app/app-dashboard/data-deletion-callback
+    """
+    # リクエストの検証
+    try:
+        # 署名の検証
+        signature = request.headers.get('x-hub-signature', '')
+        if not signature:
+            current_app.logger.error("Missing x-hub-signature in data deletion request")
+            return jsonify({'success': False, 'message': 'Missing signature'}), 401
+        
+        # リクエストボディを取得
+        if not request.data:
+            current_app.logger.error("Empty request body in data deletion request")
+            return jsonify({'success': False, 'message': 'Empty request body'}), 400
+            
+        request_body = request.data
+        
+        # アプリシークレットでHMAC-SHA256署名を計算
+        app_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
+        expected_signature = 'sha256=' + hmac.new(
+            app_secret.encode('utf-8'),
+            request_body,
+            hashlib.sha256
+        ).hexdigest()
+        
+        # 署名が一致しない場合は拒否
+        if not hmac.compare_digest(signature, expected_signature):
+            current_app.logger.error("Invalid signature in data deletion request")
+            return jsonify({'success': False, 'message': 'Invalid signature'}), 401
+        
+        # JSONデータを解析
+        data = request.get_json()
+        
+        # 必須フィールドの検証
+        user_id = data.get('user_id')
+        confirmation_code = data.get('confirmation_code')
+        
+        if not user_id or not confirmation_code:
+            current_app.logger.error(f"Missing required fields in data deletion request: {data}")
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+        
+        # ユーザーデータを削除
+        current_app.logger.info(f"Processing data deletion request for user_id: {user_id}, confirmation_code: {confirmation_code}")
+        
+        # Instagramユーザーを検索
+        user = User.query.filter_by(instagram_user_id=user_id).first()
+        
+        if user:
+            current_app.logger.info(f"Found user to delete data: {user.id}")
+            
+            # Meta関連データをクリア
+            user.instagram_token = None
+            user.instagram_user_id = None
+            user.instagram_username = None
+            user.instagram_connected_at = None
+            user.facebook_token = None
+            user.facebook_page_id = None
+            user.webhook_subscription_id = None
+            user.facebook_connected_at = None
+            
+            # 必要に応じて他のMeta関連データも削除
+            # 実際のデータ削除範囲はプライバシーポリシーとデータ取り扱い方針に基づいて決定
+            
+            db.session.commit()
+            current_app.logger.info(f"Successfully deleted Meta data for user: {user.id}")
+        else:
+            current_app.logger.info(f"No user found with Instagram user_id: {user_id}")
+        
+        # 必ずconfirmation_codeを返す（ユーザーが見つからなくても成功と返す必要がある）
+        return jsonify({
+            'confirmation_code': confirmation_code,
+            'success': True
+        })
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error processing data deletion request: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error'}), 500 

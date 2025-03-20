@@ -8,6 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
     <meta
       name="description"
       content="SNSアカウントを連携して投稿を自動インポート"
@@ -23,6 +24,20 @@
         min-height: 100vh;
         background-color: #f8fafc;
       }
+      /* スピナーのスタイル */
+      .spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        animation: spin 1s linear infinite;
+        margin-right: 0.5rem;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
     </style>
   </head>
   <body>
@@ -32,9 +47,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
-                {{ message }}
-              </div>
+              <div class="flask-flash-message hidden" data-category="{{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -103,9 +116,9 @@
               </div>
               {% if current_user.instagram_username %}
               <div class="flex flex-col items-end">
-                <form action="{{ url_for('profile.disconnect_instagram') }}" method="POST">
+                <form action="{{ url_for('profile.disconnect_instagram') }}" method="POST" id="disconnectInstagramForm">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="text-xs text-red-500 underline" onclick="return confirm('Instagram連携を解除してもよろしいですか？')">連携解除</button>
+                  <button type="button" id="disconnectInstagramBtn" class="text-xs text-red-500 underline" onclick="confirmDisconnect('Instagram連携を解除してもよろしいですか？', 'disconnectInstagramForm', 'disconnectInstagramBtn')">連携解除</button>
                 </form>
               </div>
               {% else %}
@@ -186,11 +199,11 @@
                 </div>
               </div>
               <div class="flex flex-col items-end">
-                <form action="{{ url_for('profile.disconnect_facebook') }}" method="POST">
+                <form action="{{ url_for('profile.disconnect_facebook') }}" method="POST" id="disconnectFacebookForm">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" 
+                  <button type="button" id="disconnectFacebookBtn" 
                     class="text-xs text-red-500 underline"
-                    onclick="return confirm('DM自動返信機能を無効化してもよろしいですか？')">
+                    onclick="confirmDisconnect('DM自動返信機能を無効化してもよろしいですか？', 'disconnectFacebookForm', 'disconnectFacebookBtn')">
                     無効化する
                   </button>
                 </form>
@@ -281,5 +294,31 @@
         </footer>
       </div>
     </div>
+    
+    <!-- 連携解除処理用のJavaScript -->
+    <script>
+      function confirmDisconnect(message, formId, buttonId) {
+        if (confirm(message)) {
+          // ボタンを処理中表示に変更
+          const button = document.getElementById(buttonId);
+          const originalText = button.textContent.trim();
+          button.disabled = true;
+          button.innerHTML = '<span class="spinner"></span>処理中...';
+          
+          // フォームを送信
+          const form = document.getElementById(formId);
+          form.submit();
+          
+          // 5秒後にタイムアウト表示（APIリクエストが遅い場合のため）
+          setTimeout(function() {
+            if (button) {
+              button.disabled = false;
+              button.innerHTML = originalText;
+              // タイムアウト通知は表示しない（リダイレクト前に表示しても意味がないため）
+            }
+          }, 10000);
+        }
+      }
+    </script>
   </body>
 </html>

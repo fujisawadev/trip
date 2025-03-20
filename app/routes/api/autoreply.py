@@ -74,15 +74,22 @@ def test():
         enabled = data.get('enabled', False)
         template = data.get('template', '')
         
+        print(f"[テスト実行] ユーザー: {current_user.username}(ID: {current_user.id}), メッセージ: '{message}', 有効: {enabled}")
+        
         if not message:
+            print(f"[エラー] テストメッセージが空です")
             return jsonify({'success': False, 'error': 'メッセージが入力されていません'}), 400
         
         # AIを使ってメッセージを分析
+        print(f"[分析開始] メッセージ: '{message[:50]}{'...' if len(message) > 50 else ''}'")
         is_location_question, confidence, reasoning = analyze_message(message)
+        print(f"[分析結果] 場所に関する質問: {is_location_question}, 確信度: {confidence:.2f}, 理由: '{reasoning}'")
         
         # 返信メッセージを生成
         profile_url = request.host_url.rstrip('/') + f'/u/{current_user.username}'
         reply_message = template.replace('{profile_url}', profile_url) if is_location_question and enabled and template else ''
+        print(f"[返信生成] テンプレート使用: {bool(template)}, プロフィールURL: '{profile_url}'")
+        print(f"[返信生成] 最終返信メッセージ: '{reply_message}'")
         
         return jsonify({
             'success': True,
@@ -100,11 +107,16 @@ def test():
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをAIで分析する"""
     try:
+        print(f"[analyze_message] 分析開始: '{message[:50]}{'...' if len(message) > 50 else ''}'")
+        
         if not openai.api_key:
             # API Keyが設定されていない場合はランダムな結果を返す（開発用）
             import random
             is_location = "場所" in message or "どこ" in message or "スポット" in message
-            return is_location, 0.8 if is_location else 0.2, "キーワード検出によるテスト判定"
+            print(f"[analyze_message] API Key未設定: キーワードベースで判定します")
+            result = (is_location, 0.8 if is_location else 0.2, "キーワード検出によるテスト判定")
+            print(f"[analyze_message] 結果: {result}")
+            return result
         
         # プロンプトの準備
         prompt = f"""
@@ -120,9 +132,12 @@ def analyze_message(message):
   "reasoning": "判断理由の簡潔な説明"
 }}
 """
+        print(f"[analyze_message] OpenAI API呼び出し準備: モデル=gpt-4o")
         
         # OpenAI APIを呼び出す
         client = openai.OpenAI()
+        
+        print(f"[analyze_message] API呼び出し開始: {datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
         response = client.chat.completions.create(
             model="gpt-4o",
             response_format={"type": "json_object"},
@@ -132,6 +147,8 @@ def analyze_message(message):
             ],
             max_tokens=300
         )
+        print(f"[analyze_message] API呼び出し完了: {datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+        print(f"[analyze_message] APIレスポンス: {response.choices[0].message.content}")
         
         # レスポンスを解析
         result = json.loads(response.choices[0].message.content)
@@ -139,10 +156,12 @@ def analyze_message(message):
         confidence = result.get('confidence', 0.0)
         reasoning = result.get('reasoning', '')
         
+        print(f"[analyze_message] 最終結果: is_location={is_location_question}, confidence={confidence:.2f}, reasoning='{reasoning}'")
+        
         return is_location_question, confidence, reasoning
     
     except Exception as e:
-        print(f"メッセージ分析中にエラーが発生しました: {str(e)}")
+        print(f"[analyze_message] エラー発生: {str(e)}")
         print(traceback.format_exc())
         # エラーの場合はFalseを返す
         return False, 0.0, "分析エラー" 

@@ -105,6 +105,54 @@ python run.py
 - 環境変数やデータベースファイルをコミットしないでください
 - このアプリケーションはPostgreSQLのみをサポートしています。SQLiteは使用しないでください。
 
+## フロントエンド開発ガイド
+
+### トーストメッセージの使用方法
+
+このアプリケーションでは、全画面で一貫したトースト通知を表示するための共通ライブラリ`SpaceyToast`を提供しています。
+
+#### 基本的な使い方
+
+1. テンプレートのhead部分に以下のスクリプトを追加する:
+```html
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+```
+
+2. Flask側のフラッシュメッセージを表示するためのHTMLを追加:
+```html
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flask-flash-message hidden" data-category="{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+```
+
+3. JavaScript内でのトースト表示:
+```javascript
+// 成功メッセージ
+SpaceyToast.success('処理が成功しました');
+
+// エラーメッセージ
+SpaceyToast.error('エラーが発生しました');
+
+// 警告メッセージ
+SpaceyToast.warning('注意が必要です');
+
+// 情報メッセージ
+SpaceyToast.info('参考情報です');
+
+// カスタム表示時間（ミリ秒）
+SpaceyToast.show('メッセージ', 'success', 5000); // 5秒表示
+```
+
+#### 注意点
+
+- 以前使用していた`alert()`関数の代わりに`SpaceyToast`関数を使用してください
+- すべてのページで一貫した表示を保つために、同じスタイルを使用してください
+- トーストメッセージは画面中央に3秒間表示され、自動的に消えます
+
 ## デプロイ
 
 ### Herokuへのデプロイ

@@ -10,6 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
     <style>
       /* Custom styles for toggle switch animation */
       .peer:checked + div > div {
@@ -207,9 +208,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="px-4 py-2 mb-4 {% if category == 'danger' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
-                {{ message }}
-              </div>
+              <div class="flask-flash-message hidden" data-category="{{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -310,7 +309,7 @@
 
               <button
                 id="start-import-btn"
-                class="flex justify-center items-center px-4 py-3 w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                class="flex justify-center items-center px-4 py-3 w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 min-h-[52px]"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -381,7 +380,7 @@
         <div id="loading-container" class="py-8">
           <div class="flex flex-col items-center justify-center">
             <div class="spinner mb-4"></div>
-            <p id="loading-text" class="text-sm text-slate-600">Instagram投稿を取得中...</p>
+            <p id="loading-text" class="text-sm text-slate-600 text-center">Instagram投稿を取得中...</p>
           </div>
         </div>
         
@@ -507,10 +506,35 @@
         // インポート開始ボタンのクリックイベント
         if (startImportBtn) {
           startImportBtn.addEventListener('click', function() {
+            // 期間の取得
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            // バリデーション
+            if (!startDate || !endDate) {
+              SpaceyToast.warning('期間を指定してください');
+              return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+              SpaceyToast.warning('開始日は終了日より前の日付を指定してください');
+              return;
+            }
+            
+            // ボタンを処理中の状態に変更
+            const originalText = startImportBtn.innerHTML;
+            startImportBtn.disabled = true;
+            startImportBtn.innerHTML = `<div class="spinner mr-2 h-5 w-5"></div><span class="text-base font-medium">処理中...</span>`;
+            
             // モーダルを表示
             importModal.classList.remove('hidden');
+            
             // インポート処理を開始
-            startImport();
+            startImport().finally(() => {
+              // 処理完了後、ボタンを元に戻す
+              startImportBtn.disabled = false;
+              startImportBtn.innerHTML = originalText;
+            });
           });
         }
         
@@ -526,7 +550,22 @@
         
         // 保存ボタンのクリックイベント
         if (saveSpotsBtn) {
-          saveSpotsBtn.addEventListener('click', saveSpots);
+          saveSpotsBtn.addEventListener('click', function() {
+            // ボタンを処理中の状態に変更
+            const originalText = saveSpotsBtn.innerHTML;
+            saveSpotsBtn.disabled = true;
+            saveSpotsBtn.innerHTML = `<div class="spinner mr-2 h-5 w-5"></div><span class="text-base font-medium">保存中...</span>`;
+            
+            saveSpots().finally(() => {
+              // 処理完了後、ボタンを元に戻す（エラーの場合のみ）
+              if (errorContainer.classList.contains('hidden')) {
+                // 成功した場合は元に戻さない（モーダルが切り替わるため）
+                return;
+              }
+              saveSpotsBtn.disabled = false;
+              saveSpotsBtn.innerHTML = originalText;
+            });
+          });
         }
         
         // 新規インポートボタンのクリックイベント
@@ -537,8 +576,18 @@
         // 再試行ボタンのクリックイベント
         if (retryBtn) {
           retryBtn.addEventListener('click', function() {
+            // ボタンを処理中の状態に変更
+            const originalText = retryBtn.innerHTML;
+            retryBtn.disabled = true;
+            retryBtn.innerHTML = `<div class="spinner mr-2 h-5 w-5"></div><span class="text-base font-medium">処理中...</span>`;
+            
             resetModalUI();
-            startImport();
+            
+            startImport().finally(() => {
+              // 処理完了後、ボタンを元に戻す
+              retryBtn.disabled = false;
+              retryBtn.innerHTML = originalText;
+            });
           });
         }
         
@@ -571,22 +620,8 @@
           const startDate = document.getElementById('start-date').value;
           const endDate = document.getElementById('end-date').value;
           
-          // バリデーション
-          if (!startDate || !endDate) {
-            alert('期間を指定してください');
-            return;
-          }
-          
-          if (new Date(startDate) > new Date(endDate)) {
-            alert('開始日は終了日より前の日付を指定してください');
-            return;
-          }
-          
           // UIをリセット
           resetModalUI();
-          
-          // モーダルを表示
-          importModal.classList.remove('hidden');
           
           try {
             // 投稿の取得を開始
@@ -600,11 +635,15 @@
             // スポット分析を開始
             await analyzeAndDisplayPosts(posts);
             
+            return true; // 成功時はtrueを返す
+            
           } catch (error) {
             console.error('インポート処理中のエラー:', error);
             loadingContainer.classList.add('hidden');
             errorContainer.classList.remove('hidden');
             errorMessage.textContent = error.message || 'インポート処理中にエラーが発生しました。時間をおいて再度お試しください。';
+            
+            return false; // 失敗時はfalseを返す
           }
         }
         
@@ -768,8 +807,8 @@
           const selectedCandidates = spotCandidates.filter(candidate => candidate !== null);
           
           if (selectedCandidates.length === 0) {
-            alert('保存するスポットがありません');
-            return;
+            SpaceyToast.warning('保存するスポットがありません');
+            return Promise.reject(new Error('保存するスポットがありません'));
           }
           
           // ローディング表示
@@ -778,7 +817,7 @@
           loadingText.textContent = 'スポットを保存中...';
           
           // スポットを保存
-          fetch('/api/import/instagram/save', {
+          return fetch('/api/import/instagram/save', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
