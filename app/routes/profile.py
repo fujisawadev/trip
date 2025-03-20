@@ -445,6 +445,7 @@ def connect_facebook():
         'pages_read_engagement',
         'pages_manage_posts',
         'pages_messaging',
+        'instagram_manage_messages',  # Instagram DMの管理権限を追加
         'business_management'  # ビジネス管理のスコープを追加
     ]
     
