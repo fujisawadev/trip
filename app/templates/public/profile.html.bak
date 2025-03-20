@@ -1,0 +1,2645 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ user.username }} | Spacey</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    
+    <!-- OGP タグとTwitter Card - コメントアウト -->
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f8fafc;
+        }
+        /* スポット詳細モーダルの地図 */
+        #spot-map-modal {
+            width: 100%;
+            height: 250px;
+            border-radius: 0.75rem;
+        }
+        /* モーダルのスタイル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background-color: #f8fafc;
+            margin: 10vh auto 0;
+            max-width: 480px;
+            width: 100%;
+            border-radius: 0.75rem 0.75rem 0 0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        body.modal-open {
+            overflow: hidden;
+        }
+        /* グローバルナビゲーションのスタイル */
+        .global-nav {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            z-index: 100;
+            padding: 16px;
+            max-width: 180px;
+            width: 60%;
+            border-radius: 28px;
+        }
+        .global-nav-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .nav-item {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #94a3b8;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+        }
+        .nav-item.active {
+            color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.08);
+        }
+        .nav-item:hover {
+            color: #1e40af;
+            transform: translateY(-2px);
+        }
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            stroke-width: 2;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50">
+    <header class="mx-auto w-full bg-white max-w-[480px]">
+        <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+            <div class="flex justify-between items-center px-4 pt-4 pb-2 w-full text-lg font-bold leading-none text-center whitespace-nowrap bg-slate-50 text-neutral-900">
+                <div class="flex shrink-0 self-stretch my-auto w-12 h-12"></div>
+                <div class="flex-1 shrink self-stretch pr-12 my-auto basis-0 min-w-60">
+                    <!-- 「Profile」という文字を削除 -->
+                </div>
+                <!-- シェアボタンを追加 -->
+                <div class="flex shrink-0 self-stretch my-auto w-12 h-12 justify-center items-center">
+                    <button id="share-button" class="text-neutral-800 hover:text-neutral-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <main>
+                <section class="profile-info flex justify-start items-center px-4 py-2 w-full text-xl font-bold leading-none whitespace-nowrap bg-slate-50 text-neutral-900">
+                    <div class="flex flex-row justify-start items-center gap-4 self-stretch my-auto">
+                        <img
+                            src="{{ url_for('static', filename='default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"
+                            alt="Profile picture of {{ user.username }}"
+                            class="object-cover overflow-hidden w-16 h-16 rounded-full"
+                        />
+                        <h2 class="text-lg font-medium">{{ user.username }}</h2>
+                    </div>
+                </section>
+
+                <section class="bio px-4 pb-3 w-full text-[15px] leading-5 text-center text-neutral-900">
+                    <p>{{ user.bio if user.bio else "No bio provided." }}</p>
+                </section>
+
+                <section class="favorite-spots">
+                    <h2 class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none min-h-[60px] text-neutral-900">{{ user.spots_heading or 'Favorite Spots' }}</h2>
+
+                    <div class="flex flex-col justify-center px-4 py-2 w-full">
+                        <div class="w-full min-h-12 min-w-40">
+                            <div class="flex flex-1 rounded-xl size-full bg-slate-200 overflow-hidden">
+                                <input
+                                    type="search"
+                                    placeholder="スポットを検索"
+                                    class="flex overflow-hidden flex-1 shrink items-center py-3.5 pl-4 pr-2 h-12 text-base bg-transparent min-w-60 text-slate-500 focus:outline-none"
+                                />
+                                <button type="button" class="flex justify-center items-center w-12 h-12 my-auto self-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <nav class="flex gap-3 items-start py-2 pr-4 pl-3 w-full overflow-x-auto">
+                        <div class="category-filter flex gap-2 justify-center items-center pr-4 pl-2 rounded-xl bg-blue-500 text-white min-h-8 cursor-pointer" data-category="all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-white">すべて</span>
+                        </div>
+                        {% set categories = [] %}
+                        {% for spot in spots %}
+                            {% if spot.category and spot.category not in categories %}
+                                {% set _ = categories.append(spot.category) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for category in categories %}
+                        <div class="category-filter flex gap-2 justify-center items-center px-4 rounded-xl bg-slate-200 min-h-8 cursor-pointer" data-category="{{ category }}">
+                            <span class="self-stretch my-auto text-sm font-medium whitespace-nowrap text-neutral-900">{{ category }}</span>
+                        </div>
+                        {% endfor %}
+                    </nav>
+
+                    <section class="location-cards pt-1">
+                        {% if spots and spots|length > 0 %}
+                            {% for spot in spots %}
+                            <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] spot-article">
+                                <div class="spot-card flex gap-4 items-center w-full cursor-pointer" data-spot-id="{{ spot.id }}" data-category="{{ spot.category or '' }}">
+                                    {% if spot.photos and spot.photos|length > 0 %}
+                                        <img
+                                            src="{{ spot.photos[0].photo_url }}"
+                                            alt="{{ spot.name }}"
+                                            class="object-cover overflow-hidden shrink-0 self-stretch my-auto w-14 rounded-lg aspect-square"
+                                        />
+                                    {% else %}
+                                        <div class="shrink-0 self-stretch my-auto w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center">
+                                            <span class="text-slate-400 text-xs">No Image</span>
+                                        </div>
+                                    {% endif %}
+                                    <div class="flex flex-col justify-center self-stretch my-auto flex-1 min-w-0">
+                                        <h3 class="overflow-hidden text-base font-medium whitespace-nowrap text-neutral-900 text-ellipsis">
+                                            {{ spot.name }}
+                                        </h3>
+                                        <p class="overflow-hidden text-sm text-slate-500">
+                                            {{ spot.summary_location or spot.location }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </article>
+                            {% endfor %}
+                        {% endif %}
+                        <!-- 検索結果が0件の場合のメッセージ -->
+                        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50 min-h-[72px] no-spots-message" style="{% if spots and spots|length > 0 %}display: none;{% endif %}">
+                            <div class="flex flex-col justify-center self-stretch my-auto w-full text-center">
+                                <p class="text-slate-500">{% if spots and spots|length > 0 %}選択した条件に一致するスポットが見つかりませんでした{% else %}まだスポットが追加されていません{% endif %}</p>
+                            </div>
+                        </article>
+                    </section>
+                </section>
+            </main>
+            
+            <footer class="w-full py-6 pb-28 text-center text-gray-500 text-sm">
+                <p>&copy; 2024 CAPSULE CORP. All rights reserved.</p>
+            </footer>
+            
+            <!-- グローバルナビゲーション -->
+            <nav class="global-nav">
+                <div class="global-nav-container">
+                    <a href="/{{ user.username }}" class="nav-item active">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                    </a>
+                    <a href="/{{ user.username }}/map" class="nav-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                        </svg>
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- スポット詳細モーダル -->
+    <div id="spot-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div id="modal-content-container">
+                <!-- モーダルコンテンツがここに動的に読み込まれます -->
+                <div class="flex justify-center items-center p-10">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-medium">URLをコピー</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シェアモーダル -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-close">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-bold mb-4 text-center">プロフィールをシェア</h2>
+                <div class="flex flex-col gap-4">
+                    <button id="copy-url" class="flex items-center gap-4 p-4 rounded-xl bg-slate-200 text-neutral-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 

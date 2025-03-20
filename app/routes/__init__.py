@@ -1,2 +1,3 @@
 # ルートパッケージの初期化
-from . import main, auth, spot, profile, public, api 
+# 各モジュールは独立してapp/__init__.pyでインポートされるため、
+# ここでのインポートは不要になりました。 

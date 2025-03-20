@@ -2,9 +2,10 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="robots" content="noindex">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="format-detection" content="telephone=no">
     <title>インポート機能 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
@@ -155,6 +156,48 @@
         min-height: calc(100vh - 64px); /* 画面の高さからナビゲーションの高さを引いた分 */
         background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
       }
+      
+      /* モバイルデバイス向けのカレンダースタイル調整 */
+      @media (max-width: 767px) {
+        input[type="date"] {
+          height: 44px; /* タップしやすいサイズに */
+          font-size: 16px; /* iOS Safariでズームインを防止 */
+          appearance: none; /* ネイティブスタイルをリセット */
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          min-height: 44px;
+          line-height: normal;
+        }
+        
+        /* iOS Safariの日付ピッカー用スタイル */
+        input::-webkit-date-and-time-value {
+          text-align: left;
+          height: 100%;
+          display: flex;
+          align-items: center;
+        }
+        
+        /* iOS Safari向けの余白調整 */
+        .relative input[type="date"] {
+          padding-top: 10px;
+          padding-bottom: 10px;
+        }
+        
+        /* 日付入力フィールドのモバイル最適化 */
+        .mobile-date-input {
+          width: 100% !important;
+          display: block !important;
+          box-sizing: border-box !important;
+          border-radius: 8px !important;
+          padding-left: 36px !important; /* アイコンの横幅を考慮 */
+        }
+        
+        /* 日付入力コンテナの調整 */
+        .relative {
+          position: relative;
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body>
@@ -236,7 +279,8 @@
                       <input 
                         type="date" 
                         id="start-date" 
-                        class="w-full rounded-lg border border-slate-300 pl-10 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="w-full rounded-lg border border-slate-300 pl-10 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 mobile-date-input"
+                        style="min-height: 44px; text-align: left;"
                       >
                     </div>
                   </div>
@@ -253,7 +297,8 @@
                       <input 
                         type="date" 
                         id="end-date" 
-                        class="w-full rounded-lg border border-slate-300 pl-10 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="w-full rounded-lg border border-slate-300 pl-10 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 mobile-date-input"
+                        style="min-height: 44px; text-align: left;"
                       >
                     </div>
                   </div>

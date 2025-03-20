@@ -650,223 +650,87 @@ def fetch_instagram_posts():
 
 @api_bp.route('/import/instagram/analyze', methods=['POST'])
 def analyze_instagram_posts():
-    """Instagram投稿からスポット候補を生成するAPI"""
+    """Instagram投稿を分析してスポット候補を抽出するAPI"""
+    print("=== Instagram投稿分析API開始 ===")
     if not current_user.is_authenticated:
-        print("DEBUG: User not authenticated")
+        print("エラー: 認証されていないユーザー")
         return jsonify({'error': 'Authentication required'}), 401
     
     # リクエストからパラメータを取得
     data = request.get_json() or {}
     posts = data.get('posts', [])
     
-    print(f"DEBUG: Received {len(posts)} posts for analysis")
+    print(f"分析対象の投稿数: {len(posts)}")
     
     if not posts:
-        print("DEBUG: No posts provided")
+        print("エラー: 投稿が提供されていません")
         return jsonify({'error': 'No posts provided'}), 400
-
-    if not OPENAI_API_KEY:
-        print("DEBUG: OpenAI API key not configured")
-        return jsonify({'error': 'OpenAI API key not configured'}), 500
-
+    
     try:
-        import openai
-        from openai import OpenAI
-        
-        # OpenAIクライアントの初期化（タイムアウト設定付き）
-        client = OpenAI(
-            api_key=OPENAI_API_KEY,
-            timeout=30.0  # 30秒のタイムアウト
-        )
-        print(f"DEBUG: OpenAI API key set: {OPENAI_API_KEY[:5]}...{OPENAI_API_KEY[-5:]}")
-        
         spot_candidates = []
         
-        # 処理する投稿数を制限（最初の5件のみ）
-        posts_to_process = posts[:5]
-        print(f"DEBUG: Processing only the first {len(posts_to_process)} posts")
-        
-        for post in posts_to_process:
-            caption = post.get('caption', '')
-            print(f"DEBUG: Processing post ID: {post.get('id')}, Caption length: {len(caption)}")
-            
-            # キャプションが空の場合はスキップ
-            if not caption:
-                print("DEBUG: Empty caption, skipping")
+        # 各投稿をループ処理
+        for post in posts:
+            # 位置情報がある投稿のみを処理
+            location = post.get('location')
+            if not location:
                 continue
             
-            # キャプションが長すぎる場合は切り詰める
-            if len(caption) > 1000:
-                caption = caption[:1000] + "..."
-                print("DEBUG: Caption truncated to 1000 characters")
-            
-            # OpenAI APIを使用してキャプションからスポット名を抽出
-            prompt = f"""
-            以下のInstagramの投稿キャプションから、訪問した場所やスポットの名前を全て抽出してください。
-            複数の場所が言及されている場合は、それぞれを別々に抽出してください。
-            最大5つまでのスポットを抽出し、JSONリスト形式で返してください。
-            
-            キャプション: {caption}
-            
-            出力形式:
-            {{
-              "spots": [
-                "スポット名1",
-                "スポット名2",
-                ...
-              ]
-            }}
-            """
-            
-            print("DEBUG: Calling OpenAI API")
-            try:
-                # タイムアウト付きでAPIを呼び出す
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": "あなたはInstagramの投稿からスポット情報を抽出する専門家です。日本語のキャプションから場所名を正確に抽出してください。"},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=500  # トークン数を制限
-                )
-                print(f"DEBUG: OpenAI API response received")
-            except Exception as openai_error:
-                print(f"DEBUG: OpenAI API error: {str(openai_error)}")
-                # エラーが発生した場合でも処理を続行
-                # 位置情報があれば使用
-                location = post.get('location', {})
-                if location and 'name' in location:
-                    spot_name = location.get('name')
-                    print(f"DEBUG: Using location from post metadata: {spot_name}")
-                    
-                    # 位置情報からスポット候補を追加
-                    spot_candidate = {
-                        'name': spot_name,
-                        'formatted_address': '',
-                        'instagram_post_id': post.get('id'),
-                        'instagram_permalink': post.get('permalink'),
-                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption,
-                        'timestamp': post.get('timestamp')  # タイムスタンプを明示的に追加
-                    }
-                    spot_candidates.append(spot_candidate)
-                    print(f"DEBUG: Added spot candidate from location metadata: {spot_name}")
-                
+            # 既に処理済みの場所はスキップ（重複を避ける）
+            place_id = location.get('id')
+            if any(candidate.get('place_id') == place_id for candidate in spot_candidates):
                 continue
             
-            try:
-                # レスポンスからスポット名のリストを取得
-                content = response.choices[0].message.content
-                print(f"DEBUG: OpenAI response content: {content}")
-                result = json.loads(content)
-                print(f"DEBUG: Parsed JSON result: {result}")
-                
-                # スポット名を抽出（様々な形式に対応）
-                spot_names = []
-                
-                # 辞書型の場合
-                if isinstance(result, dict):
-                    # 辞書の値を確認
-                    for key, value in result.items():
-                        # リスト型の値の場合
-                        if isinstance(value, list):
-                            spot_names.extend(value)
-                        # 文字列型の値の場合（キーがerrorでない場合のみ）
-                        elif isinstance(value, str) and not key.lower() in ['error', 'エラー']:
-                            spot_names.append(value)
-                        # 辞書型の値の場合（再帰的に処理）
-                        elif isinstance(value, dict):
-                            for sub_key, sub_value in value.items():
-                                if isinstance(sub_value, str) and not sub_key.lower() in ['error', 'エラー']:
-                                    spot_names.append(sub_value)
-                
-                # リスト型の場合
-                elif isinstance(result, list):
-                    spot_names = result
-                
-                print(f"DEBUG: Extracted spot names: {spot_names}")
-                
-                # 位置情報があれば優先的に使用
-                location = post.get('location', {})
-                if location and 'name' in location:
-                    spot_names.insert(0, location.get('name'))
-                    print(f"DEBUG: Added location from post metadata: {location.get('name')}")
-                
-                # 重複を削除
-                spot_names = list(dict.fromkeys(spot_names))
-                print(f"DEBUG: Final spot names after deduplication: {spot_names}")
-                
-                # スポット名が空の場合はスキップ
-                if not spot_names:
-                    print("DEBUG: No spot names found, skipping Google Places API calls")
-                    continue
-                
-                # 各スポット名でGoogle Places APIを呼び出して詳細情報を取得
-                for spot_name in spot_names:
-                    # スポット名が空の場合はスキップ
-                    if not spot_name or spot_name.strip() == "":
-                        print("DEBUG: Empty spot name, skipping")
-                        continue
-                        
-                    print(f"DEBUG: Looking up spot: {spot_name}")
+            print(f"Instagram投稿の位置情報を処理: {location.get('name')}")
+            
+            # 基本情報を取得
+            spot_candidate = {
+                'name': location.get('name', ''),
+                'instagram_post_id': post.get('id', ''),
+                'timestamp': post.get('timestamp', ''),
+                'caption': post.get('caption', {}).get('text', '') if post.get('caption') else '',
+                'place_id': place_id,
+            }
+            
+            # Google Places APIを使用して詳細情報を補完
+            if spot_candidate.get('name'):
+                try:
+                    # 位置情報の検索クエリを構築
+                    query = spot_candidate.get('name')
                     
-                    # 基本的なスポット候補を作成（APIエラー時のフォールバック用）
-                    basic_spot_candidate = {
-                        'name': spot_name,
-                        'formatted_address': '',
-                        'instagram_post_id': post.get('id'),
-                        'instagram_permalink': post.get('permalink'),
-                        'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption,
-                        'timestamp': post.get('timestamp')  # タイムスタンプを明示的に追加
-                    }
-                    
-                    print(f"DEBUG: 基本スポット候補を作成: name={basic_spot_candidate['name']}, instagram_post_id={basic_spot_candidate['instagram_post_id']}, timestamp={basic_spot_candidate['timestamp']}")
-                    
-                    # Google Places APIの検索エンドポイントを呼び出す
-                    search_url = "https://places.googleapis.com/v1/places:searchText"
+                    # テキスト検索を実行
+                    url = "https://places.googleapis.com/v1/places:searchText"
                     headers = {
                         'Content-Type': 'application/json',
                         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.types,places.id',
-                        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
-                    }
-                    search_data = {
-                        "textQuery": spot_name,
-                        "languageCode": "ja",  # 日本語を指定
-                        "regionCode": "JP"     # 日本の地域コードを指定
+                        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.types'
                     }
                     
-                    print(f"DEBUG: Calling Google Places API with query: {spot_name}")
-                    try:
-                        # タイムアウト設定付きでAPIを呼び出す
-                        search_response = requests.post(search_url, headers=headers, json=search_data, timeout=10)
-                        print(f"DEBUG: Google Places API response status: {search_response.status_code}")
+                    payload = {
+                        'textQuery': query,
+                        'languageCode': 'ja'
+                    }
+                    
+                    response = requests.post(url, headers=headers, json=payload, timeout=10)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
                         
-                        if search_response.status_code == 200:
-                            search_result = search_response.json()
-                            places = search_result.get('places', [])
+                        if 'places' in data and len(data['places']) > 0:
+                            place = data['places'][0]  # 最初の結果を使用
                             
-                            if places:
-                                place = places[0]  # 最初の結果を使用
-                                print(f"DEBUG: Found place: {place.get('displayName', {}).get('text')}")
-                                
-                                # スポット候補を追加
-                                spot_candidate = {
-                                    'name': place.get('displayName', {}).get('text', spot_name),
-                                    'formatted_address': place.get('formattedAddress', ''),
-                                    'latitude': place.get('location', {}).get('latitude'),
-                                    'longitude': place.get('location', {}).get('longitude'),
-                                    'types': place.get('types', []),
-                                    'place_id': place.get('id'),
-                                    'instagram_post_id': post.get('id'),
-                                    'instagram_permalink': post.get('permalink'),
-                                    'instagram_caption': caption[:100] + "..." if len(caption) > 100 else caption,
-                                    'timestamp': post.get('timestamp')  # タイムスタンプを明示的に追加
-                                }
-                                
-                                print(f"DEBUG: スポット候補を作成: name={spot_candidate['name']}, instagram_post_id={spot_candidate['instagram_post_id']}, timestamp={spot_candidate['timestamp']}")
-                                
-                                # 写真情報を取得
+                            # 詳細情報を追加
+                            spot_candidate['place_id'] = place.get('id')
+                            spot_candidate['name'] = place.get('displayName', {}).get('text', spot_candidate['name'])
+                            spot_candidate['formatted_address'] = place.get('formattedAddress', '')
+                            spot_candidate['types'] = place.get('types', [])
+                            
+                            if 'location' in place:
+                                spot_candidate['latitude'] = place['location'].get('latitude')
+                                spot_candidate['longitude'] = place['location'].get('longitude')
+                            
+                            # 写真情報を取得
+                            if place.get('id'):
                                 try:
                                     photo_url = f"https://places.googleapis.com/v1/places/{place.get('id')}/photos"
                                     photo_headers = {
@@ -902,7 +766,7 @@ def analyze_instagram_posts():
                                         'X-Goog-LanguageCode': 'ja'  # 日本語を指定
                                     }
                                     
-                                    details_response = requests.get(details_url, headers=details_headers, timeout=10)
+                                    details_response = requests.get(details_url, headers=details_headers)
                                     
                                     if details_response.status_code == 200:
                                         details_data = details_response.json()
@@ -932,88 +796,78 @@ def analyze_instagram_posts():
                                             
                                             if summary_parts:
                                                 spot_candidate['summary_location'] = '、'.join(summary_parts)
-                                                print(f"DEBUG: Updated summary location from address components: {spot_candidate['summary_location']}")
+                                                print(f"DEBUG: Added summary location: {spot_candidate['summary_location']}")
+                                    else:
+                                        print(f"DEBUG: Error fetching details: {details_response.status_code} - {details_response.text}")
                                 except Exception as details_error:
                                     print(f"DEBUG: Error fetching place details: {str(details_error)}")
                                 
                                 # 日本語のsummary_locationが取得できなかった場合、searchTextエンドポイントを使用
                                 if not spot_candidate.get('summary_location') or not is_japanese(spot_candidate.get('summary_location', '')):
                                     try:
-                                        print(f"DEBUG: Using searchText endpoint to get Japanese information for: {spot_name}")
+                                        print(f"DEBUG: Using searchText endpoint to get Japanese information for: {spot_candidate['name']}")
                                         
                                         search_url = "https://places.googleapis.com/v1/places:searchText"
                                         search_headers = {
                                             'Content-Type': 'application/json',
                                             'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                                            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.addressComponents'
+                                            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.addressComponents',
+                                            'X-Goog-LanguageCode': 'ja'  # 日本語を指定
                                         }
                                         search_data = {
-                                            'textQuery': spot_name,
+                                            'textQuery': spot_candidate['name'],
                                             'languageCode': 'ja',
                                             'regionCode': 'jp'
                                         }
                                         
-                                        search_response = requests.post(search_url, headers=search_headers, json=search_data, timeout=10)
+                                        search_response = requests.post(search_url, headers=search_headers, json=search_data)
                                         
                                         if search_response.status_code == 200:
-                                            search_data = search_response.json()
+                                            search_result = search_response.json()
                                             
-                                            if 'places' in search_data and len(search_data['places']) > 0:
-                                                place = search_data['places'][0]
+                                            if 'places' in search_result and len(search_result['places']) > 0:
+                                                search_place = search_result['places'][0]
                                                 
-                                                # サマリーロケーションを生成
-                                                if 'addressComponents' in place:
-                                                    country = None
-                                                    prefecture = None
-                                                    locality = None
+                                                if 'addressComponents' in search_place:
+                                                    search_country = None
+                                                    search_prefecture = None
+                                                    search_locality = None
                                                     
-                                                    for component in place['addressComponents']:
+                                                    for component in search_place['addressComponents']:
                                                         types = component.get('types', [])
                                                         if 'country' in types:
-                                                            country = component.get('longText')
+                                                            search_country = component.get('longText')
                                                         elif 'administrative_area_level_1' in types:
-                                                            prefecture = component.get('longText')
+                                                            search_prefecture = component.get('longText')
                                                         elif 'locality' in types or 'sublocality_level_1' in types:
-                                                            locality = component.get('longText')
+                                                            search_locality = component.get('longText')
                                                     
-                                                    # サマリーロケーションを構築
-                                                    summary_parts = []
-                                                    if country and country != "日本":
-                                                        summary_parts.append(country)
-                                                    if prefecture:
-                                                        summary_parts.append(prefecture)
-                                                    if locality:
-                                                        summary_parts.append(locality)
+                                                    # 日本語のサマリーロケーションを構築
+                                                    search_summary_parts = []
+                                                    if search_country and search_country != "日本":
+                                                        search_summary_parts.append(search_country)
+                                                    if search_prefecture:
+                                                        search_summary_parts.append(search_prefecture)
+                                                    if search_locality:
+                                                        search_summary_parts.append(search_locality)
                                                     
-                                                    if summary_parts:
-                                                        spot_candidate['summary_location'] = '、'.join(summary_parts)
-                                                        print(f"DEBUG: Set Japanese summary_location from searchText: {spot_candidate['summary_location']}")
-                                    except Exception as search_error:
-                                        print(f"DEBUG: Error calling searchText API: {str(search_error)}")
-                                
-                                spot_candidates.append(spot_candidate)
-                                print(f"DEBUG: Added spot candidate: {spot_candidate['name']}")
-                            else:
-                                print(f"DEBUG: No places found for spot name: {spot_name}")
-                                # 場所が見つからない場合でも、名前だけのスポット候補を追加
-                                spot_candidates.append(basic_spot_candidate)
-                                print(f"DEBUG: Added basic spot candidate with name only: {spot_name}")
+                                                    if search_summary_parts:
+                                                        spot_candidate['summary_location'] = '、'.join(search_summary_parts)
+                                                        print(f"DEBUG: Updated summary location from searchText: {spot_candidate['summary_location']}")
+                                    except Exception as search_text_error:
+                                        print(f"DEBUG: Error in searchText API call: {str(search_text_error)}")
+                            
+                            spot_candidates.append(spot_candidate)
+                            print(f"DEBUG: Added spot candidate: {spot_candidate['name']}")
                         else:
-                            print(f"DEBUG: Google Places API error: {search_response.text}")
-                            # APIエラーの場合でも、名前だけのスポット候補を追加
-                            spot_candidates.append(basic_spot_candidate)
-                            print(f"DEBUG: Added basic spot candidate after API error: {spot_name}")
-                    except Exception as google_error:
-                        print(f"DEBUG: Google Places API error: {str(google_error)}")
-                        # 例外発生時も、名前だけのスポット候補を追加
-                        spot_candidates.append(basic_spot_candidate)
-                        print(f"DEBUG: Added basic spot candidate after exception: {spot_name}")
+                            print(f"DEBUG: No places found for spot name: {spot_candidate['name']}")
+                            # 場所が見つからない場合でも、名前だけのスポット候補を追加
+                            spot_candidates.append(spot_candidate)
+                            print(f"DEBUG: Added spot candidate with name only: {spot_candidate['name']}")
+                    except Exception as e:
+                        print(f"DEBUG: Error processing post {post.get('id')}: {str(e)}")
                         continue
             
-            except Exception as e:
-                print(f"DEBUG: Error processing post {post.get('id')}: {str(e)}")
-                continue
-        
         print(f"DEBUG: Analysis complete. Found {len(spot_candidates)} spot candidates")
         return jsonify({
             'success': True,
@@ -1070,7 +924,7 @@ def save_instagram_spots():
                 google_place_id=spot_data.get('place_id'),
                 formatted_address=spot_data.get('formatted_address', ''),
                 summary_location=spot_data.get('summary_location', ''),
-                google_photo_reference=spot_data.get('photo_reference', ''),
+                google_photo_reference=spot_data.get('photo_reference'),
                 thumbnail_url=spot_data.get('thumbnail_url', ''),
                 is_active=False  # 非公開状態で保存
             )
@@ -1285,6 +1139,12 @@ def save_instagram_spots():
                         photos = place_data.get('photos', [])
                         
                         if photos and len(photos) > 0:
+                            # 最初の写真をスポットのメイン写真として設定
+                            first_photo_name = photos[0].get('name')
+                            if first_photo_name and (not spot.google_photo_reference or spot.google_photo_reference == ''):
+                                spot.google_photo_reference = first_photo_name
+                                print(f"スポットのgoogle_photo_referenceを設定: {first_photo_name}")
+                            
                             # 最大5枚の写真を保存
                             for i, photo in enumerate(photos[:5]):
                                 photo_name = photo.get('name')

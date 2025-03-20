@@ -8,27 +8,30 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background-color: white;
+        min-height: 100vh;
+      }
+      .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        background-color: #f8fafc;
+      }
+    </style>
   </head>
-  <body class="bg-slate-50">
-    <main class="mx-auto w-full bg-white max-w-[480px]">
-      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
-        <header
-          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
-        >
-          <a
-            href="{{ url_for('main.index') }}"
-            class="flex items-center self-stretch my-auto w-12 min-h-12"
-            aria-label="戻る"
-          >
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/810ec6bcf7b28155afaf52f63a50260e8ebc3ea22519f275a82a9a0a42a6a842?placeholderIfAbsent=true"
-              alt="戻るアイコン"
-              class="object-contain self-stretch my-auto w-6 aspect-square"
-            />
+  <body>
+    <main class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
+        <!-- ヘッダー -->
+        <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50">
+          <a href="{{ url_for('main.index') }}" class="flex items-center self-stretch my-auto w-12 min-h-12" aria-label="戻る">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
           </a>
-          <h1
-            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-neutral-900"
-          >
+          <h1 class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-neutral-900">
             500 エラー
           </h1>
         </header>
@@ -39,10 +42,7 @@
           <p class="text-slate-500 mb-8">
             申し訳ありませんが、サーバーで問題が発生しました。しばらくしてからもう一度お試しください。
           </p>
-          <a
-            href="{{ url_for('main.index') }}"
-            class="px-6 py-3 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600"
-          >
+          <a href="{{ url_for('main.index') }}" class="px-6 py-3 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600">
             トップページに戻る
           </a>
         </section>
