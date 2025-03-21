@@ -167,8 +167,6 @@ def connect_instagram():
 def configure_instagram_webhook(instagram_business_id, instagram_token):
     """Instagramビジネスアカウントに直接Webhookを設定（Facebook不要）"""
     try:
-        app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
-        app_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
         webhook_url = request.host_url.rstrip('/') + '/webhook/instagram'
         verify_token = current_app.config.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN')
         
@@ -176,25 +174,7 @@ def configure_instagram_webhook(instagram_business_id, instagram_token):
         print(f"Webhook URL: {webhook_url}")
         print(f"Verify Token: {verify_token}")
         
-        # 1. アプリレベルのサブスクリプション設定
-        app_access_token = f"{app_id}|{app_secret}"
-        app_subscription_url = f"https://graph.facebook.com/v22.0/{app_id}/subscriptions"
-        app_params = {
-            'access_token': app_access_token,
-            'object': 'instagram',
-            'callback_url': webhook_url,
-            'fields': 'messages',
-            'verify_token': verify_token
-        }
-        
-        print(f"Setting up app-level subscription: {app_subscription_url}")
-        print(f"App subscription params: {app_params}")
-        app_response = requests.post(app_subscription_url, params=app_params)
-        app_data = app_response.json()
-        print(f"App subscription response status: {app_response.status_code}")
-        print(f"App subscription response: {app_data}")
-        
-        # 2. ユーザーアカウントレベルのサブスクリプション設定
+        # Instagram APIではユーザーレベルのサブスクリプションのみが必要
         user_subscription_url = f"https://graph.instagram.com/v22.0/{instagram_business_id}/subscribed_apps"
         user_params = {
             'access_token': instagram_token,
@@ -208,15 +188,10 @@ def configure_instagram_webhook(instagram_business_id, instagram_token):
         print(f"User subscription response status: {user_response.status_code}")
         print(f"User subscription response: {user_data}")
         
-        app_success = app_response.status_code == 200 and app_data.get('success', False)
         user_success = user_response.status_code == 200 and user_data.get('success', False)
         
-        if app_success and user_success:
+        if user_success:
             return True, "Webhookサブスクリプションの設定に成功しました"
-        elif app_success:
-            return False, "アプリレベルのサブスクリプションは成功しましたが、ユーザーレベルのサブスクリプションに失敗しました"
-        elif user_success:
-            return False, "ユーザーレベルのサブスクリプションは成功しましたが、アプリレベルのサブスクリプションに失敗しました"
         else:
             return False, "Webhookサブスクリプションの設定に失敗しました"
     
