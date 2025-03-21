@@ -54,6 +54,12 @@ class User(db.Model, UserMixin):
     settings = db.Column(db.JSON, nullable=True, default={})
     preferences = db.Column(db.JSON, nullable=True, default={})
     
+    # スポット見出し設定
+    spots_heading = db.Column(db.String(50), nullable=True, default="Favorite Spots")
+    
+    # リレーションシップ
+    spots = db.relationship('Spot', back_populates='user', lazy=True)
+    
     def __init__(self, username, email, password):
         self.username = username
         self.email = email
