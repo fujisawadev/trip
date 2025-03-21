@@ -54,10 +54,6 @@ class User(db.Model, UserMixin):
     settings = db.Column(db.JSON, nullable=True, default={})
     preferences = db.Column(db.JSON, nullable=True, default={})
     
-    # リレーションシップ
-    trips = db.relationship('Trip', backref='user', lazy=True)
-    locations = db.relationship('Location', backref='user', lazy=True)
-    
     def __init__(self, username, email, password):
         self.username = username
         self.email = email
