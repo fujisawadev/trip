@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Spacey - スポット系インフルエンサーのためのAIマップツール。Instagram投稿を自動でスポットマップに変換し、フォロワーの「どこ？」という質問に自動返信。">
+    <title>Spacey - スポット系インフルエンサーのためのAIマップツール</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+  </head>
+  <body class="bg-white font-sans">
+    <!-- ヘッダー -->
+    <header class="bg-white/90 backdrop-blur-sm shadow-sm fixed w-full z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex items-center">
+            <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="Spacey Logo" class="h-8 w-8 mr-2">
+            <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Spacey</span>
+          </div>
+          <div class="flex items-center space-x-4">
+            <a href="{{ url_for('auth.login') }}" class="text-gray-700 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium">ログイン</a>
+            <a href="{{ url_for('auth.signup') }}" class="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg">無料ではじめる</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ヒーローセクション -->
+    <section class="hero-section pt-32 pb-20 text-white relative">
+      <!-- 装飾的な要素 -->
+      <div class="blob-shape top-20 right-10 w-64 h-64 rounded-full bg-white animate-float"></div>
+      <div class="blob-shape bottom-20 left-10 w-72 h-72 rounded-full bg-white animate-float" style="animation-delay: 2s;"></div>
+      
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="flex flex-col md:flex-row items-center">
+          <!-- 左側のテキスト -->
+          <div class="md:w-1/2 md:pr-8">
+            <div class="inline-flex items-center bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-bold mb-4">
+              <span class="bg-blue-500 h-3 w-3 rounded-full mr-2"></span>
+              スポット系インフルエンサー専用
+            </div>
+            
+            <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">AI搭載<br><span class="text-yellow-300">スポットマップ</span><br>作成ツール</h1>
+            
+            <div class="flex flex-wrap gap-3 mb-6">
+              <span class="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm inline-flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                マップ自動生成
+              </span>
+              <span class="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm inline-flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                Instagram連携
+              </span>
+              <span class="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm inline-flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                AI自動返信
+              </span>
+            </div>
+            
+            <p class="text-xl mb-8 text-blue-100">投稿が埋もれず、「どこ？」の質問にも自動返信。<br>カフェ・ホテル・観光スポット投稿を地図つきガイドに自動変換！</p>
+            
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+              <a href="{{ url_for('auth.signup') }}" class="bg-white text-blue-600 hover:bg-blue-50 font-bold py-3 px-8 rounded-full text-center transition-all shadow-lg hover:shadow-xl">今すぐ無料で始める</a>
+              <a href="https://trip-staging-e2866d45a042.herokuapp.com/Taichi%20Yano" class="bg-blue-700/30 backdrop-blur-sm hover:bg-blue-700/50 text-white font-bold py-3 px-8 rounded-full text-center transition-all border border-white/20">デモを見る</a>
+            </div>
+          </div>
+          
+          <!-- 右側のビジュアル -->
+          <div class="md:w-1/2 mt-12 md:mt-0">
+            <div class="relative bg-white/10 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-white/20">
+              <div class="bg-blue-900/60 rounded-xl overflow-hidden">
+                <img src="https://placehold.co/600x400/0a4b9f/white?text=スポットマップ+デモ" alt="スポットマップの例" class="w-full h-auto rounded-lg opacity-90">
+                <div class="absolute top-2 right-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold px-2 py-1 rounded-full">AI搭載</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <div class="features-wave"></div>
+
+    <!-- 特徴セクション -->
+    <section id="features" class="py-20">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+          <span class="inline-block bg-blue-100 text-blue-600 px-4 py-1 rounded-full text-sm font-medium mb-4">AI搭載サービス</span>
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">スポット系インフルエンサーの<br>3つの悩みをAIで解決</h2>
+          <p class="text-lg text-gray-600 max-w-2xl mx-auto">「投稿が埋もれる」「どこ？と何度も聞かれる」「フォロワーが場所を見失う」</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <!-- 特徴カード1 -->
+          <div class="feature-card bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+            <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 feature-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">スポットマップ作成</h3>
+            <p class="text-gray-600 mb-4">「どこにあるの？」の質問を解決！あなたのおすすめカフェやホテルがマップ上でひと目で確認できるページを簡単に作成できます。</p>
+            <div class="h-8">
+              <a href="https://trip-staging-e2866d45a042.herokuapp.com/Taichi%20Yano" class="inline-block text-blue-500 font-medium hover:underline">地図付きガイド機能</a>
+            </div>
+          </div>
+          
+          <!-- 特徴カード2 -->
+          <div class="feature-card bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+            <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 feature-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">インポート機能</h3>
+            <p class="text-gray-600 mb-4">投稿が埋もれる問題を解決！Instagramに投稿するだけで、AIが自動的に位置情報を抽出してスポットマップに追加します。</p>
+            <div class="h-8">
+              <a href="#" class="inline-block text-blue-500 font-medium hover:underline">自動コンテンツ同期</a>
+            </div>
+          </div>
+          
+          <!-- 特徴カード3 -->
+          <div class="feature-card bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+            <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 feature-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">DMオートリプライ</h3>
+            <p class="text-gray-600 mb-4">「このカフェどこ？」「予約方法は？」よくある質問に24時間AI自動返信。寝ている間もファンを増やせます！</p>
+            <div class="h-8">
+              <a href="#" class="inline-block text-blue-500 font-medium hover:underline">返信の手間ゼロ</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 使い方セクション -->
+    <section class="steps-section py-20">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+          <span class="inline-block bg-blue-100 text-blue-600 px-4 py-1 rounded-full text-sm font-medium mb-4">HOW TO START</span>
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">3ステップで<br>あなたの影響力アップ</h2>
+          <p class="text-lg text-gray-600 max-w-2xl mx-auto">わずか数分の設定で、インフルエンサーとしての活躍の場が広がります ✨</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- ステップ1 -->
+          <div class="bg-white rounded-2xl shadow-lg p-8 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-6">1</div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">アカウント作成</h3>
+            <p class="text-gray-600">30秒で登録完了！Instagramを連携するだけで、あなた専用ページの基本設定が完了します。</p>
+          </div>
+          
+          <!-- ステップ2 -->
+          <div class="bg-white rounded-2xl shadow-lg p-8 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-6">2</div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">投稿を同期</h3>
+            <p class="text-gray-600">ボタン一つで過去の投稿をインポート。AIが自動でスポット情報を認識し、キレイに整理します。</p>
+          </div>
+          
+          <!-- ステップ3 -->
+          <div class="bg-white rounded-2xl shadow-lg p-8 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-6">3</div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">ページを共有</h3>
+            <p class="text-gray-600">自動返信を設定してプロフィールをSNSで共有。フォロワーとのエンゲージメントが一気に向上！</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 料金プランセクション -->
+    <section class="py-20 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+          <span class="inline-block bg-blue-100 text-blue-600 px-4 py-1 rounded-full text-sm font-medium mb-4">PRICING</span>
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">シンプルな料金プラン</h2>
+          <p class="text-lg text-gray-600 max-w-2xl mx-auto">あなたのニーズに合わせた柔軟なプランをご用意しています</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <!-- フリープラン -->
+          <div class="bg-white rounded-2xl shadow-lg overflow-hidden transition-transform hover:scale-105 flex flex-col h-full">
+            <div class="p-8 flex-grow">
+              <h3 class="text-xl font-semibold text-gray-700 mb-2">フリープラン</h3>
+              <div class="flex items-end mb-6">
+                <span class="text-4xl font-bold text-gray-900">¥0</span>
+                <span class="text-gray-600 ml-1 mb-1">/月</span>
+              </div>
+              <p class="text-gray-600 mb-6">個人の旅行ガイド作成に最適なプラン</p>
+              <ul class="space-y-3 mb-8">
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span class="text-gray-600">マップ付き旅ガイド作成</span>
+                </li>
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span class="text-gray-600">スポット数無制限</span>
+                </li>
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-green-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span class="text-gray-600">手動スポット登録</span>
+                </li>
+              </ul>
+            </div>
+            <div class="p-8 bg-gray-50 mt-auto">
+              <a href="{{ url_for('auth.signup') }}" class="block w-full bg-white text-blue-600 border border-blue-500 font-bold py-3 px-4 rounded-full text-center hover:bg-blue-50 transition-all">無料ではじめる</a>
+            </div>
+          </div>
+          
+          <!-- プロプラン -->
+          <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl overflow-hidden text-white relative transition-transform hover:scale-105 flex flex-col h-full">
+            <div class="absolute top-4 right-4">
+              <span class="inline-block bg-yellow-400 text-blue-900 text-xs font-bold px-3 py-1 rounded-full">おすすめ</span>
+            </div>
+            <div class="p-8 flex-grow">
+              <h3 class="text-xl font-semibold mb-2">プロプラン</h3>
+              <div class="flex items-end mb-6">
+                <div class="flex items-center">
+                  <span class="text-2xl font-bold line-through opacity-70 mr-2">¥480</span>
+                  <span class="text-4xl font-bold">¥0</span>
+                </div>
+                <span class="ml-1 mb-1">/月</span>
+              </div>
+              <p class="text-blue-100 mb-6">本格的なインフルエンサー活動のための完全なツールセット</p>
+              <ul class="space-y-3 mb-8">
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-yellow-300 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>マップ付き旅ガイド作成</span>
+                </li>
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-yellow-300 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>スポット数無制限</span>
+                </li>
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-yellow-300 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>手動スポット登録</span>
+                </li>
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-yellow-300 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>AI自動インポート機能</span>
+                </li>
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-yellow-300 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>DM自動返信機能</span>
+                </li>
+                <li class="flex items-start">
+                  <svg class="w-5 h-5 text-yellow-300 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <span>優先サポート</span>
+                </li>
+              </ul>
+            </div>
+            <div class="p-8 bg-blue-600 mt-auto">
+              <a href="{{ url_for('auth.signup') }}?plan=pro" class="block w-full bg-white text-blue-600 font-bold py-3 px-4 rounded-full text-center hover:bg-blue-50 transition-all">無料ではじめる</a>
+            </div>
+          </div>
+        </div>
+        
+        <div class="text-center mt-12">
+          <p class="text-blue-600 font-bold">🎁 期間限定キャンペーン中：プロプランも今なら完全無料！ 🎁</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTAセクション -->
+    <section class="cta-section py-20 text-white">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+        <h2 class="text-3xl md:text-4xl font-bold mb-6">AI搭載スポットマップで<br>あなたの影響力アップ</h2>
+        <p class="text-xl mb-8 max-w-2xl mx-auto text-blue-100">埋もれがちな投稿を地図付きスポットガイドに変換。位置情報の自動認識、質問への24時間自動応答。<br>フォロワーに喜ばれる体験をカンタンに提供できます。</p>
+        <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+          <a href="{{ url_for('auth.signup') }}" class="bg-white text-blue-600 hover:bg-blue-50 font-bold py-4 px-10 rounded-full text-center transition-all shadow-lg hover:shadow-xl text-lg">無料ではじめる ✨</a>
+          <a href="{{ url_for('auth.login') }}" class="bg-blue-700/30 backdrop-blur-sm hover:bg-blue-700/50 text-white font-bold py-4 px-10 rounded-full text-center transition-all border border-white/20 text-lg">ログイン</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- フッター -->
+    <footer class="bg-gray-900 text-white py-16">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
+          <div>
+            <div class="flex items-center mb-6">
+              <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="Spacey Logo" class="h-8 w-8 mr-2">
+              <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Spacey</span>
+            </div>
+            <p class="text-gray-400 mb-6">インフルエンサーのための次世代プラットフォーム。簡単ウェブ作成、自動同期、AIオートリプライ。</p>
+            <div class="flex space-x-4">
+              <a href="#" class="text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clip-rule="evenodd"></path></svg>
+              </a>
+              <a href="#" class="text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path></svg>
+              </a>
+            </div>
+          </div>
+          
+          <div>
+            <h3 class="text-lg font-semibold mb-6">サービス</h3>
+            <ul class="space-y-4">
+              <li><a href="#" class="text-gray-400 hover:text-white">旅マップ作成</a></li>
+              <li><a href="#" class="text-gray-400 hover:text-white">スポットマップ作成</a></li>
+              <li><a href="#" class="text-gray-400 hover:text-white">AIオートリプライ</a></li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 class="text-lg font-semibold mb-6">会社情報</h3>
+            <ul class="space-y-4">
+              <li><a href="#" class="text-gray-400 hover:text-white">会社概要</a></li>
+              <li><a href="#" class="text-gray-400 hover:text-white">プライバシーポリシー</a></li>
+              <li><a href="#" class="text-gray-400 hover:text-white">利用規約</a></li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 class="text-lg font-semibold mb-6">お問い合わせ</h3>
+            <ul class="space-y-4">
+              <li><a href="#" class="text-gray-400 hover:text-white">サポート</a></li>
+              <li><a href="#" class="text-gray-400 hover:text-white">お問い合わせフォーム</a></li>
+              <li><a href="#" class="text-gray-400 hover:text-white">FAQ</a></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
+          <p>&copy; 2025 CAPSULE CORP. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html> 
