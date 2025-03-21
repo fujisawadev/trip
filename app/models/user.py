@@ -20,26 +20,34 @@ class User(db.Model, UserMixin):
     last_login = db.Column(db.DateTime)
     
     # アカウント設定
-    is_active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
     
     # プロフィール情報
     display_name = db.Column(db.String(100))
     bio = db.Column(db.Text)
     profile_image = db.Column(db.String(200))
+    profile_pic_url = db.Column(db.String(200))
+    location = db.Column(db.String(100))
+    website = db.Column(db.String(255))
     
     # Instagram連携情報
     instagram_token = db.Column(db.String(500))
     instagram_business_id = db.Column(db.String(100))
     instagram_username = db.Column(db.String(100))
+    instagram_user_id = db.Column(db.String(100))
+    instagram_connected_at = db.Column(db.DateTime)
     
     # Facebook連携情報（後方互換性のため）
     facebook_token = db.Column(db.String(500))
     facebook_page_id = db.Column(db.String(100))
+    facebook_connected_at = db.Column(db.DateTime)
+    webhook_subscription_id = db.Column(db.String(100))
     
     # 自動返信設定
     autoreply_enabled = db.Column(db.Boolean, default=False)
     autoreply_template = db.Column(db.Text, default="ご質問ありがとうございます。より詳しい情報は私のプロフィールをご覧ください: {profile_url}")
+    autoreply_last_updated = db.Column(db.DateTime)
     
     # アカウント検証
     is_verified = db.Column(db.Boolean, default=False)
@@ -86,6 +94,11 @@ class User(db.Model, UserMixin):
     def password(self, password):
         """パスワードハッシュを生成するセッター"""
         self.password_hash = generate_password_hash(password)
+    
+    @property
+    def get_profile_image(self):
+        """プロフィール画像URLを取得 - 互換性のために両方のカラムをチェック"""
+        return self.profile_image or self.profile_pic_url
     
     def generate_verification_token(self):
         self.verification_token = str(uuid.uuid4())
