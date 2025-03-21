@@ -1,123 +1,90 @@
+from app import db, login_manager, bcrypt
+from flask_login import UserMixin
 from datetime import datetime, timedelta
 import uuid
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
-from app import db, login_manager
 
 @login_manager.user_loader
 def load_user(id):
     return User.query.get(int(id))
 
-class User(db.Model, UserMixin):
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(100), nullable=False)
+    username = db.Column(db.String(64), nullable=True, index=True, unique=True)
+    email = db.Column(db.String(120), nullable=True, index=True, unique=True)
+    password_hash = db.Column(db.String(128), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     
-    # アカウント設定
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    is_admin = db.Column(db.Boolean, default=False, nullable=False)
-    
-    # プロフィール情報
-    display_name = db.Column(db.String(100))
-    bio = db.Column(db.Text)
-    profile_image = db.Column(db.String(200))
-    profile_pic_url = db.Column(db.String(200))
-    location = db.Column(db.String(100))
-    website = db.Column(db.String(255))
-    
-    # Instagram連携情報
-    instagram_token = db.Column(db.String(500))
-    instagram_business_id = db.Column(db.String(100))
-    instagram_username = db.Column(db.String(100))
-    instagram_user_id = db.Column(db.String(100))
-    instagram_connected_at = db.Column(db.DateTime)
-    
-    # Facebook連携情報（後方互換性のため）
-    facebook_token = db.Column(db.String(500))
-    facebook_page_id = db.Column(db.String(100))
-    facebook_connected_at = db.Column(db.DateTime)
-    webhook_subscription_id = db.Column(db.String(100))
-    
-    # 自動返信設定
-    autoreply_enabled = db.Column(db.Boolean, default=False)
-    autoreply_template = db.Column(db.Text, default="ご質問ありがとうございます。より詳しい情報は私のプロフィールをご覧ください: {profile_url}")
-    autoreply_last_updated = db.Column(db.DateTime)
+    bio = db.Column(db.Text, nullable=True)
+    profile_pic_url = db.Column(db.String(255), nullable=True)
+    spots_heading = db.Column(db.String(100), nullable=True, default='Favorite Spots')
     
     # アカウント検証
     is_verified = db.Column(db.Boolean, default=False)
-    verification_token = db.Column(db.String(100), nullable=True)
+    verification_token = db.Column(db.String(64), nullable=True)
     verification_sent_at = db.Column(db.DateTime, nullable=True)
     
     # パスワードリセット
     reset_password_token = db.Column(db.String(100), nullable=True)
     reset_password_expires = db.Column(db.DateTime, nullable=True)
     
-    # 追加設定
-    settings = db.Column(db.JSON, nullable=True, default={})
-    preferences = db.Column(db.JSON, nullable=True, default={})
+    # Instagram連携情報
+    instagram_token = db.Column(db.String(255), nullable=True)
+    instagram_user_id = db.Column(db.String(64), nullable=True)
+    instagram_username = db.Column(db.String(64), nullable=True)
+    instagram_connected_at = db.Column(db.DateTime, nullable=True)
+    instagram_business_id = db.Column(db.String(64), nullable=True)  # InstagramビジネスアカウントID
     
-    # スポット見出し設定
-    spots_heading = db.Column(db.String(50), nullable=True, default="Favorite Spots")
+    # Facebook連携情報
+    facebook_token = db.Column(db.String(255), nullable=True)  # Facebook認証トークン
+    facebook_page_id = db.Column(db.String(64), nullable=True)  # FacebookページID
+    facebook_connected_at = db.Column(db.DateTime, nullable=True)  # Facebook連携日時
+    webhook_subscription_id = db.Column(db.String(64), nullable=True)  # webhookサブスクリプションID
+    
+    # 自動返信設定
+    autoreply_enabled = db.Column(db.Boolean, default=False)  # 有効/無効フラグ
+    autoreply_template = db.Column(db.Text, nullable=True)  # 返信テンプレート
+    autoreply_last_updated = db.Column(db.DateTime, nullable=True)  # 最終更新日時
+    
+    # 追加設定
+    website = db.Column(db.String(255), nullable=True)
+    location = db.Column(db.String(100), nullable=True)
     
     # リレーションシップ
-    spots = db.relationship('Spot', back_populates='user', lazy=True)
-    social_accounts = db.relationship('SocialAccount', back_populates='user', lazy=True)
-    social_posts = db.relationship('SocialPost', foreign_keys='SocialPost.user_id', lazy=True)
+    spots = db.relationship('Spot', back_populates='user', lazy=True, cascade='all, delete-orphan')
+    social_accounts = db.relationship('SocialAccount', back_populates='user', lazy=True, cascade='all, delete-orphan')
     
-    def __init__(self, username, email, password):
+    def __init__(self, username, email, password=None, bio=None, profile_pic_url=None, spots_heading='Favorite Spots'):
         self.username = username
         self.email = email
-        self.password_hash = generate_password_hash(password)
+        self.bio = bio
+        self.profile_pic_url = profile_pic_url
+        self.spots_heading = spots_heading
+        self.created_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
+        if password:
+            self.set_password(password)
     
     def __repr__(self):
         return f'<User {self.username}>'
     
+    def set_password(self, password):
+        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+    
     def check_password(self, password):
-        try:
-            return check_password_hash(self.password_hash, password)
-        except Exception as e:
-            print(f"パスワードチェック中にエラーが発生しました: {str(e)}")
-            return False
-    
-    @property
-    def password(self):
-        """パスワードの取得を防止するプロパティ"""
-        raise AttributeError('password is not a readable attribute')
-    
-    @password.setter
-    def password(self, password):
-        """パスワードハッシュを生成するセッター"""
-        self.password_hash = generate_password_hash(password)
-    
-    @property
-    def get_profile_image(self):
-        """プロフィール画像URLを取得 - 互換性のために両方のカラムをチェック"""
-        return self.profile_image or self.profile_pic_url
+        if self.password_hash:
+            return bcrypt.check_password_hash(self.password_hash, password)
+        return False
     
     def generate_verification_token(self):
         self.verification_token = str(uuid.uuid4())
         self.verification_sent_at = datetime.utcnow()
         return self.verification_token
     
-    def verify_email(self):
-        self.is_verified = True
-        self.verification_token = None
-        return True
-    
-    def generate_reset_token(self):
+    def generate_reset_password_token(self):
         self.reset_password_token = str(uuid.uuid4())
         self.reset_password_expires = datetime.utcnow() + timedelta(hours=24)
-        return self.reset_password_token
-    
-    def is_instagram_connected(self):
-        """Instagramに接続されているかを確認"""
-        return bool(self.instagram_token and self.instagram_business_id)
-    
-    # 必要なメソッドや追加のプロパティをここに定義
-    # ... 
+        return self.reset_password_token 

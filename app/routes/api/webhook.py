@@ -168,15 +168,38 @@ def is_request_valid(request, signature):
 def process_webhook_entry(entry):
     """Webhookエントリーを処理する"""
     page_id = entry.get('id')
-    print(f"Webhookエントリー処理: page_id={page_id}, entry={json.dumps(entry, indent=2, ensure_ascii=False)}")
+    print(f"Webhookエントリー処理: id={page_id}, entry={json.dumps(entry, indent=2, ensure_ascii=False)}")
     
-    # ユーザー情報の取得 - 新API対応: Instagram Business IDで優先的に検索
+    # ユーザー情報の取得 - Instagram Business IDで検索
     user = User.query.filter_by(instagram_business_id=page_id).first()
     
-    # 後方互換性のためにFacebook Page IDでも検索
     if not user:
-        print(f"instagram_business_id={page_id}に対応するユーザーが見つかりません。Facebook Page IDで検索します。")
+        print(f"instagram_business_id={page_id}に対応するユーザーが見つかりません。")
+        
+        # 後方互換性のためにFacebook Page IDでも検索
         user = User.query.filter_by(facebook_page_id=page_id).first()
+        
+        if not user:
+            print(f"facebook_page_id={page_id}に対応するユーザーも見つかりません。Instagram連携済みのユーザーを検索します。")
+            instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+            
+            if instagram_users:
+                user_ids = [u.id for u in instagram_users]
+                usernames = [u.instagram_username for u in instagram_users]
+                print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
+                
+                # 最初のユーザーを使用
+                user = instagram_users[0]
+                print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
+                
+                # Instagram Business IDを更新
+                if not user.instagram_business_id:
+                    user.instagram_business_id = page_id
+                    db.session.commit()
+                    print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
+            else:
+                print("Instagram連携済みのユーザーが見つかりません")
+                return
     
     # メッセージイベントの処理
     messaging_events = entry.get('messaging', [])
@@ -192,33 +215,7 @@ def process_webhook_entry(entry):
             message_text = message.get('text', '')
             
             if message_text:
-                print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}, page_id: {page_id}")
-                
-                if not user:
-                    print(f"page_id={page_id}に対応するユーザーが見つかりません。Instagram連携済みのユーザーを検索します。")
-                    instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
-                    
-                    if instagram_users:
-                        user_ids = [u.id for u in instagram_users]
-                        usernames = [u.instagram_username for u in instagram_users]
-                        print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
-                        
-                        # 最初のユーザーを使用
-                        user = instagram_users[0]
-                        print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
-                        
-                        # IDを検出したらユーザー情報を更新（どちらかのIDフィールドを更新）
-                        if not user.instagram_business_id:
-                            user.instagram_business_id = page_id
-                            db.session.commit()
-                            print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
-                        elif not user.facebook_page_id:
-                            user.facebook_page_id = page_id
-                            db.session.commit()
-                            print(f"ユーザーのfacebook_page_idを{page_id}に更新しました")
-                    else:
-                        print("Instagram連携済みのユーザーが見つかりません")
-                        continue
+                print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}")
                 
                 # ユーザーの自動返信が有効かチェック
                 if not user.autoreply_enabled:
@@ -230,7 +227,7 @@ def process_webhook_entry(entry):
                 print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
                 
                 # 自動返信の条件を確認
-                auto_reply_threshold = 0.5
+                auto_reply_threshold = 0.5  # 確信度の閾値
                 if is_location_question and confidence >= auto_reply_threshold:
                     print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
                     
@@ -244,10 +241,14 @@ def process_webhook_entry(entry):
                     profile_url = f"https://{request.host}/u/{user.username}"
                     reply_message = template.replace('{profile_url}', profile_url)
                     
-                    # アクセストークンの取得（Instagram APIではInstagramトークンを優先的に使用）
-                    access_token = user.instagram_token or user.facebook_token
+                    # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
+                    access_token = user.instagram_token
                     if not access_token:
-                        print(f"ユーザーID{user.id}のトークンが設定されていません")
+                        print(f"ユーザーID{user.id}のInstagramトークンが設定されていません。Facebookトークンを試します。")
+                        access_token = user.facebook_token
+                    
+                    if not access_token:
+                        print(f"ユーザーID{user.id}のアクセストークンが設定されていません")
                         continue
                     
                     print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
@@ -286,44 +287,11 @@ def process_webhook_entry(entry):
             # messagesフィールドの処理
             if field == 'messages':
                 sender_id = value.get('sender', {}).get('id')
-                recipient_id = value.get('recipient', {}).get('id')
                 message = value.get('message', {})
                 message_text = message.get('text', '')
                 
                 if message_text:
                     print(f"フィールドベースで受信したメッセージ: {message_text}, 送信者: {sender_id}")
-                    
-                    # ページIDの取得
-                    page_id = entry.get('id')
-                    
-                    # ユーザー情報の取得 - 新API対応: Instagram Business IDで優先的に検索
-                    user = User.query.filter_by(instagram_business_id=page_id).first()
-                    
-                    # 後方互換性のためにFacebook Page IDでも検索
-                    if not user:
-                        print(f"instagram_business_id={page_id}に対応するユーザーが見つかりません。Facebook Page IDで検索します。")
-                        user = User.query.filter_by(facebook_page_id=page_id).first()
-                    
-                    if not user:
-                        print(f"page_id={page_id}に対応するユーザーが見つかりません。Instagram連携済みのユーザーを検索します。")
-                        # Instagram連携済みのユーザーを検索
-                        instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
-                        if not instagram_users:
-                            print("Instagram連携済みのユーザーが見つかりません")
-                            continue
-                        
-                        # 最初のユーザーを使用
-                        user = instagram_users[0]
-                        
-                        # IDを検出したらユーザー情報を更新（どちらかのIDフィールドを更新）
-                        if not user.instagram_business_id:
-                            user.instagram_business_id = page_id
-                            db.session.commit()
-                            print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
-                        elif not user.facebook_page_id:
-                            user.facebook_page_id = page_id
-                            db.session.commit()
-                            print(f"ユーザーのfacebook_page_idを{page_id}に更新しました")
                     
                     # ユーザーの自動返信が有効かチェック
                     if not user.autoreply_enabled:
@@ -335,7 +303,7 @@ def process_webhook_entry(entry):
                     print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
                     
                     # 自動返信の条件を確認
-                    auto_reply_threshold = 0.5
+                    auto_reply_threshold = 0.5  # 確信度の閾値
                     if is_location_question and confidence >= auto_reply_threshold:
                         print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
                         
@@ -349,13 +317,17 @@ def process_webhook_entry(entry):
                         profile_url = f"https://{request.host}/u/{user.username}"
                         reply_message = template.replace('{profile_url}', profile_url)
                         
-                        # アクセストークンの取得（Instagram APIではInstagramトークンを優先的に使用）
-                        access_token = user.instagram_token or user.facebook_token
+                        # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
+                        access_token = user.instagram_token
                         if not access_token:
-                            print(f"ユーザーID{user.id}のトークンが設定されていません")
+                            print(f"ユーザーID{user.id}のInstagramトークンが設定されていません。Facebookトークンを試します。")
+                            access_token = user.facebook_token
+                        
+                        if not access_token:
+                            print(f"ユーザーID{user.id}のアクセストークンが設定されていません")
                             continue
                         
-                        print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
+                        print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}")
                         result = send_instagram_reply(access_token, sender_id, reply_message)
                         
                         if result:
@@ -364,12 +336,6 @@ def process_webhook_entry(entry):
                             print(f"自動返信に失敗しました: 送信先={sender_id}")
                     else:
                         print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
-                else:
-                    print(f"メッセージ本文が空のため処理をスキップします")
-            
-            # commentsフィールドの処理（必要に応じて追加）
-            elif field == 'comments':
-                print(f"コメント通知を受信しましたが、現在処理は実装されていません")
 
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをキーワードベースで分析する"""
@@ -389,73 +355,41 @@ def analyze_message(message):
         is_location = "場所" in message or "どこ" in message
         return is_location, 0.7 if is_location else 0.2, "キーワード検出によるフォールバック判定（エラー発生後）"
 
-def send_instagram_reply(access_token, recipient_id, message):
-    """Instagramダイレクトメッセージに自動返信を送信する"""
+def send_instagram_reply(access_token, recipient_id, message_text):
+    """Instagramに直接メッセージを送信する"""
     try:
-        instagram_api_version = current_app.config.get('INSTAGRAM_API_VERSION', 'v18.0')
-        instagram_api_url = f"https://graph.instagram.com/{instagram_api_version}/me/messages"
-
-        # Instagram API対応のメッセージ送信
-        data = {
-            'recipient': json.dumps({'id': recipient_id}),
-            'message': json.dumps({'text': message}),
-            'access_token': access_token
-        }
-
-        # ログ記録（トークンを隠す）
-        log_data = data.copy()
-        log_data['access_token'] = log_data['access_token'][:5] + '...' if log_data['access_token'] else None
-        print(f"Instagram APIリクエスト: url={instagram_api_url}, data={json.dumps(log_data, indent=2, ensure_ascii=False)}")
-
-        # POSTリクエスト送信
-        response = requests.post(instagram_api_url, data=data)
+        url = "https://graph.facebook.com/v22.0/me/messages"
         
-        # レスポンス確認
-        if response.status_code == 200:
-            print(f"Instagram APIレスポンス成功: status_code={response.status_code}, response={response.text}")
-            return True
-        else:
-            # エラーの詳細をログに記録
-            error_message = f"Instagram APIエラー: status_code={response.status_code}, response={response.text}"
-            print(error_message)
-            
-            # Facebookメッセージング互換APIでの送信を試行（後方互換性のため）
-            # これは新APIが広く利用可能になるまでの移行期間中に役立ちます
-            return send_facebook_message(access_token, recipient_id, message)
-    except Exception as e:
-        print(f"Instagram APIエラー例外: {str(e)}")
-        traceback.print_exc()
+        # リクエストデータの詳細ログ
+        print(f"Instagram APIリクエスト情報: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token)}")
         
-        # エラー時はFacebookメッセージング互換APIでの送信を試行
-        return send_facebook_message(access_token, recipient_id, message)
-
-def send_facebook_message(access_token, recipient_id, message):
-    """レガシーFacebookメッセージングAPIを使用して送信（後方互換性用）"""
-    try:
-        fb_api_version = current_app.config.get('FACEBOOK_API_VERSION', 'v18.0')
-        fb_api_url = f"https://graph.facebook.com/{fb_api_version}/me/messages"
-
-        data = {
-            'recipient': json.dumps({'id': recipient_id}),
-            'message': json.dumps({'text': message}),
-            'access_token': access_token
+        payload = {
+            "recipient": {"id": recipient_id},
+            "message": {"text": message_text}
         }
-
-        # ログ記録（トークンを隠す）
-        log_data = data.copy()
-        log_data['access_token'] = log_data['access_token'][:5] + '...' if log_data['access_token'] else None
-        print(f"Facebook APIリクエスト: url={fb_api_url}, data={json.dumps(log_data, indent=2, ensure_ascii=False)}")
-
-        response = requests.post(fb_api_url, data=data)
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        params = {
+            "access_token": access_token
+        }
+        
+        print(f"リクエストペイロード: {json.dumps(payload)}")
+        
+        response = requests.post(url, headers=headers, params=params, json=payload)
+        
+        print(f"Instagram API応答: ステータスコード {response.status_code}, レスポンス {response.text}")
         
         if response.status_code == 200:
-            print(f"Facebook APIレスポンス成功: status_code={response.status_code}, response={response.text}")
+            print("Instagram返信送信成功")
             return True
         else:
-            error_message = f"Facebook APIエラー: status_code={response.status_code}, response={response.text}"
-            print(error_message)
+            print(f"Instagram返信送信失敗: ステータスコード {response.status_code}, レスポンス {response.text}")
             return False
+        
     except Exception as e:
-        print(f"Facebook APIエラー例外: {str(e)}")
-        traceback.print_exc()
+        print(f"Instagram返信送信中にエラーが発生しました: {str(e)}")
+        print(traceback.format_exc())
         return False 

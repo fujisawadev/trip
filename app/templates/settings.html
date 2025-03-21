@@ -1,200 +1,233 @@
-{% extends "base.html" %}
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex">
+    <title>設定 | Spacey</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <style>
+      /* グローバルナビゲーション用のスタイル */
+      .global-nav {
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0;
+        width: 100%;
+      }
+      .nav-item svg {
+        margin-bottom: 4px;
+      }
+      body {
+        padding-bottom: 64px; /* ナビゲーションの高さ分の余白を追加 */
+        background-color: white; /* 背景色を白に設定 */
+        min-height: 100vh;
+      }
+      .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 64px); /* 画面の高さからナビゲーションの高さを引いた分 */
+        background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
+      }
+    </style>
+  </head>
+  <body>
+    <main class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flask-flash-message hidden" data-category="{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <!-- ヘッダー -->
+        <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50">
+          <div class="w-[90px] flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
+          <h1 class="flex-1 text-lg font-bold text-center text-neutral-900">
+            設定
+          </h1>
+          <div class="w-[90px] flex justify-end"><!-- 右側の空白スペース（バランス用） --></div>
+        </nav>
 
-{% block content %}
-<div class="container mt-5">
-    <h1 class="mb-4">アカウント設定</h1>
-    
-    <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'profile' %}active{% endif %}" id="profile-tab" data-toggle="tab" href="#profile" role="tab">プロフィール</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'instagram' %}active{% endif %}" id="instagram-tab" data-toggle="tab" href="#instagram" role="tab">Instagram連携</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'password' %}active{% endif %}" id="password-tab" data-toggle="tab" href="#password" role="tab">パスワード変更</a>
-        </li>
-    </ul>
-    
-    <div class="tab-content" id="settingsTabsContent">
-        <!-- プロフィール設定タブ -->
-        <div class="tab-pane fade {% if tab == 'profile' %}show active{% endif %}" id="profile" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">プロフィール情報</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('profile_blueprint.update_profile') }}" enctype="multipart/form-data">
-                        {{ profile_form.csrf_token }}
-                        
-                        <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">ユーザー名</label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control" name="username" value="{{ current_user.username }}" readonly>
-                                <small class="form-text text-muted">ユーザー名は変更できません</small>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">表示名</label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control" name="display_name" value="{{ current_user.display_name or '' }}">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">メールアドレス</label>
-                            <div class="col-sm-9">
-                                <input type="email" class="form-control" name="email" value="{{ current_user.email }}">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">自己紹介</label>
-                            <div class="col-sm-9">
-                                <textarea class="form-control" name="bio" rows="4">{{ current_user.bio or '' }}</textarea>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">プロフィール画像</label>
-                            <div class="col-sm-9">
-                                <div class="custom-file">
-                                    <input type="file" class="custom-file-input" id="profile_image" name="profile_image">
-                                    <label class="custom-file-label" for="profile_image">画像を選択...</label>
-                                </div>
-                                {% if current_user.profile_image %}
-                                <div class="mt-2">
-                                    <img src="{{ current_user.profile_image }}" alt="プロフィール画像" class="img-thumbnail" style="max-width: 100px;">
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="text-right">
-                            <button type="submit" class="btn btn-primary">保存する</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Instagram連携タブ -->
-        <div class="tab-pane fade {% if tab == 'instagram' %}show active{% endif %}" id="instagram" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Instagram連携設定</h5>
-                </div>
-                <div class="card-body">
-                    {% if current_user.is_instagram_connected() %}
-                        <div class="alert alert-success">
-                            <i class="fas fa-check-circle mr-2"></i> Instagramアカウント「{{ current_user.instagram_username }}」と連携中です
-                        </div>
-                        
-                        <!-- 自動返信設定 -->
-                        <div class="card mb-4">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0">自動返信設定</h6>
-                            </div>
-                            <div class="card-body">
-                                <form method="POST" action="{{ url_for('profile_blueprint.update_autoreply') }}">
-                                    {{ autoreply_form.csrf_token }}
-                                    
-                                    <div class="form-group">
-                                        <div class="custom-control custom-switch">
-                                            <input type="checkbox" class="custom-control-input" id="autoreply_enabled" name="autoreply_enabled" {% if current_user.autoreply_enabled %}checked{% endif %}>
-                                            <label class="custom-control-label" for="autoreply_enabled">Instagram DMの自動返信を有効にする</label>
-                                        </div>
-                                        <small class="form-text text-muted">場所に関する質問に自動的に返信します</small>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label>自動返信テンプレート</label>
-                                        <textarea class="form-control" name="autoreply_template" rows="4">{{ current_user.autoreply_template or 'ご質問ありがとうございます。より詳しい情報は私のプロフィールをご覧ください: {profile_url}' }}</textarea>
-                                        <small class="form-text text-muted">
-                                            使用できる変数: <code>{profile_url}</code> - あなたのプロフィールURL
-                                        </small>
-                                    </div>
-                                    
-                                    <div class="text-right">
-                                        <button type="submit" class="btn btn-primary">自動返信設定を保存</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        
-                        <!-- Instagram連携解除 -->
-                        <form method="POST" action="{{ url_for('profile_blueprint.disconnect_instagram') }}" onsubmit="return confirm('Instagramの連携を解除しますか？自動返信機能が使えなくなります。');">
-                            {{ disconnect_form.csrf_token }}
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-unlink mr-1"></i> Instagram連携を解除する
-                            </button>
-                        </form>
-                    {% else %}
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle mr-2"></i> Instagramプロフェッショナルアカウント（ビジネスまたはクリエイターアカウント）と連携すると、DMへの自動返信機能が利用できます。
-                        </div>
-                        
-                        <div class="text-center my-4">
-                            <a href="{{ url_for('profile_blueprint.connect_instagram') }}" class="btn btn-primary btn-lg">
-                                <i class="fab fa-instagram mr-2"></i> Instagramと連携する
-                            </a>
-                        </div>
-                        
-                        <div class="card mt-4">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0">Instagram連携の手順</h6>
-                            </div>
-                            <div class="card-body">
-                                <ol>
-                                    <li class="mb-2">Instagramのプロフェッショナルアカウント（ビジネスまたはクリエイターアカウント）を用意してください。</li>
-                                    <li class="mb-2">「Instagramと連携する」ボタンをクリックして、Instagramにログインします。</li>
-                                    <li class="mb-2">アクセス許可を求められたら「許可する」を選択してください。</li>
-                                    <li>連携が完了すると、DMへの自動返信機能が利用できるようになります。</li>
-                                </ol>
-                                <div class="alert alert-warning mt-3">
-                                    <i class="fas fa-exclamation-triangle mr-2"></i> 個人アカウントではなく、ビジネスまたはクリエイターアカウントである必要があります。
-                                </div>
-                            </div>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <!-- パスワード変更タブ -->
-        <div class="tab-pane fade {% if tab == 'password' %}show active{% endif %}" id="password" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">パスワード変更</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('profile_blueprint.change_password') }}">
-                        {{ password_form.csrf_token }}
-                        
-                        <div class="form-group">
-                            <label>現在のパスワード</label>
-                            <input type="password" class="form-control" name="current_password" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>新しいパスワード</label>
-                            <input type="password" class="form-control" name="new_password" required>
-                            <small class="form-text text-muted">8文字以上で設定してください</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>新しいパスワード（確認）</label>
-                            <input type="password" class="form-control" name="confirm_password" required>
-                        </div>
-                        
-                        <div class="text-right">
-                            <button type="submit" class="btn btn-primary">パスワードを変更</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+        <nav>
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              アカウント
+            </h2>
+            <ul>
+              <li>
+                <a href="{{ url_for('auth.change_email') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">メールアドレスの変更</h3>
+                      <p class="text-sm text-gray-500">アカウントのメールアドレスを変更</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              </li>
+              <li>
+                <a href="{{ url_for('auth.change_password') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">パスワードの変更</h3>
+                      <p class="text-sm text-gray-500">アカウントパスワードを更新</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              Spacey AI
+            </h2>
+            <ul>
+              <li>
+                <a href="{{ url_for('profile.sns_settings') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">AI基本設定</h3>
+                      <p class="text-sm text-gray-500">ソーシャルメディアアカウントを連携</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2
+              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
+            >
+              その他
+            </h2>
+            <ul>
+              <li>
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSee4ngZv7aS50YUGpVRXIAF4r5hZW6asHoXz3UQb1SNCrq-hA/viewform" 
+                   class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                   target="_blank">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">サポート</h3>
+                      <p class="text-sm text-gray-500">サポートフォームへアクセス</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              </li>
+              <li>
+                <a href="https://taichijp.notion.site/a91e76cf7e154e50a8a8870f79d01276" 
+                   class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                   target="_blank">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">特商法</h3>
+                      <p class="text-sm text-gray-500">特定商取引法に基づく表記</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              </li>
+              <li>
+                <a href="{{ url_for('auth.logout') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center mr-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-base font-medium text-gray-800">ログアウト</h3>
+                      <p class="text-sm text-gray-500">アカウントからログアウト</p>
+                    </div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <div class="flex w-full bg-slate-50 min-h-5"></div>
+        </nav>
+      </div>
+    </main>
+
+    <!-- グローバルナビゲーション -->
+    <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
+      <a href="{{ url_for('profile.mypage') }}" class="nav-item text-slate-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span class="text-xs">ホーム</span>
+      </a>
+      <a href="{{ url_for('profile.import_management') }}" class="nav-item text-slate-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span class="text-xs">Spacey AI</span>
+      </a>
+      <a href="{{ url_for('profile.settings') }}" class="nav-item text-blue-500 hover:text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span class="text-xs">設定</span>
+      </a>
+    </nav>
+  </body>
+</html>
