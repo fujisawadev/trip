@@ -153,9 +153,9 @@
                   </svg>
                 </div>
                 <div>
-                  <h3 class="text-base font-medium text-yellow-800 mb-2">Facebookページとの連携が必要です</h3>
+                  <h3 class="text-base font-medium text-yellow-800 mb-2">Instagram連携が必要です</h3>
                   <p class="text-sm text-yellow-700 mb-3">
-                    機能を利用するには、Instgramアカウントと紐づいたFacebookページとの連携が必要です(Meta社公式のルールに基づく)
+                    機能を利用するには、Instagramビジネスアカウントとの連携が必要です
                   </p>
                 </div>
               </div>
@@ -166,8 +166,8 @@
                 <span class="text-base font-medium">AI基本設定ページへ</span>
               </a>
             </div>
-            {% elif not current_user.facebook_page_id %}
-            <!-- Instagramは連携済み、Facebookは未連携の場合 -->
+            {% elif not current_user.instagram_token %}
+            <!-- Instagramトークンがない場合 -->
             <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-6">
               <div class="flex items-start">
                 <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 mt-1">
@@ -176,9 +176,9 @@
                   </svg>
                 </div>
                 <div>
-                  <h3 class="text-base font-medium text-yellow-800 mb-2">DM自動返信機能の設定が必要です</h3>
+                  <h3 class="text-base font-medium text-yellow-800 mb-2">Instagram連携に問題があります</h3>
                   <p class="text-sm text-yellow-700 mb-3">
-                    Instagram DMの自動返信機能を利用するには、AI基本設定ページでDM自動返信機能を有効化する必要があります。
+                    Instagram DMの自動返信機能を利用するには、AI基本設定ページでInstagram連携をし直してください。
                   </p>
                   <a
                     href="{{ url_for('profile.sns_settings') }}"
@@ -190,7 +190,7 @@
               </div>
             </div>
             {% else %}
-            <!-- Instagram連携済み、Facebook連携済みの場合 -->
+            <!-- Instagram連携済みの場合 -->
             <!-- Instagram DMs Toggle -->
             <div
               class="flex gap-10 justify-between items-center py-3.5 w-full bg-white shadow-sm border border-gray-100 min-h-[72px] px-4 rounded-lg mb-4"

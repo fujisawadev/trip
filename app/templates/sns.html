@@ -214,7 +214,16 @@
                   </div>
                 </a>
                 {% else %}
-                <!-- 自動返信が無効の場合は有効化ボタンを表示 -->
+                <!-- コメントアウト: 自動返信が無効の場合でも設定ページへのリンクを表示 -->
+                <a href="{{ url_for('profile.autoreply_settings') }}" 
+                   class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-white">
+                  <div
+                    class="flex overflow-hidden justify-center items-center px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 transition-colors"
+                  >
+                    <span>設定する</span>
+                  </div>
+                </a>
+                <!-- 以下は自動返信の有効化ボタンだったもの（コメントアウト）
                 <form action="{{ url_for('profile.enable_autoreply') }}" method="POST">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" 
@@ -226,6 +235,7 @@
                     </div>
                   </button>
                 </form>
+                -->
                 {% endif %}
               </div>
             </article>
