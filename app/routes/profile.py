@@ -173,6 +173,7 @@ def setup_instagram_webhook(instagram_business_id, instagram_token):
         
         print(f"Setting up webhook for Instagram Business ID: {instagram_business_id}")
         print(f"Webhook URL: {webhook_url}")
+        print(f"Verify Token: {verify_token}")
         
         # 1. アプリレベルのサブスクリプション設定
         app_access_token = f"{app_id}|{app_secret}"
@@ -186,8 +187,10 @@ def setup_instagram_webhook(instagram_business_id, instagram_token):
         }
         
         print(f"Setting up app-level subscription: {app_subscription_url}")
+        print(f"App subscription params: {app_params}")
         app_response = requests.post(app_subscription_url, params=app_params)
         app_data = app_response.json()
+        print(f"App subscription response status: {app_response.status_code}")
         print(f"App subscription response: {app_data}")
         
         # 2. ユーザーアカウントレベルのサブスクリプション設定
@@ -198,8 +201,10 @@ def setup_instagram_webhook(instagram_business_id, instagram_token):
         }
         
         print(f"Setting up user-level subscription: {user_subscription_url}")
+        print(f"User subscription params: {user_params}")
         user_response = requests.post(user_subscription_url, params=user_params)
         user_data = user_response.json()
+        print(f"User subscription response status: {user_response.status_code}")
         print(f"User subscription response: {user_data}")
         
         app_success = app_response.status_code == 200 and app_data.get('success', False)
@@ -337,15 +342,15 @@ def instagram_callback():
         instagram_username = user_info.get('username')
         account_type = user_info.get('account_type', 'unknown')
         
-        # アカウントタイプをチェック（ビジネスアカウントかどうか）
-        if account_type != 'BUSINESS':
-            flash(f'Instagram連携にはビジネスアカウントが必要です。現在のアカウントタイプ: {account_type}', 'warning')
-            # ビジネスアカウントでない場合でも、一応情報は保存する
+        # アカウントタイプをチェック（プロアカウントかどうか）
+        if account_type not in ['BUSINESS', 'MEDIA_CREATOR']:
+            flash(f'Instagram連携にはビジネスアカウントまたはクリエイターアカウントが必要です。現在のアカウントタイプ: {account_type}', 'warning')
+            # プロアカウントでない場合でも、一応情報は保存する
         else:
-            # ビジネスアカウントの場合は追加設定を行う
+            # プロアカウントの場合は追加設定を行う
             try:
                 # ビジネスアカウント情報を取得
-                print("ビジネスアカウント情報の取得を開始")
+                print(f"ビジネスアカウント情報の取得を開始（アカウントタイプ: {account_type}）")
                 # 直接Instagram Graph APIからIGIDを取得
                 instagram_id_url = f"https://graph.instagram.com/me?fields=id,username&access_token={long_lived_token}"
                 ig_response = requests.get(instagram_id_url)
@@ -362,7 +367,9 @@ def instagram_callback():
                     current_user.instagram_business_id = ig_business_id
                     
                     # 新しい直接Webhook設定を実行
+                    print(f"===== Instagram Webhook設定開始 =====")
                     success, message = setup_instagram_webhook(ig_business_id, long_lived_token)
+                    print(f"===== Instagram Webhook設定結果: 成功={success}, メッセージ={message} =====")
                     
                     if success:
                         # 自動返信機能を有効化
