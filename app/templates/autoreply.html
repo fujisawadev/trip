@@ -120,29 +120,6 @@
               </p>
             </div>
 
-            <!-- 機能説明セクション -->
-            <section>
-              <div class="px-4 pt-6 pb-4">
-                <div class="p-4 bg-blue-50 rounded-lg border border-blue-100 mb-4">
-                  <h3 class="text-base font-medium text-blue-800 mb-2">
-                    DM自動返信機能について
-                  </h3>
-                  <p class="text-sm text-blue-700 mb-2">
-                    この機能を有効にすると、フォロワーからDMで「場所はどこですか？」などの質問を受けた際に、
-                    自動的に返信メッセージを送信します。
-                  </p>
-                  <p class="text-sm text-blue-700 mb-2">
-                    メッセージは自由にカスタマイズでき、あなたのプロフィールURLを含めることで
-                    スポット情報へ誘導できます。
-                  </p>
-                  <p class="text-sm text-blue-700">
-                    <strong>注意</strong>: この機能はInstagramビジネスアカウントが必要です。
-                    また、Instagram APIの仕様により、DMの自動返信は最初のメッセージから24時間以内のみ有効です。
-                  </p>
-                </div>
-              </div>
-            </section>
-
             {% if not current_user.instagram_username %}
             <!-- Instagram未連携の場合 -->
             <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-6">
@@ -155,7 +132,7 @@
                 <div>
                   <h3 class="text-base font-medium text-yellow-800 mb-2">Instagram連携が必要です</h3>
                   <p class="text-sm text-yellow-700 mb-3">
-                    機能を利用するには、Instagramビジネスアカウントとの連携が必要です
+                    自動返信機能を利用するには、Instagramプロアカウント(ビジネスもしくはクリエイター)との連携が必要です(Meta社公式のルールに基づく)
                   </p>
                 </div>
               </div>
