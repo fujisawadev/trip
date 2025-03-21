@@ -159,7 +159,7 @@
             {% endif %}
           </section>
 
-          <!-- 自動返信設定セクション -->
+          <!-- 自動返信設定セクション - 非表示
           <section>
             <h2
               class="px-4 pt-6 pb-2 w-full text-lg font-bold leading-none min-h-[47px] text-neutral-900"
@@ -167,9 +167,7 @@
               自動返信の有効化
             </h2>
             
-            <!-- Instagram連携状態 -->
             {% if current_user.instagram_business_id %}
-            <!-- ステータス: Instagram連携済み・自動返信機能有効/無効 -->
             <article
               class="flex gap-4 justify-between items-center px-4 py-3 w-full bg-slate-50 min-h-[72px]"
             >
@@ -204,7 +202,6 @@
               </div>
               <div class="flex flex-col items-end">
                 {% if current_user.autoreply_enabled %}
-                <!-- 自動返信が有効の場合は設定ページへのリンクを表示 -->
                 <a href="{{ url_for('profile.autoreply_settings') }}" 
                    class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-white">
                   <div
@@ -214,7 +211,6 @@
                   </div>
                 </a>
                 {% else %}
-                <!-- コメントアウト: 自動返信が無効の場合でも設定ページへのリンクを表示 -->
                 <a href="{{ url_for('profile.autoreply_settings') }}" 
                    class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-white">
                   <div
@@ -223,24 +219,10 @@
                     <span>設定する</span>
                   </div>
                 </a>
-                <!-- 以下は自動返信の有効化ボタンだったもの（コメントアウト）
-                <form action="{{ url_for('profile.enable_autoreply') }}" method="POST">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" 
-                    class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-white">
-                    <div
-                      class="flex overflow-hidden justify-center items-center px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 transition-colors"
-                    >
-                      <span>有効化する</span>
-                    </div>
-                  </button>
-                </form>
-                -->
                 {% endif %}
               </div>
             </article>
             {% else %}
-            <!-- Instagram未連携の場合は、連携を促す -->
             <article
               class="flex gap-4 justify-between items-center px-4 py-3 w-full bg-slate-50 min-h-[72px]"
             >
@@ -270,11 +252,12 @@
                 </div>
               </div>
               <div class="flex flex-col items-end">
-                <!-- ステータス1: Instagram未連携の場合は無効表示 -->
               </div>
             </article>
             {% endif %}
           </section>
+          -->
+
         </main>
 
         <footer
