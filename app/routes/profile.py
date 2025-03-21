@@ -8,10 +8,11 @@ from app.models.spot import Spot
 from app.models.import_progress import ImportProgress
 import uuid
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import hmac
 import json
+import traceback
 
 bp = Blueprint('profile', __name__)
 
@@ -163,7 +164,7 @@ def connect_instagram():
     # Instagram認証ページにリダイレクト
     return redirect(auth_url)
 
-def setup_instagram_webhook(instagram_business_id, instagram_token):
+def configure_instagram_webhook(instagram_business_id, instagram_token):
     """Instagramビジネスアカウントに直接Webhookを設定（Facebook不要）"""
     try:
         app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
@@ -221,7 +222,6 @@ def setup_instagram_webhook(instagram_business_id, instagram_token):
     
     except Exception as e:
         print(f"Webhook設定中にエラーが発生しました: {str(e)}")
-        import traceback
         print(traceback.format_exc())
         return False, f"Webhook設定中にエラー: {str(e)}"
 
@@ -368,7 +368,7 @@ def instagram_callback():
                     
                     # 新しい直接Webhook設定を実行
                     print(f"===== Instagram Webhook設定開始 =====")
-                    success, message = setup_instagram_webhook(ig_business_id, long_lived_token)
+                    success, message = configure_instagram_webhook(ig_business_id, long_lived_token)
                     print(f"===== Instagram Webhook設定結果: 成功={success}, メッセージ={message} =====")
                     
                     if success:
@@ -394,7 +394,6 @@ def instagram_callback():
         
         flash(f'Instagram連携が完了しました。ユーザー名: {instagram_username}', 'success')
     except Exception as e:
-        import traceback
         print(f"Instagram連携中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
         flash(f'Instagram連携中にエラーが発生しました: {str(e)}', 'danger')
@@ -590,7 +589,6 @@ def disconnect_instagram():
         
         flash('Instagram連携を解除しました', 'success')
     except Exception as e:
-        import traceback
         print(f"Instagram連携解除中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
         flash(f'Instagram連携解除中にエラーが発生しました: {str(e)}', 'danger')
@@ -873,7 +871,6 @@ def facebook_callback():
                 print(f"Updated current_user {current_user.id} with Facebook data")
         except Exception as save_error:
             print(f"Error saving user data: {str(save_error)}")
-            import traceback
             print(traceback.format_exc())
             flash('Facebook連携の設定中にエラーが発生しました。', 'danger')
             return redirect(url_for('profile.autoreply_settings'))
@@ -884,7 +881,6 @@ def facebook_callback():
             flash('DM自動返信機能を有効化しましたが、通知設定に問題がありました: {message}', 'warning')
         
     except Exception as e:
-        import traceback
         print(f"DM自動返信機能の有効化中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
         flash(f'DM自動返信機能の有効化中にエラーが発生しました: {str(e)}', 'danger')
@@ -1140,7 +1136,6 @@ def enable_autoreply():
     except Exception as e:
         db.session.rollback()
         print(f"自動返信機能の有効化中にエラーが発生しました: {str(e)}")
-        import traceback
         print(traceback.format_exc())
         flash('自動返信機能の有効化中にエラーが発生しました。', 'danger')
     
