@@ -34,7 +34,8 @@ class Config:
         'pool_size': 10,
         'pool_recycle': 3600,
         'pool_timeout': 30,
-        'max_overflow': 2
+        'max_overflow': 2,
+        'pool_pre_ping': True,  # 接続前に軽量なクエリでチェック
     }
     
     # メール設定

@@ -51,6 +51,14 @@ def create_app(config_class=None):
     db.init_app(flask_app)
     migrate.init_app(flask_app, db)
     
+    # エラーハンドリングのセットアップ - トランザクションのアボート状態をリセットする
+    @flask_app.teardown_request
+    def teardown_request(exception=None):
+        if exception:
+            db.session.rollback()
+            flask_app.logger.warning(f"リクエスト中に例外が発生したためセッションをロールバックします: {str(exception)}")
+        db.session.remove()
+
     # ログイン管理の初期化
     login_manager.init_app(flask_app)
     login_manager.login_view = 'auth.login'

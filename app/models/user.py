@@ -14,7 +14,7 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+    password_hash = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
@@ -59,17 +59,33 @@ class User(db.Model, UserMixin):
     
     # リレーションシップ
     spots = db.relationship('Spot', back_populates='user', lazy=True)
+    social_accounts = db.relationship('SocialAccount', back_populates='user', lazy=True)
+    social_posts = db.relationship('SocialPost', foreign_keys='SocialPost.user_id', lazy=True)
     
     def __init__(self, username, email, password):
         self.username = username
         self.email = email
-        self.password = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password)
     
     def __repr__(self):
         return f'<User {self.username}>'
     
     def check_password(self, password):
-        return check_password_hash(self.password, password)
+        try:
+            return check_password_hash(self.password_hash, password)
+        except Exception as e:
+            print(f"パスワードチェック中にエラーが発生しました: {str(e)}")
+            return False
+    
+    @property
+    def password(self):
+        """パスワードの取得を防止するプロパティ"""
+        raise AttributeError('password is not a readable attribute')
+    
+    @password.setter
+    def password(self, password):
+        """パスワードハッシュを生成するセッター"""
+        self.password_hash = generate_password_hash(password)
     
     def generate_verification_token(self):
         self.verification_token = str(uuid.uuid4())
