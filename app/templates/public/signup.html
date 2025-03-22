@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>ログイン | Spacey</title>
+    <title>新規登録 | Spacey</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,22 +13,26 @@
   <body class="bg-slate-100 min-h-screen flex items-center justify-center">
     <form
       class="mx-auto w-full bg-white max-w-[480px]"
-      aria-labelledby="login-title"
+      aria-labelledby="signup-title"
       method="POST"
-      action="{{ url_for('auth.login') }}"
+      action="{{ url_for('auth.signup') }}"
     >
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <main class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
         <header
           class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
         >
-          <div class="flex items-center self-stretch my-auto w-12 min-h-12">
+          <a
+            href="{{ url_for('main.index') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="戻る"
+          >
             <img
-              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/6476c7ec33ff8e8603d6d249dde13d9eea6db7e29c0f742b558352e652eda1ce?placeholderIfAbsent=true"
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/dc35af4f720669171b19e767ff8083df959589376e3db375fb2496d480e542d8?placeholderIfAbsent=true"
               alt="戻る"
               class="object-contain self-stretch my-auto w-6 aspect-square"
             />
-          </div>
+          </a>
         </header>
 
         <!-- フラッシュメッセージ -->
@@ -41,18 +45,33 @@
         {% endwith %}
 
         <h1
-          id="login-title"
           class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none text-neutral-900"
         >
-          アカウントにログイン
+          新規登録
         </h1>
 
         <div class="flex gap-4 items-end px-4 py-3 w-full text-base">
           <div class="flex-1 shrink w-full basis-0 min-w-40">
             <label
-              for="email"
-              class="block pb-2 w-full font-medium whitespace-nowrap text-neutral-900"
+              class="pb-2 w-full font-medium text-neutral-900"
+              for="fullName"
             >
+              お名前
+            </label>
+            <input
+              type="text"
+              id="fullName"
+              name="fullName"
+              placeholder="お名前を入力"
+              class="overflow-hidden self-stretch p-4 w-full rounded-xl bg-slate-200 min-h-14 text-slate-500"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="flex gap-4 items-end px-4 py-3 w-full text-base">
+          <div class="flex-1 shrink w-full basis-0 min-w-40">
+            <label class="pb-2 w-full font-medium text-neutral-900" for="email">
               メールアドレス
             </label>
             <input
@@ -69,8 +88,8 @@
         <div class="flex gap-4 items-end px-4 py-3 w-full">
           <div class="flex-1 shrink w-full basis-0 min-w-40">
             <label
+              class="pb-2 w-full text-base font-medium whitespace-nowrap text-neutral-900"
               for="password"
-              class="block pb-2 w-full text-base font-medium whitespace-nowrap text-neutral-900"
             >
               パスワード
             </label>
@@ -113,34 +132,46 @@
           </div>
         </div>
 
-        <div class="px-4 pt-1 pb-3 w-full">
-          <a href="{{ url_for('auth.forgot_password') }}" class="text-sm text-slate-500 hover:text-slate-700">
-            パスワードをお忘れの方
-          </a>
-        </div>
-
         <div
-          class="flex items-start px-4 py-3 w-full text-sm font-bold text-center text-slate-50"
+          class="flex justify-between items-start w-full text-sm font-bold text-center"
         >
-          <button
-            type="submit"
-            class="flex overflow-hidden flex-1 shrink justify-center items-center px-4 w-full bg-blue-500 rounded-xl basis-0 max-w-[480px] min-h-10 min-w-[84px] hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          <div
+            class="flex-1 shrink px-4 py-3 w-full basis-0 max-w-[480px] min-w-60"
           >
-            ログイン
-          </button>
+            <button
+              type="submit"
+              class="flex overflow-hidden justify-center items-center px-4 w-full bg-blue-500 rounded-xl min-h-10 min-w-[84px] text-slate-50 hover:bg-blue-600 transition-colors"
+            >
+              <span class="overflow-hidden my-auto whitespace-nowrap">
+                アカウントを作成
+              </span>
+            </button>
+
+            <a
+              href="{{ url_for('auth.login') }}"
+              class="flex overflow-hidden justify-center items-center px-4 mt-3 w-full rounded-xl min-h-10 min-w-[84px] text-neutral-900 hover:bg-slate-100 transition-colors"
+            >
+              <span class="overflow-hidden my-auto whitespace-nowrap">
+                すでにアカウントをお持ちの方はこちら
+              </span>
+            </a>
+          </div>
         </div>
 
-        <div class="px-4 pt-1 pb-3 w-full text-sm text-center text-slate-500">
-          アカウントをお持ちでない方
-          <a href="{{ url_for('auth.signup') }}" class="text-blue-500 hover:text-blue-600"> 新規登録 </a>
-        </div>
+        <footer
+          class="px-4 pt-1 pb-3 w-full text-sm leading-5 text-center text-slate-500"
+        >
+          登録することで、
+          <a href="https://taichijp.notion.site/1b77cae788c180aa93e0d90f09f77ae9" class="underline hover:text-slate-700" target="_blank">利用規約</a>と
+          <a href="https://taichijp.notion.site/1b77cae788c18033a02bd7c46104ba7e" class="underline hover:text-slate-700" target="_blank">プライバシーポリシー</a>に同意したものとみなされます。
+        </footer>
 
         <div class="flex w-full bg-slate-50 min-h-5"></div>
       </main>
     </form>
 
     <script>
-      // パスワード表示/非表示の切り替え機能
+      // パスワード表示/非表示の切り替え
       document.querySelectorAll('.toggle-password').forEach(button => {
         button.addEventListener('click', function() {
           const targetId = this.dataset.target;
@@ -158,6 +189,22 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             `;
           }
+        });
+      });
+
+      // 入力バリデーションのフィードバック追加
+      const inputs = document.querySelectorAll("input");
+      inputs.forEach((input) => {
+        input.addEventListener("blur", function () {
+          if (!this.value.trim()) {
+            this.classList.add("border-red-500");
+          } else {
+            this.classList.remove("border-red-500");
+          }
+        });
+
+        input.addEventListener("focus", function () {
+          this.classList.remove("border-red-500");
         });
       });
     </script>
