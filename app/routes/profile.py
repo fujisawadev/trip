@@ -152,7 +152,7 @@ def connect_instagram():
     session['instagram_auth_state'] = state
     
     # 2024年最新の有効なスコープ - Instagram API with Instagram Login対応
-    scope = "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights"
+    scope = "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights,instagram_basic,instagram_manage_messages,pages_manage_metadata"
     
     # Instagram認証URLを生成 - Facebook連携を必須としない設定
     # enable_fb_login=0は古いAPI向けのパラメータ、force_authentication=1は常に認証を要求する設定
