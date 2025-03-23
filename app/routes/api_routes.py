@@ -589,7 +589,7 @@ def fetch_instagram_posts():
     
     try:
         # Instagram Graph APIを呼び出す
-        url = f"https://graph.instagram.com/v18.0/me/media"
+        url = f"https://graph.instagram.com/v22.0/me/media"
         params = {
             "fields": "id,caption,media_type,media_url,permalink,timestamp,location",
             "access_token": current_user.instagram_token,

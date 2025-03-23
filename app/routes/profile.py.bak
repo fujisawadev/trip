@@ -248,7 +248,7 @@ def instagram_callback():
         print(f"Got short-lived token and user ID: {instagram_user_id}")
         
         # 長期アクセストークンに交換（60日間有効）
-        graph_url = f"https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret={client_secret}&access_token={short_lived_token}"
+        graph_url = f"https://graph.instagram.com/v22.0/access_token?grant_type=ig_exchange_token&client_secret={client_secret}&access_token={short_lived_token}"
         response = requests.get(graph_url)
         long_lived_data = response.json()
         
@@ -262,8 +262,8 @@ def instagram_callback():
         long_lived_token = long_lived_data.get('access_token')
         expires_in = long_lived_data.get('expires_in', 5184000)  # デフォルトは60日（5184000秒）
         
-        # ユーザー名を取得
-        user_info_url = f"https://graph.instagram.com/me?fields=username,account_type&access_token={long_lived_token}"
+        # ユーザー情報を取得
+        user_info_url = f"https://graph.instagram.com/v22.0/me?fields=username,account_type&access_token={long_lived_token}"
         response = requests.get(user_info_url)
         user_info = response.json()
         
@@ -286,8 +286,8 @@ def instagram_callback():
             try:
                 # ビジネスアカウント（ページ）情報を取得
                 print("ビジネスアカウント情報の取得を開始")
-                # 直接Instagram Graph APIからIGIDを取得
-                instagram_id_url = f"https://graph.instagram.com/me?fields=id,username&access_token={long_lived_token}"
+                # Instagramのユーザー情報を取得
+                instagram_id_url = f"https://graph.instagram.com/v22.0/me?fields=id,username&access_token={long_lived_token}"
                 ig_response = requests.get(instagram_id_url)
                 ig_info = ig_response.json()
                 

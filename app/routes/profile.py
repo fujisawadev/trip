@@ -152,7 +152,7 @@ def connect_instagram():
     session['instagram_auth_state'] = state
     
     # 2024年最新の有効なスコープ - Instagram API with Instagram Login対応
-    scope = "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights"
+    scope = "instagram_business_basic"
     
     # Instagram認証URLを生成 - Facebook連携を必須としない設定
     # enable_fb_login=0は古いAPI向けのパラメータ、force_authentication=1は常に認証を要求する設定
@@ -288,7 +288,7 @@ def instagram_callback():
         print(f"Got short-lived token and user ID: {instagram_user_id}")
         
         # 長期アクセストークンに交換（60日間有効）
-        graph_url = f"https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret={client_secret}&access_token={short_lived_token}"
+        graph_url = f"https://graph.instagram.com/v22.0/access_token?grant_type=ig_exchange_token&client_secret={client_secret}&access_token={short_lived_token}"
         response = requests.get(graph_url)
         long_lived_data = response.json()
         
@@ -302,8 +302,8 @@ def instagram_callback():
         long_lived_token = long_lived_data.get('access_token')
         expires_in = long_lived_data.get('expires_in', 5184000)  # デフォルトは60日（5184000秒）
         
-        # ユーザー名を取得
-        user_info_url = f"https://graph.instagram.com/me?fields=username,account_type&access_token={long_lived_token}"
+        # ユーザー情報を取得
+        user_info_url = f"https://graph.instagram.com/v22.0/me?fields=username,account_type&access_token={long_lived_token}"
         response = requests.get(user_info_url)
         user_info = response.json()
         
@@ -326,8 +326,8 @@ def instagram_callback():
             try:
                 # ビジネスアカウント情報を取得
                 print(f"ビジネスアカウント情報の取得を開始（アカウントタイプ: {account_type}）")
-                # 直接Instagram Graph APIからIGIDを取得
-                instagram_id_url = f"https://graph.instagram.com/me?fields=id,username&access_token={long_lived_token}"
+                # Instagramのユーザー情報を取得
+                instagram_id_url = f"https://graph.instagram.com/v22.0/me?fields=id,username&access_token={long_lived_token}"
                 ig_response = requests.get(instagram_id_url)
                 ig_info = ig_response.json()
                 
@@ -393,7 +393,7 @@ def revoke_meta_token(access_token, app_id=None):
             app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
         
         # トークンの失効リクエスト
-        revoke_url = f"https://graph.facebook.com/v18.0/me/permissions"
+        revoke_url = f"https://graph.facebook.com/v22.0/me/permissions"
         params = {
             'access_token': access_token
         }
@@ -437,7 +437,7 @@ def unsubscribe_webhook(app_id, app_secret, subscription_id=None):
         app_access_token = f"{app_id}|{app_secret}"
         
         # すべてのWebhookサブスクリプションを削除
-        webhook_url = f"https://graph.facebook.com/v18.0/{app_id}/subscriptions"
+        webhook_url = f"https://graph.facebook.com/v22.0/{app_id}/subscriptions"
         
         if subscription_id:
             # 特定のサブスクリプションのみを削除
@@ -499,7 +499,7 @@ def unsubscribe_page_webhook(page_id, page_access_token):
             return False
             
         # ページのサブスクリプションを削除
-        webhook_url = f"https://graph.facebook.com/v18.0/{page_id}/subscribed_apps"
+        webhook_url = f"https://graph.facebook.com/v22.0/{page_id}/subscribed_apps"
         params = {
             'access_token': page_access_token
         }
