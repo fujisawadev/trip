@@ -362,14 +362,9 @@ def send_instagram_reply(access_token, recipient_id, message_text):
         # url = "https://graph.facebook.com/v22.0/me/messages"
         url = "https://graph.instagram.com/v22.0/me/messages"
         
-        # IGIDを使用して送信先を指定
-        # IGSIDは通常「ig.me.9078458665596736」のような形式
-        # 数字のみが渡された場合はIGSIDの形式に変換
-        if recipient_id.isdigit():
-            instagram_scoped_id = f"ig.me.{recipient_id}"
-            print(f"数字のみのIDをIGSID形式に変換: {recipient_id} → {instagram_scoped_id}")
-        else:
-            instagram_scoped_id = recipient_id
+        # Metaドキュメントに基づいたIGSIDフォーマット
+        # 数字のみのIDをそのまま使用（前回のig.me.プレフィックスは誤り）
+        instagram_scoped_id = recipient_id
         
         # リクエストデータの詳細ログ
         print(f"Instagram APIリクエスト情報: URL={url}, recipient_id={instagram_scoped_id}, トークン長さ={len(access_token)}")
