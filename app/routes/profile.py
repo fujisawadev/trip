@@ -319,7 +319,7 @@ def instagram_callback():
         
         # アカウントタイプをチェック（プロアカウントかどうか）
         if account_type not in ['BUSINESS', 'MEDIA_CREATOR']:
-            flash(f'Instagram連携にはビジネスアカウントまたはクリエイターアカウントが必要です。現在のアカウントタイプ: {account_type}', 'warning')
+            flash(f'Instagram連携にはプロアカウント（ビジネスまたはクリエイター）が必要です。現在のアカウントタイプ: {account_type}', 'warning')
             # プロアカウントでない場合でも、一応情報は保存する
         else:
             # プロアカウントの場合は追加設定を行う
@@ -341,24 +341,21 @@ def instagram_callback():
                     # ビジネスアカウントIDを保存
                     current_user.instagram_business_id = ig_business_id
                     
-                    # 新しい直接Webhook設定を実行
-                    print(f"===== Instagram Webhook設定開始 =====")
-                    success, message = configure_instagram_webhook(ig_business_id, long_lived_token)
-                    print(f"===== Instagram Webhook設定結果: 成功={success}, メッセージ={message} =====")
+                    # ユーザー名を取得
+                    ig_username = ig_info.get('username', '')
                     
-                    if success:
-                        # 自動返信機能を有効化
-                        current_user.autoreply_enabled = True
-                        flash('Instagram連携と自動返信機能の設定が完了しました！', 'success')
-                    else:
-                        flash(f'Instagram連携は成功しましたが、自動返信機能の設定に問題がありました: {message}', 'warning')
+                    # データベースに保存
+                    current_user.instagram_username = ig_username
+                    
+                    print(f"Instagram連携が完了しました（ID: {ig_business_id}, ユーザー名: {ig_username}）")
+                    flash('Instagram連携が完了しました！', 'success')
                 else:
                     print("Instagram ID情報の取得に失敗")
                     flash('Instagram連携は成功しましたが、アカウント情報の取得に失敗しました。', 'warning')
             except Exception as e:
-                print(f"ビジネスアカウント設定中にエラー: {str(e)}")
+                print(f"ビジネスアカウント情報取得中にエラー: {str(e)}")
                 print(traceback.format_exc())
-                flash('ウェブフック設定中にエラーが発生しました。自動返信機能が正しく動作しない可能性があります。', 'warning')
+                flash('Instagram連携中にエラーが発生しました。', 'warning')
         
         # ユーザーモデルに保存
         current_user.instagram_token = long_lived_token
@@ -367,7 +364,7 @@ def instagram_callback():
         current_user.instagram_connected_at = datetime.utcnow()
         db.session.commit()
         
-        flash(f'Instagram連携が完了しました。ユーザー名: {instagram_username}', 'success')
+        flash('Instagram連携が完了しました！', 'success')
     except Exception as e:
         print(f"Instagram連携中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
@@ -535,10 +532,10 @@ def disconnect_instagram():
     # CSRFトークンの検証（Flask-WTF内でチェック）
     
     try:
-        # アクセストークンを失効
-        access_token = current_user.instagram_token
-        if access_token:
-            revoke_meta_token(access_token)
+        # アクセストークン失効処理は不要（トークンは自動的に失効するため）
+        # access_token = current_user.instagram_token
+        # if access_token:
+        #     revoke_meta_token(access_token)
         
         # Webhookサブスクリプションを解除
         app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
@@ -555,6 +552,20 @@ def disconnect_instagram():
         current_user.instagram_business_id = None
         current_user.instagram_connected_at = None
         current_user.webhook_subscription_id = None
+        
+        # Facebook連携情報もクリア（依存関係のため）
+        if current_user.facebook_token:
+            try:
+                # Facebookページのwebhookサブスクリプション解除
+                if current_user.facebook_page_id:
+                    unsubscribe_page_webhook(current_user.facebook_page_id, current_user.facebook_token)
+            except Exception as fb_error:
+                print(f"Facebook連携解除中に例外が発生: {str(fb_error)}")
+        
+        # Facebook連携情報をクリア
+        current_user.facebook_token = None
+        current_user.facebook_page_id = None
+        current_user.facebook_connected_at = None
         
         # 自動返信設定も無効化
         current_user.autoreply_enabled = False
@@ -765,7 +776,7 @@ def facebook_callback():
         
         # ページデータが空の場合はエラーメッセージを表示
         if not pages_data.get('data'):
-            flash('接続可能なFacebookページが見つかりませんでした。ビジネスアカウントと接続されているか確認してください。', 'warning')
+            flash('接続可能なFacebookページが見つかりませんでした。Instagramプロアカウントと接続されているか確認してください。', 'warning')
             return redirect(url_for('profile.autoreply_settings'))
         
         if 'error' in pages_data:
@@ -779,7 +790,7 @@ def facebook_callback():
         pages = pages_data.get('data', [])
         
         if not pages:
-            flash('接続可能なFacebookページが見つかりませんでした。ビジネスアカウントとして設定されているか確認してください。', 'warning')
+            flash('接続可能なFacebookページが見つかりませんでした。Instagramプロアカウントとして設定されているか確認してください。', 'warning')
             return redirect(url_for('profile.autoreply_settings'))
         
         # 最初のページを使用
