@@ -104,6 +104,42 @@ def test():
         print(traceback.format_exc())
         return jsonify({'success': False, 'error': 'テスト中にエラーが発生しました'}), 500
 
+@autoreply_bp.route('/send_test', methods=['POST'])
+@login_required
+def send_test():
+    """テスト用のメッセージ送信API"""
+    try:
+        data = request.get_json()
+        if data is None:
+            return jsonify({'success': False, 'error': '無効なリクエスト形式です'}), 400
+        
+        recipient_id = data.get('recipient_id')
+        message = data.get('message')
+        
+        if not recipient_id:
+            return jsonify({'success': False, 'error': '送信先IDが指定されていません'}), 400
+        
+        if not message:
+            return jsonify({'success': False, 'error': 'メッセージが入力されていません'}), 400
+        
+        # アクセストークンの確認
+        access_token = current_user.instagram_token
+        if not access_token:
+            return jsonify({'success': False, 'error': 'Instagram連携が完了していません'}), 400
+        
+        print(f"テスト送信を実行: ユーザー={current_user.username}, 送信先ID={recipient_id}")
+        success = send_instagram_test_message(access_token, recipient_id, message)
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'メッセージの送信に失敗しました'}), 500
+            
+    except Exception as e:
+        print(f"テスト送信中にエラーが発生しました: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'テスト中にエラーが発生しました'}), 500
+
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをAIで分析する"""
     try:
@@ -164,4 +200,42 @@ def analyze_message(message):
         print(f"[analyze_message] エラー発生: {str(e)}")
         print(traceback.format_exc())
         # エラーの場合はFalseを返す
-        return False, 0.0, "分析エラー" 
+        return False, 0.0, "分析エラー"
+
+def send_instagram_test_message(access_token, recipient_id, message_text):
+    """Instagramにテスト用メッセージを送信する"""
+    try:
+        url = "https://graph.facebook.com/v22.0/me/messages"
+        
+        print(f"Instagram APIテスト送信: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token)}")
+        
+        payload = {
+            "recipient": {"id": recipient_id},
+            "message": {"text": message_text}
+        }
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        params = {
+            "access_token": access_token
+        }
+        
+        print(f"テスト送信ペイロード: {json.dumps(payload)}")
+        
+        response = requests.post(url, headers=headers, params=params, json=payload)
+        
+        print(f"Instagram API応答: ステータスコード {response.status_code}, レスポンス {response.text}")
+        
+        if response.status_code == 200:
+            print("Instagram返信テスト送信成功")
+            return True
+        else:
+            print(f"Instagram返信テスト送信失敗: ステータスコード {response.status_code}, レスポンス {response.text}")
+            return False
+        
+    except Exception as e:
+        print(f"Instagram返信テスト送信中にエラーが発生しました: {str(e)}")
+        print(traceback.format_exc())
+        return False 
