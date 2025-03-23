@@ -10,6 +10,7 @@ import hashlib
 import traceback
 import openai
 import logging
+import time
 
 # ロガーの設定
 logger = logging.getLogger(__name__)
@@ -170,190 +171,289 @@ def process_webhook_entry(entry):
     page_id = entry.get('id')
     print(f"Webhookエントリー処理: id={page_id}, entry={json.dumps(entry, indent=2, ensure_ascii=False)}")
     
-    # ユーザー情報の取得 - まずはInstagram Business IDで検索
-    user = User.query.filter_by(instagram_business_id=page_id).first()
-    
-    if not user:
-        print(f"instagram_business_id={page_id}に対応するユーザーが見つかりません。instagram_user_idで検索します。")
-        
-        # Instagram User ID（メッセージング用ID）で検索
-        user = User.query.filter_by(instagram_user_id=page_id).first()
-        
-        if not user:
-            print(f"instagram_user_id={page_id}に対応するユーザーも見つかりません。Facebook Page IDで検索します。")
-            
-            # 後方互換性のためにFacebook Page IDでも検索
-            user = User.query.filter_by(facebook_page_id=page_id).first()
-            
-            if not user:
-                print(f"facebook_page_id={page_id}に対応するユーザーも見つかりません。Instagram連携済みのユーザーを検索します。")
-                instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
-                
-                if instagram_users:
-                    user_ids = [u.id for u in instagram_users]
-                    usernames = [u.instagram_username for u in instagram_users]
-                    print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
-                    
-                    # 最初のユーザーを使用
-                    user = instagram_users[0]
-                    print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
-                    
-                    # Instagram IDを更新（まずはuser_idとして）
-                    if not user.instagram_user_id:
-                        user.instagram_user_id = page_id
-                        print(f"ユーザーのinstagram_user_idを{page_id}に更新しました")
-                        db.session.commit()
-                else:
-                    print("Instagram連携済みのユーザーが見つかりません")
-                    return
-    
-    # メッセージイベントの処理
+    # メッセージイベントを先に取得
     messaging_events = entry.get('messaging', [])
     print(f"メッセージイベント検出: {len(messaging_events)}件")
     
+    # メッセージがない場合は早期リターン
+    if not messaging_events:
+        print("メッセージイベントがありません。フィールドベースのwebhookを確認します")
+        return process_field_based_webhook(entry)
+    
+    # まずエコーメッセージをフィルタリング - データベースアクセス前に実行
+    filtered_events = []
     for event in messaging_events:
-        sender_id = event.get('sender', {}).get('id')
-        recipient_id = event.get('recipient', {}).get('id')
+        message = event.get('message', {})
         
-        # メッセージイベントの処理
-        if 'message' in event:
-            message = event.get('message', {})
-            message_text = message.get('text', '')
+        # エコーメッセージはスキップ
+        if message.get('is_echo') == True:
+            print(f"エコーメッセージを検出しました。処理をスキップします: {message.get('text', '')[:50]}...")
+            continue
             
-            # エコーメッセージのチェックを追加
-            if message.get('is_echo') == True:
-                print(f"エコーメッセージを検出しました。処理をスキップします: {message_text[:50]}...")
-                continue
+        # テキストがないメッセージもスキップ
+        if not message.get('text'):
+            print("テキストのないメッセージ（画像など）はスキップします")
+            continue
             
-            if message_text:
-                print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}")
-                
-                # ユーザーの自動返信が有効かチェック
-                if not user.autoreply_enabled:
-                    print(f"ユーザーID{user.id}の自動返信が無効です")
-                    continue
-                
-                # メッセージを分析して場所に関する質問かどうかを判断
-                is_location_question, confidence, reasoning = analyze_message(message_text)
-                print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
-                
-                # 自動返信の条件を確認
-                auto_reply_threshold = 0.5  # 確信度の閾値
-                if is_location_question and confidence >= auto_reply_threshold:
-                    print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
-                    
-                    # 返信メッセージのテンプレートを取得
-                    template = user.autoreply_template
-                    if not template:
-                        print(f"ユーザーID{user.id}の返信テンプレートが設定されていません")
-                        continue
-                    
-                    # プロフィールURLを構築
-                    profile_url = f"https://{request.host}/{user.username}"
-                    reply_message = template.replace('{profile_url}', profile_url)
-                    
-                    # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
-                    access_token = user.instagram_token
-                    if not access_token:
-                        print(f"ユーザーID{user.id}のInstagramトークンが設定されていません。Facebookトークンを試します。")
-                        access_token = user.facebook_token
-                    
-                    if not access_token:
-                        print(f"ユーザーID{user.id}のアクセストークンが設定されていません")
-                        continue
-                    
-                    print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
-                    result = send_instagram_reply(access_token, sender_id, reply_message)
-                    
-                    if result:
-                        print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
-                    else:
-                        print(f"自動返信に失敗しました: 送信先={sender_id}")
-                else:
-                    print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
+        # 自動返信メッセージかどうかをチェック（ループ防止）
+        if message.get('text', '').startswith("これは自動返信メッセージです"):
+            print("自動返信メッセージを検出しました。ループ防止のため処理をスキップします")
+            continue
+            
+        # 有効なメッセージだけを追加
+        filtered_events.append(event)
+    
+    # 処理対象のメッセージがない場合は早期リターン
+    if not filtered_events:
+        print("処理対象のメッセージイベントがありません")
+        return
+    
+    # ここでユーザー情報の取得 - フィルタリング後に実行
+    user = get_user_by_ids(page_id)
+    
+    # ユーザーが見つからない場合は処理終了
+    if not user:
+        print("有効なユーザーが見つかりません")
+        return
+    
+    # 処理対象のメッセージイベントを処理
+    for event in filtered_events:
+        process_message_event(event, user)
+    
+    return
+
+def get_user_by_ids(page_id):
+    """複数のIDフィールドを使ってユーザーを検索する"""
+    # Instagram Business IDで検索
+    user = User.query.filter_by(instagram_business_id=page_id).first()
+    if user:
+        return user
         
-        # リアクションイベントの処理
-        elif 'reaction' in event:
-            reaction = event.get('reaction', {})
-            reaction_type = reaction.get('reaction')
-            print(f"リアクションを受信: {reaction_type}, 送信者: {sender_id}, 受信者: {recipient_id}")
-            # リアクションの処理が必要な場合はここに追加
+    print(f"instagram_business_id={page_id}に対応するユーザーが見つかりません。instagram_user_idで検索します。")
+    
+    # Instagram User ID（メッセージング用ID）で検索
+    user = User.query.filter_by(instagram_user_id=page_id).first()
+    if user:
+        return user
         
-        # その他のイベントタイプ
+    print(f"instagram_user_id={page_id}に対応するユーザーも見つかりません。Facebook Page IDで検索します。")
+    
+    # 後方互換性のためにFacebook Page IDでも検索
+    user = User.query.filter_by(facebook_page_id=page_id).first()
+    if user:
+        return user
+        
+    print(f"facebook_page_id={page_id}に対応するユーザーも見つかりません。Instagram連携済みのユーザーを検索します。")
+    
+    # Instagram連携済みのユーザーを検索（最後の手段）
+    instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+    
+    if instagram_users:
+        user_ids = [u.id for u in instagram_users]
+        usernames = [u.instagram_username for u in instagram_users]
+        print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
+        
+        # 最初のユーザーを使用
+        user = instagram_users[0]
+        print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
+        
+        # Instagram IDを更新（まずはuser_idとして）
+        if not user.instagram_user_id:
+            user.instagram_user_id = page_id
+            print(f"ユーザーのinstagram_user_idを{page_id}に更新しました")
+            db.session.commit()
+            
+        return user
+    
+    print("Instagram連携済みのユーザーが見つかりません")
+    return None
+
+def process_message_event(event, user):
+    """メッセージイベントを処理する"""
+    sender_id = event.get('sender', {}).get('id')
+    recipient_id = event.get('recipient', {}).get('id')
+    
+    # メッセージイベントの処理
+    if 'message' in event:
+        message = event.get('message', {})
+        message_text = message.get('text', '')
+        
+        # ここでは message_text が存在することは保証されている（process_webhook_entryでフィルタリング済み）
+        print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}")
+        
+        # ユーザーの自動返信が有効かチェック
+        if not user.autoreply_enabled:
+            print(f"ユーザーID{user.id}の自動返信が無効です")
+            return
+        
+        # メッセージを分析して場所に関する質問かどうかを判断
+        is_location_question, confidence, reasoning = analyze_message(message_text)
+        print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
+        
+        # 自動返信の条件を確認
+        auto_reply_threshold = 0.5
+        if is_location_question and confidence >= auto_reply_threshold:
+            print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
+            
+            # 返信メッセージのテンプレートを取得
+            template = user.autoreply_template
+            if not template:
+                print(f"ユーザーID{user.id}の返信テンプレートが設定されていません")
+                return
+            
+            # プロフィールURLを構築
+            profile_url = f"https://{request.host}/{user.username}"
+            reply_message = template.replace('{profile_url}', profile_url)
+            
+            # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
+            access_token = user.instagram_token
+            if not access_token:
+                print(f"ユーザーID{user.id}のInstagramトークンが設定されていません。Facebookトークンを試します。")
+                access_token = user.facebook_token
+            
+            if not access_token:
+                print(f"ユーザーID{user.id}のアクセストークンが設定されていません")
+                return
+            
+            print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
+            result = send_instagram_reply(access_token, sender_id, reply_message)
+            
+            if result:
+                print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
+            else:
+                print(f"自動返信に失敗しました: 送信先={sender_id}")
         else:
-            print(f"未処理のイベントタイプ: {json.dumps(event, indent=2, ensure_ascii=False)}")
-            
+            print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
+    
+    # リアクションイベントの処理
+    elif 'reaction' in event:
+        reaction = event.get('reaction', {})
+        reaction_type = reaction.get('reaction')
+        print(f"リアクションを受信: {reaction_type}, 送信者: {sender_id}, 受信者: {recipient_id}")
+        # リアクションの処理が必要な場合はここに追加
+    
+    # その他のイベントタイプ
+    else:
+        print(f"未処理のイベントタイプ: {json.dumps(event, indent=2, ensure_ascii=False)}")
+
+def process_field_based_webhook(entry):
+    """フィールドベースのwebhookイベントを処理する"""
+    page_id = entry.get('id')
+    
     # フィールドベースのWebhookでも処理できるようにする
     # これはInstagram Graph APIのフィールドベースのWebhookに対応するため
-    if 'changes' in entry:
-        changes = entry.get('changes', [])
-        for change in changes:
-            field = change.get('field')
-            value = change.get('value', {})
+    if 'changes' not in entry:
+        return
+    
+    changes = entry.get('changes', [])
+    if not changes:
+        print("フィールド変更がありません")
+        return
+        
+    # 有効なメッセージ変更のみをフィルタリング
+    valid_changes = []
+    for change in changes:
+        field = change.get('field')
+        value = change.get('value', {})
+        
+        # フィールド変更を検出
+        print(f"フィールド変更検出: field={field}, value={json.dumps(value, indent=2, ensure_ascii=False)}")
+        
+        # messagesフィールド以外はスキップ
+        if field != 'messages':
+            print(f"messagesフィールド以外のため処理スキップ: {field}")
+            continue
             
-            print(f"フィールド変更検出: field={field}, value={json.dumps(value, indent=2, ensure_ascii=False)}")
+        # メッセージ情報を取得
+        sender_id = value.get('sender', {}).get('id')
+        message = value.get('message', {})
+        message_text = message.get('text', '')
+        
+        # メッセージがない場合はスキップ
+        if not message_text:
+            print("テキストのないメッセージ（画像など）はスキップします")
+            continue
             
-            # messagesフィールドの処理
-            if field == 'messages':
-                sender_id = value.get('sender', {}).get('id')
-                message = value.get('message', {})
-                message_text = message.get('text', '')
-                
-                # エコーメッセージのチェックを追加
-                if message.get('is_echo') == True:
-                    print(f"フィールドベースのエコーメッセージを検出しました。処理をスキップします: {message_text[:50]}...")
-                    continue
-                
-                if message_text:
-                    print(f"フィールドベースで受信したメッセージ: {message_text}, 送信者: {sender_id}")
-                    
-                    # ユーザーの自動返信が有効かチェック
-                    if not user.autoreply_enabled:
-                        print(f"ユーザーID{user.id}の自動返信が無効です")
-                        continue
-                    
-                    # メッセージを分析して場所に関する質問かどうかを判断
-                    is_location_question, confidence, reasoning = analyze_message(message_text)
-                    print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
-                    
-                    # 自動返信の条件を確認
-                    auto_reply_threshold = 0.5  # 確信度の閾値
-                    if is_location_question and confidence >= auto_reply_threshold:
-                        print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
-                        
-                        # 返信メッセージのテンプレートを取得
-                        template = user.autoreply_template
-                        if not template:
-                            print(f"ユーザーID{user.id}の返信テンプレートが設定されていません")
-                            continue
-                        
-                        # プロフィールURLを構築
-                        profile_url = f"https://{request.host}/{user.username}"
-                        reply_message = template.replace('{profile_url}', profile_url)
-                        
-                        # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
-                        access_token = user.instagram_token
-                        if not access_token:
-                            print(f"ユーザーID{user.id}のInstagramトークンが設定されていません。Facebookトークンを試します。")
-                            access_token = user.facebook_token
-                        
-                        if not access_token:
-                            print(f"ユーザーID{user.id}のアクセストークンが設定されていません")
-                            continue
-                        
-                        print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}")
-                        result = send_instagram_reply(access_token, sender_id, reply_message)
-                        
-                        if result:
-                            print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
-                        else:
-                            print(f"自動返信に失敗しました: 送信先={sender_id}")
-                    else:
-                        print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
+        # エコーメッセージのチェック
+        if message.get('is_echo') == True:
+            print(f"フィールドベースのエコーメッセージを検出しました。処理をスキップします: {message_text[:50]}...")
+            continue
+        
+        # 自動返信メッセージかどうかをチェック（ループ防止）
+        if message_text.startswith("これは自動返信メッセージです"):
+            print(f"自動返信メッセージを検出しました。ループ防止のため処理をスキップします")
+            continue
+            
+        # 有効なメッセージ変更を追加
+        valid_changes.append((change, sender_id, message_text))
+    
+    # 有効なメッセージ変更がない場合は終了
+    if not valid_changes:
+        print("処理対象のメッセージ変更がありません")
+        return
+        
+    # ユーザー情報を取得
+    user = get_user_by_ids(page_id)
+    if not user:
+        print("フィールドベースのwebhookで有効なユーザーが見つかりません")
+        return
+    
+    # ユーザーの自動返信が有効かチェック
+    if not user.autoreply_enabled:
+        print(f"ユーザーID{user.id}の自動返信が無効です")
+        return
+        
+    # 有効なメッセージ変更に対して処理を実行
+    for change, sender_id, message_text in valid_changes:
+        print(f"フィールドベースで受信したメッセージ: {message_text}, 送信者: {sender_id}")
+        
+        # メッセージを分析して場所に関する質問かどうかを判断
+        is_location_question, confidence, reasoning = analyze_message(message_text)
+        print(f"メッセージ分析結果: 場所に関する質問={is_location_question}, 確信度={confidence}, 理由={reasoning}")
+        
+        # 自動返信の条件を確認
+        auto_reply_threshold = 0.5
+        if is_location_question and confidence >= auto_reply_threshold:
+            print(f"自動返信の条件を満たしました: 場所に関する質問={is_location_question}, 確信度={confidence}")
+            
+            # 返信メッセージのテンプレートを取得
+            template = user.autoreply_template
+            if not template:
+                print(f"ユーザーID{user.id}の返信テンプレートが設定されていません")
+                continue
+            
+            # プロフィールURLを構築
+            profile_url = f"https://{request.host}/{user.username}"
+            reply_message = template.replace('{profile_url}', profile_url)
+            
+            # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
+            access_token = user.instagram_token
+            if not access_token:
+                print(f"ユーザーID{user.id}のInstagramトークンが設定されていません。Facebookトークンを試します。")
+                access_token = user.facebook_token
+            
+            if not access_token:
+                print(f"ユーザーID{user.id}のアクセストークンが設定されていません")
+                continue
+            
+            print(f"自動返信を送信します: 送信先={sender_id}, ユーザーID={user.id}, アクセストークン={access_token[:10]}...")
+            result = send_instagram_reply(access_token, sender_id, reply_message)
+            
+            if result:
+                print(f"自動返信が成功しました: 送信先={sender_id}, メッセージ={reply_message}")
+            else:
+                print(f"自動返信に失敗しました: 送信先={sender_id}")
+        else:
+            print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
 
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをキーワードベースで分析する"""
     try:
+        # 自動返信メッセージかどうかを確認し、早期リターン
+        if message.startswith("これは自動返信メッセージです"):
+            print("自動返信メッセージを検出したため分析をスキップします")
+            return False, 0.0, "自動返信メッセージ（スキップ）"
+        
         # キーワードベースでの判定
         print(f"キーワードベースで分析します: {message[:30]}...")
         is_location = any(keyword in message for keyword in ["場所", "どこ", "スポット", "教えて", "行った", "どの辺"])
@@ -369,47 +469,87 @@ def analyze_message(message):
         is_location = "場所" in message or "どこ" in message
         return is_location, 0.7 if is_location else 0.2, "キーワード検出によるフォールバック判定（エラー発生後）"
 
-def send_instagram_reply(access_token, recipient_id, message_text):
+def send_instagram_reply(access_token, recipient_id, message_text, max_retries=1):
     """Instagramに直接メッセージを送信する"""
-    try:
-        # URLをFacebookのエンドポイントからInstagramの正しいエンドポイントに変更
-        # url = "https://graph.facebook.com/v22.0/me/messages"
-        url = "https://graph.instagram.com/v22.0/me/messages"
-        
-        # Metaドキュメントに基づいたIGSIDフォーマット
-        # recipient_idはinstagram_user_id（メッセージング用ID）
-        instagram_scoped_id = recipient_id
-        
-        # リクエストデータの詳細ログ
-        print(f"Instagram APIリクエスト情報: URL={url}, recipient_id(instagram_user_id)={instagram_scoped_id}, トークン長さ={len(access_token)}")
-        
-        payload = {
-            "recipient": {"id": instagram_scoped_id},
-            "message": {"text": message_text}
-        }
-        
-        headers = {
-            "Content-Type": "application/json"
-        }
-        
-        params = {
-            "access_token": access_token
-        }
-        
-        print(f"リクエストペイロード: {json.dumps(payload)}")
-        
-        response = requests.post(url, headers=headers, params=params, json=payload)
-        
-        print(f"Instagram API応答: ステータスコード {response.status_code}, レスポンス {response.text}")
-        
-        if response.status_code == 200:
-            print("Instagram返信送信成功")
-            return True
-        else:
-            print(f"Instagram返信送信失敗: ステータスコード {response.status_code}, レスポンス {response.text}")
-            return False
-        
-    except Exception as e:
-        print(f"Instagram返信送信中にエラーが発生しました: {str(e)}")
-        print(traceback.format_exc())
-        return False 
+    retry_count = 0
+    
+    while retry_count <= max_retries:
+        try:
+            # Instagram APIエンドポイント
+            url = "https://graph.instagram.com/v22.0/me/messages"
+            
+            # リクエストデータの詳細ログ
+            print(f"Instagram APIリクエスト情報: URL={url}, recipient_id(instagram_user_id)={recipient_id}, トークン長さ={len(access_token)}")
+            
+            payload = {
+                "recipient": {"id": recipient_id},
+                "message": {"text": message_text}
+            }
+            
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            params = {
+                "access_token": access_token
+            }
+            
+            print(f"リクエストペイロード: {json.dumps(payload)}")
+            
+            response = requests.post(url, headers=headers, params=params, json=payload, timeout=10)
+            
+            # レスポンスコンテンツを取得
+            response_content = response.text
+            
+            # エラーレスポンスの詳細ログ
+            if response.status_code != 200:
+                print(f"Instagram API エラー詳細:")
+                print(f"- ステータスコード: {response.status_code}")
+                print(f"- レスポンス内容: {response_content}")
+                print(f"- リクエストURL: {url}")
+                print(f"- リクエストヘッダー: {headers}")
+                print(f"- リクエストパラメータ: access_token=***（セキュリティのため非表示）")
+                
+                # エラーレスポンスをJSONとして解析
+                try:
+                    error_json = json.loads(response_content)
+                    if "error" in error_json:
+                        error_obj = error_json["error"]
+                        print(f"- エラータイプ: {error_obj.get('type')}")
+                        print(f"- エラーコード: {error_obj.get('code')}")
+                        print(f"- エラーサブコード: {error_obj.get('error_subcode')}")
+                        print(f"- エラーメッセージ: {error_obj.get('message')}")
+                except:
+                    print("- JSONエラー解析に失敗しました")
+            
+            print(f"Instagram API応答: ステータスコード {response.status_code}, レスポンス {response_content}")
+            
+            if response.status_code == 200:
+                print("Instagram返信送信成功")
+                return True
+            elif retry_count < max_retries:
+                # リトライする場合
+                retry_count += 1
+                print(f"Instagram返信送信失敗。リトライします ({retry_count}/{max_retries})...")
+                time.sleep(1)  # 1秒待機してからリトライ
+            else:
+                # リトライ回数を超えた場合は失敗として返す
+                print(f"Instagram返信送信失敗: ステータスコード {response.status_code}, レスポンス {response_content}")
+                print(f"最大リトライ回数 ({max_retries}) に達しました。処理を中止します。")
+                return False
+            
+        except Exception as e:
+            if retry_count < max_retries:
+                # リトライする場合
+                retry_count += 1
+                print(f"Instagram返信送信中に例外が発生しました: {str(e)}。リトライします ({retry_count}/{max_retries})...")
+                print(traceback.format_exc())
+                time.sleep(1)  # 1秒待機してからリトライ
+            else:
+                # リトライ回数を超えた場合は失敗として返す
+                print(f"Instagram返信送信中に例外が発生しました: {str(e)}")
+                print(traceback.format_exc())
+                print(f"最大リトライ回数 ({max_retries}) に達しました。処理を中止します。")
+                return False
+    
+    return False  # ここには到達しないはずだが、念のため 
