@@ -211,8 +211,17 @@ def send_instagram_test_message(access_token, recipient_id, message_text):
         
         print(f"Instagram APIテスト送信: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token)}")
         
+        # IGIDを使用して送信先を指定
+        # IGSIDは通常「ig.me.9078458665596736」のような形式
+        # 数字のみが渡された場合はIGSIDの形式に変換
+        if recipient_id.isdigit():
+            instagram_scoped_id = f"ig.me.{recipient_id}"
+            print(f"数字のみのIDをIGSID形式に変換: {recipient_id} → {instagram_scoped_id}")
+        else:
+            instagram_scoped_id = recipient_id
+            
         payload = {
-            "recipient": {"id": recipient_id},
+            "recipient": {"id": instagram_scoped_id},
             "message": {"text": message_text}
         }
         
