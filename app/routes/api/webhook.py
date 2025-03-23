@@ -214,6 +214,11 @@ def process_webhook_entry(entry):
             message = event.get('message', {})
             message_text = message.get('text', '')
             
+            # エコーメッセージのチェックを追加
+            if message.get('is_echo') == True:
+                print(f"エコーメッセージを検出しました。処理をスキップします: {message_text[:50]}...")
+                continue
+            
             if message_text:
                 print(f"受信したメッセージ: {message_text}, 送信者: {sender_id}, 受信者: {recipient_id}")
                 
@@ -260,8 +265,6 @@ def process_webhook_entry(entry):
                         print(f"自動返信に失敗しました: 送信先={sender_id}")
                 else:
                     print(f"自動返信条件を満たしませんでした: 場所に関する質問={is_location_question}, 確信度={confidence}")
-            else:
-                print(f"メッセージ本文が空のため処理をスキップします: {json.dumps(event, indent=2, ensure_ascii=False)}")
         
         # リアクションイベントの処理
         elif 'reaction' in event:
@@ -289,6 +292,11 @@ def process_webhook_entry(entry):
                 sender_id = value.get('sender', {}).get('id')
                 message = value.get('message', {})
                 message_text = message.get('text', '')
+                
+                # エコーメッセージのチェックを追加
+                if message.get('is_echo') == True:
+                    print(f"フィールドベースのエコーメッセージを検出しました。処理をスキップします: {message_text[:50]}...")
+                    continue
                 
                 if message_text:
                     print(f"フィールドベースで受信したメッセージ: {message_text}, 送信者: {sender_id}")
