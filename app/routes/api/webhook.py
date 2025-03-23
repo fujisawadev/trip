@@ -243,7 +243,7 @@ def process_webhook_entry(entry):
                         continue
                     
                     # プロフィールURLを構築
-                    profile_url = f"https://{request.host}/u/{user.username}"
+                    profile_url = f"https://{request.host}/{user.username}"
                     reply_message = template.replace('{profile_url}', profile_url)
                     
                     # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
@@ -322,7 +322,7 @@ def process_webhook_entry(entry):
                             continue
                         
                         # プロフィールURLを構築
-                        profile_url = f"https://{request.host}/u/{user.username}"
+                        profile_url = f"https://{request.host}/{user.username}"
                         reply_message = template.replace('{profile_url}', profile_url)
                         
                         # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
