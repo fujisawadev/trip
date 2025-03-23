@@ -42,7 +42,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('../images/pattern-grid.png');
+  background: url('../images/patterns/pattern-grid.svg');
   background-size: 30px 30px;
   opacity: 0.05;
   z-index: 0;
