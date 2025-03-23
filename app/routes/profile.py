@@ -302,8 +302,8 @@ def instagram_callback():
         long_lived_token = long_lived_data.get('access_token')
         expires_in = long_lived_data.get('expires_in', 5184000)  # デフォルトは60日（5184000秒）
         
-        # ユーザー情報を取得
-        user_info_url = f"https://graph.instagram.com/v22.0/me?fields=username,account_type&access_token={long_lived_token}"
+        # ユーザー情報を取得 - 明示的にuser_idフィールドを要求
+        user_info_url = f"https://graph.instagram.com/v22.0/me?fields=username,account_type,user_id,id&access_token={long_lived_token}"
         response = requests.get(user_info_url)
         user_info = response.json()
         
@@ -317,6 +317,28 @@ def instagram_callback():
         instagram_username = user_info.get('username')
         account_type = user_info.get('account_type', 'unknown')
         
+        # 2種類のIDを取得
+        instagram_business_id = user_info.get('id')  # 既存の取得していたID (API用)
+        messaging_user_id = user_info.get('user_id')  # 新しく取得するID (メッセージング用)
+        
+        print(f"取得したID情報 - Business ID (id): {instagram_business_id}, Messaging ID (user_id): {messaging_user_id}")
+        
+        # メッセージング用IDが取得できない場合のフォールバック処理
+        if not messaging_user_id:
+            print(f"Warning: user_id was not returned from the API. Trying an alternative method.")
+            # 代替方法でuser_idを取得を試みる
+            try:
+                alt_user_info_url = f"https://graph.instagram.com/v22.0/me?fields=id,user_id&access_token={long_lived_token}"
+                alt_response = requests.get(alt_user_info_url)
+                alt_user_info = alt_response.json()
+                print(f"Alternative user info response: {alt_user_info}")
+                messaging_user_id = alt_user_info.get('user_id')
+                
+                if not messaging_user_id:
+                    print(f"Warning: Still could not retrieve user_id. This may cause issues with messaging.")
+            except Exception as e:
+                print(f"Error in alternative user_id retrieval: {str(e)}")
+        
         # アカウントタイプをチェック（プロアカウントかどうか）
         if account_type not in ['BUSINESS', 'MEDIA_CREATOR']:
             flash(f'Instagram連携にはプロアカウント（ビジネスまたはクリエイター）が必要です。現在のアカウントタイプ: {account_type}', 'warning')
@@ -326,32 +348,44 @@ def instagram_callback():
             try:
                 # ビジネスアカウント情報を取得
                 print(f"ビジネスアカウント情報の取得を開始（アカウントタイプ: {account_type}）")
-                # Instagramのユーザー情報を取得
-                instagram_id_url = f"https://graph.instagram.com/v22.0/me?fields=id,username&access_token={long_lived_token}"
-                ig_response = requests.get(instagram_id_url)
-                ig_info = ig_response.json()
                 
-                print(f"Instagram ID情報レスポンス: {ig_info}")
-                
-                if 'id' in ig_info:
-                    # InstagramのビジネスアカウントIDを直接使用
-                    ig_business_id = ig_info['id']
-                    print(f"Instagram Business ID: {ig_business_id}")
-                    
-                    # ビジネスアカウントIDを保存
-                    current_user.instagram_business_id = ig_business_id
-                    
-                    # ユーザー名を取得
-                    ig_username = ig_info.get('username', '')
-                    
-                    # データベースに保存
-                    current_user.instagram_username = ig_username
-                    
-                    print(f"Instagram連携が完了しました（ID: {ig_business_id}, ユーザー名: {ig_username}）")
-                    flash('Instagram連携が完了しました！', 'success')
+                # Business IDがすでに取得できている場合は、それを使用
+                if instagram_business_id:
+                    print(f"API用 Instagram Business ID (id): {instagram_business_id}")
                 else:
-                    print("Instagram ID情報の取得に失敗")
-                    flash('Instagram連携は成功しましたが、アカウント情報の取得に失敗しました。', 'warning')
+                    # バックアップとして通常のIDフェッチを試みる
+                    # Instagramのユーザー情報を取得
+                    instagram_id_url = f"https://graph.instagram.com/v22.0/me?fields=id,username&access_token={long_lived_token}"
+                    ig_response = requests.get(instagram_id_url)
+                    ig_info = ig_response.json()
+                    
+                    print(f"Instagram ID情報レスポンス: {ig_info}")
+                    
+                    if 'id' in ig_info:
+                        # APIのIDを取得
+                        instagram_business_id = ig_info['id']
+                        print(f"Instagram Business ID: {instagram_business_id}")
+                
+                # メッセージング用IDの確認
+                if messaging_user_id:
+                    print(f"メッセージング用 Instagram User ID (user_id): {messaging_user_id}")
+                else:
+                    print(f"警告: メッセージング用IDを取得できませんでした。DMの送受信が機能しない可能性があります。")
+                
+                # ビジネスアカウントIDを保存
+                if instagram_business_id:
+                    current_user.instagram_business_id = instagram_business_id
+                    print(f"Instagram Business ID (API用)を保存: {instagram_business_id}")
+                
+                # ユーザー名を取得
+                ig_username = instagram_username or user_info.get('username', '')
+                
+                # データベースに保存
+                if ig_username:
+                    current_user.instagram_username = ig_username
+                
+                print(f"Instagram連携が完了しました（Business ID: {instagram_business_id}, User ID: {messaging_user_id}, ユーザー名: {ig_username}）")
+                flash('Instagram連携が完了しました！', 'success')
             except Exception as e:
                 print(f"ビジネスアカウント情報取得中にエラー: {str(e)}")
                 print(traceback.format_exc())
@@ -359,15 +393,16 @@ def instagram_callback():
         
         # ユーザーモデルに保存
         current_user.instagram_token = long_lived_token
-        current_user.instagram_user_id = instagram_user_id
+        current_user.instagram_user_id = messaging_user_id  # メッセージング用ID
         current_user.instagram_username = instagram_username
+        current_user.instagram_business_id = instagram_business_id  # API用ID
         current_user.instagram_connected_at = datetime.utcnow()
         db.session.commit()
         
-        # Webhookの登録処理を追加
-        if current_user.instagram_business_id:
+        # Webhookの登録処理を追加 - Business IDを使用（従来通り）
+        if instagram_business_id:
             webhook_success, webhook_message = configure_instagram_webhook(
-                current_user.instagram_business_id,
+                instagram_business_id,  # API用ID (従来のまま)
                 long_lived_token
             )
             if webhook_success:

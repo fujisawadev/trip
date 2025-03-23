@@ -170,36 +170,42 @@ def process_webhook_entry(entry):
     page_id = entry.get('id')
     print(f"Webhookエントリー処理: id={page_id}, entry={json.dumps(entry, indent=2, ensure_ascii=False)}")
     
-    # ユーザー情報の取得 - Instagram Business IDで検索
+    # ユーザー情報の取得 - まずはInstagram Business IDで検索
     user = User.query.filter_by(instagram_business_id=page_id).first()
     
     if not user:
-        print(f"instagram_business_id={page_id}に対応するユーザーが見つかりません。")
+        print(f"instagram_business_id={page_id}に対応するユーザーが見つかりません。instagram_user_idで検索します。")
         
-        # 後方互換性のためにFacebook Page IDでも検索
-        user = User.query.filter_by(facebook_page_id=page_id).first()
+        # Instagram User ID（メッセージング用ID）で検索
+        user = User.query.filter_by(instagram_user_id=page_id).first()
         
         if not user:
-            print(f"facebook_page_id={page_id}に対応するユーザーも見つかりません。Instagram連携済みのユーザーを検索します。")
-            instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
+            print(f"instagram_user_id={page_id}に対応するユーザーも見つかりません。Facebook Page IDで検索します。")
             
-            if instagram_users:
-                user_ids = [u.id for u in instagram_users]
-                usernames = [u.instagram_username for u in instagram_users]
-                print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
+            # 後方互換性のためにFacebook Page IDでも検索
+            user = User.query.filter_by(facebook_page_id=page_id).first()
+            
+            if not user:
+                print(f"facebook_page_id={page_id}に対応するユーザーも見つかりません。Instagram連携済みのユーザーを検索します。")
+                instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
                 
-                # 最初のユーザーを使用
-                user = instagram_users[0]
-                print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
-                
-                # Instagram Business IDを更新
-                if not user.instagram_business_id:
-                    user.instagram_business_id = page_id
-                    db.session.commit()
-                    print(f"ユーザーのinstagram_business_idを{page_id}に更新しました")
-            else:
-                print("Instagram連携済みのユーザーが見つかりません")
-                return
+                if instagram_users:
+                    user_ids = [u.id for u in instagram_users]
+                    usernames = [u.instagram_username for u in instagram_users]
+                    print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
+                    
+                    # 最初のユーザーを使用
+                    user = instagram_users[0]
+                    print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
+                    
+                    # Instagram IDを更新（まずはuser_idとして）
+                    if not user.instagram_user_id:
+                        user.instagram_user_id = page_id
+                        print(f"ユーザーのinstagram_user_idを{page_id}に更新しました")
+                        db.session.commit()
+                else:
+                    print("Instagram連携済みのユーザーが見つかりません")
+                    return
     
     # メッセージイベントの処理
     messaging_events = entry.get('messaging', [])
@@ -371,11 +377,11 @@ def send_instagram_reply(access_token, recipient_id, message_text):
         url = "https://graph.instagram.com/v22.0/me/messages"
         
         # Metaドキュメントに基づいたIGSIDフォーマット
-        # 数字のみのIDをそのまま使用（前回のig.me.プレフィックスは誤り）
+        # recipient_idはinstagram_user_id（メッセージング用ID）
         instagram_scoped_id = recipient_id
         
         # リクエストデータの詳細ログ
-        print(f"Instagram APIリクエスト情報: URL={url}, recipient_id={instagram_scoped_id}, トークン長さ={len(access_token)}")
+        print(f"Instagram APIリクエスト情報: URL={url}, recipient_id(instagram_user_id)={instagram_scoped_id}, トークン長さ={len(access_token)}")
         
         payload = {
             "recipient": {"id": instagram_scoped_id},
