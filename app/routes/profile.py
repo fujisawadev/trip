@@ -152,7 +152,7 @@ def connect_instagram():
     session['instagram_auth_state'] = state
     
     # 2024年最新の有効なスコープ - Instagram API with Instagram Login対応
-    scope = "instagram_business_basic"
+    scope = "instagram_business_basic,instagram_manage_messages"
     
     # Instagram認証URLを生成 - Facebook連携を必須としない設定
     # enable_fb_login=0は古いAPI向けのパラメータ、force_authentication=1は常に認証を要求する設定
@@ -364,7 +364,20 @@ def instagram_callback():
         current_user.instagram_connected_at = datetime.utcnow()
         db.session.commit()
         
-        flash('Instagram連携が完了しました！', 'success')
+        # Webhookの登録処理を追加
+        if current_user.instagram_business_id:
+            webhook_success, webhook_message = configure_instagram_webhook(
+                current_user.instagram_business_id,
+                long_lived_token
+            )
+            if webhook_success:
+                print(f"Webhook登録成功: {webhook_message}")
+                flash('Instagram連携とwebhook登録が完了しました！', 'success')
+            else:
+                print(f"Webhook登録失敗: {webhook_message}")
+                flash('Instagram連携は完了しましたが、webhook登録に失敗しました。', 'warning')
+        else:
+            flash('Instagram連携が完了しました！', 'success')
     except Exception as e:
         print(f"Instagram連携中にエラーが発生しました: {str(e)}")
         print(traceback.format_exc())
