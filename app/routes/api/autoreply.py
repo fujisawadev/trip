@@ -205,7 +205,9 @@ def analyze_message(message):
 def send_instagram_test_message(access_token, recipient_id, message_text):
     """Instagramにテスト用メッセージを送信する"""
     try:
-        url = "https://graph.facebook.com/v22.0/me/messages"
+        # URLをFacebookのエンドポイントからInstagramの正しいエンドポイントに変更
+        # url = "https://graph.facebook.com/v22.0/me/messages"
+        url = "https://graph.instagram.com/v22.0/me/messages"
         
         print(f"Instagram APIテスト送信: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token)}")
         

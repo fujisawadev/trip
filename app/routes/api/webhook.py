@@ -358,7 +358,9 @@ def analyze_message(message):
 def send_instagram_reply(access_token, recipient_id, message_text):
     """Instagramに直接メッセージを送信する"""
     try:
-        url = "https://graph.facebook.com/v22.0/me/messages"
+        # URLをFacebookのエンドポイントからInstagramの正しいエンドポイントに変更
+        # url = "https://graph.facebook.com/v22.0/me/messages"
+        url = "https://graph.instagram.com/v22.0/me/messages"
         
         # リクエストデータの詳細ログ
         print(f"Instagram APIリクエスト情報: URL={url}, recipient_id={recipient_id}, トークン長さ={len(access_token)}")
