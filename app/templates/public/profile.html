@@ -172,7 +172,7 @@
             z-index: 900;
             padding-bottom: 4px;
             width: 100%;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: none;
         }
         /* カテゴリーフィルター内のスクロール */
         .category-scroll {
@@ -396,8 +396,11 @@
         // 地図ベースのフィルタリングが有効かどうかのフラグ
         let mapFilterActive = false;
         
+        // 有効な座標を持つスポットだけを抽出
+        const validSpots = spots.filter(spot => spot.lat && spot.lng);
+        
         // スポットごとにマーカーを作成し、マーカーオブジェクトに格納
-        spots.forEach(spot => {
+        validSpots.forEach(spot => {
           if (spot.lat && spot.lng) {
             const marker = addMarker(map, spot.lat, spot.lng);
             marker.bindPopup(`<b>${spot.name}</b><br>${spot.location}`);
@@ -411,6 +414,90 @@
             });
           }
         });
+        
+        // 簡易クラスタリング関数（度数単位で距離を計算）
+        function clusterMarkers(spots, maxDistance) {
+          const clusters = [];
+          const processed = new Set();
+          
+          spots.forEach(spot => {
+            if (processed.has(spot.id)) return;
+            
+            const cluster = [spot];
+            processed.add(spot.id);
+            
+            spots.forEach(otherSpot => {
+              if (spot.id === otherSpot.id || processed.has(otherSpot.id)) return;
+              
+              const distance = calculateDistance(
+                spot.lat, spot.lng, 
+                otherSpot.lat, otherSpot.lng
+              );
+              
+              if (distance <= maxDistance) {
+                cluster.push(otherSpot);
+                processed.add(otherSpot.id);
+              }
+            });
+            
+            clusters.push(cluster);
+          });
+          
+          return clusters;
+        }
+
+        // 簡易距離計算（度数単位、正確ではないが単純化のため）
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+          return Math.sqrt(
+            Math.pow(lat1 - lat2, 2) + 
+            Math.pow(lng1 - lng2, 2)
+          );
+        }
+        
+        // 初期表示時の地図位置とズームレベルの設定
+        if (markerObjects.length > 0) {
+          // クラスタリングを実行（緯度経度で2度以内を同じクラスターと見なす）
+          const clusters = clusterMarkers(validSpots, 2);
+          
+          // 最大のクラスターを見つける
+          let maxClusterSize = 0;
+          let maxClusterIndex = 0;
+          
+          clusters.forEach((cluster, index) => {
+            if (cluster.length > maxClusterSize) {
+              maxClusterSize = cluster.length;
+              maxClusterIndex = index;
+            }
+          });
+          
+          console.log(`クラスター数: ${clusters.length}`);
+          console.log(`最大クラスターサイズ: ${maxClusterSize}`);
+          
+          if (maxClusterSize > 0) {
+            // 最大クラスターのピンの平均位置を計算
+            const maxCluster = clusters[maxClusterIndex];
+            let sumLat = 0, sumLng = 0;
+            
+            maxCluster.forEach(spot => {
+              sumLat += spot.lat;
+              sumLng += spot.lng;
+            });
+            
+            const avgLat = sumLat / maxCluster.length;
+            const avgLng = sumLng / maxCluster.length;
+            
+            // 最大クラスターを中心に地図を表示
+            console.log(`最大クラスターの中心: [${avgLat}, ${avgLng}]`);
+            map.setView([avgLat, avgLng], 8);
+          } else {
+            // 念のため、クラスタリングがうまく機能しなかった場合は全マーカーを表示
+            const allMarkers = markerObjects.map(obj => obj.marker);
+            showMarkersAndFitBounds(map, allMarkers);
+          }
+        } else {
+          // マーカーがない場合はデフォルトビューに戻す（日本全体が見えるように）
+          map.setView([36.5748, 139.2394], 5);
+        }
         
         // 地図フィルターボタンのイベント設定
         const mapFilterButton = document.getElementById('map-filter-button');
