@@ -3,9 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ user.username }}のマップ - Trip</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <meta name="robots" content="noindex">
+    <title>{{ user.username }}のマップ | maplink</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    
+    <!-- OGP タグとTwitter Card - 必要に応じて追加 -->
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -21,7 +31,7 @@
         }
         .spot-cards {
             position: fixed;
-            bottom: 120px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             width: 90%;
@@ -67,26 +77,66 @@
             font-weight: 600;
             margin: 0 0 3px 0;
             color: #1a1a1a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .spot-card p {
             font-size: 13px; /* フォントサイズを調整 */
             color: #666;
             margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .filter-area {
+        .top-navigation {
             position: fixed;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 20px; /* 上部の余白を少し増やす */
+            left: 0;
+            right: 0;
             z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 12px 20px;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            height: 40px; /* ナビゲーションの高さを明示的に指定 */
+            max-width: 900px; /* PCでの最大幅を指定 */
+            margin: 0 auto; /* 中央揃え */
+        }
+        
+        /* レスポンシブ対応 */
+        @media (min-width: 768px) {
+            .top-navigation {
+                max-width: 700px; /* タブレット以上での最大幅 */
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .top-navigation {
+                max-width: 900px; /* PCでの最大幅 */
+            }
+        }
+        
+        .back-button {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+            transition: all 0.2s;
+            flex-shrink: 0;
+            margin-right: 12px;
+        }
+        
+        .filter-area {
+            position: relative;
+            padding: 0;
+            margin-left: 12px;
             display: flex;
             gap: 12px;
-            max-width: 90%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
@@ -97,8 +147,14 @@
         }
         .filter-button {
             padding: 8px 16px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: 12px;
-            background: #f3f4f6;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
             color: #4b5563;
             font-size: 14px;
             white-space: nowrap;
@@ -222,11 +278,11 @@
         /* 地図フィルターボタンのスタイル */
         .map-filter-container {
             position: absolute;
-            top: 120px;  /* カテゴリフィルターの下に適切な余白を設ける */
+            top: 80px;  /* トップナビゲーション(40px) + マージン(20px) + トップマージン(20px) */
             left: 0;
             right: 0;
             text-align: center;
-            z-index: 1000;
+            z-index: 900; /* top-navigationより下のz-indexに */
             pointer-events: none;
         }
         .map-filter-button {
@@ -286,11 +342,11 @@
             max-width: 480px;
             width: 100%;
             border-radius: 0.75rem 0.75rem 0 0;
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            max-height: 90vh;
+            max-height: 80vh;
             overflow-y: auto;
         }
         .modal-close {
@@ -309,6 +365,49 @@
             height: 250px;
             border-radius: 0.75rem;
         }
+        /* アクティブなスポットカードのスタイル */
+        .spot-card.active {
+            border: 2px solid #3b82f6;
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.15);
+            transform: translateY(-4px);
+        }
+        /* マーカーのスタイル */
+        .custom-marker {
+            background: none;
+            border: none;
+        }
+        .marker-pin {
+            width: 30px;
+            height: 30px;
+            border-radius: 50% 50% 50% 0;
+            background: #3b82f6;
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -15px 0 0 -15px;
+        }
+        .marker-pin::after {
+            content: '';
+            width: 22px;
+            height: 22px;
+            margin: 4px 0 0 4px;
+            background: white;
+            position: absolute;
+            border-radius: 50%;
+        }
+        .marker-pin.highlighted {
+            width: 36px;
+            height: 36px;
+            background: #ef4444;
+            margin: -18px 0 0 -18px;
+            z-index: 9999;
+        }
+        .marker-pin.highlighted::after {
+            width: 26px;
+            height: 26px;
+            margin: 5px 0 0 5px;
+        }
     </style>
 </head>
 <body>
@@ -321,17 +420,28 @@
         </div>
     </div>
     
-    <div class="filter-area">
-        <button class="filter-button active" data-category="all">すべて</button>
-        {% set categories = [] %}
-        {% for spot in spots %}
-            {% if spot.category and spot.category not in categories %}
-                {% set _ = categories.append(spot.category) %}
-            {% endif %}
-        {% endfor %}
-        {% for category in categories %}
-        <button class="filter-button" data-category="{{ category }}">{{ category }}</button>
-        {% endfor %}
+    <!-- 上部ナビゲーションエリア -->
+    <div class="top-navigation">
+        <!-- 戻るボタン -->
+        <a href="/{{ user.username }}" class="back-button">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </a>
+        
+        <!-- カテゴリフィルター -->
+        <div class="filter-area">
+            <button class="filter-button active" data-category="all">すべて</button>
+            {% set categories = [] %}
+            {% for spot in spots %}
+                {% if spot.category and spot.category not in categories %}
+                    {% set _ = categories.append(spot.category) %}
+                {% endif %}
+            {% endfor %}
+            {% for category in categories %}
+            <button class="filter-button" data-category="{{ category }}">{{ category }}</button>
+            {% endfor %}
+        </div>
     </div>
 
     <div class="spot-cards">
@@ -356,21 +466,6 @@
             </div>
         </div>
     </div>
-
-    <nav class="global-nav">
-        <div class="global-nav-container">
-            <a href="/{{ user.username }}" class="nav-item">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="nav-icon">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-            </a>
-            <a href="/{{ user.username }}/map" class="nav-item active">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="nav-icon">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
-            </a>
-        </div>
-    </nav>
 
     <script src="/static/js/map-utils.js"></script>
     <script>
@@ -400,12 +495,33 @@
                 console.log('Processing spot:', spot); // デバッグログ追加
                 
                 if (spot.latitude && spot.longitude) {
-                    const marker = addMarker(map, spot.latitude, spot.longitude);
+                    // カスタムアイコンを作成
+                    const defaultIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div class="marker-pin" data-spot-id="${spot.id}"></div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 30]
+                    });
+                    
+                    // 強調表示用のアイコン
+                    const highlightedIcon = L.divIcon({
+                        className: 'custom-marker highlighted',
+                        html: `<div class="marker-pin highlighted" data-spot-id="${spot.id}"></div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 36]
+                    });
+                    
+                    const marker = L.marker([spot.latitude, spot.longitude], {
+                        icon: defaultIcon,
+                        spotId: spot.id  // マーカーにスポットIDを関連付け
+                    });
+                    
                     marker.addTo(map);
                     markers.push(marker);
                     
                     // マーカーのクリックイベント
                     marker.on('click', () => {
+                        highlightSpot(spot.id);
                         showSpotDetail(spot);
                     });
                 }
@@ -421,31 +537,21 @@
                 showMarkersAndFitBounds(map, markers);
             }
             
-            // スポットカードのクリックイベントを設定
-            const cards = spotCardsScroll.querySelectorAll('.spot-card');
-            console.log('Found spot cards:', cards.length); // デバッグログ追加
-            
-            cards.forEach(card => {
-                card.addEventListener('click', () => {
-                    const spotId = parseInt(card.dataset.spotId);
-                    const spot = spots.find(s => s.id === spotId);
-                    if (spot) {
-                        showSpotDetail(spot);
-                    }
-                });
-            });
+            // カードのイベントを設定
+            setupCardEvents();
         }
         
         // スポットカードを生成する関数
         function createSpotCard(spot) {
             console.log('Creating card for spot:', spot); // デバッグログ追加
             const photo = spot.photos && spot.photos.length > 0 ? spot.photos[0].photo_url : '/static/images/default_profile.png';
+            const location = spot.location || '';
             const cardHtml = `
                 <div class="spot-card" data-spot-id="${spot.id}">
                     <img src="${photo}" alt="${spot.name}">
                     <div class="spot-card-content">
-                        <h3>${spot.name}</h3>
-                        <p>${spot.location || ''}</p>
+                        <h3 title="${spot.name}">${spot.name}</h3>
+                        <p title="${location}">${location}</p>
                     </div>
                 </div>
             `;
@@ -656,6 +762,132 @@
                 document.body.classList.remove('modal-open');
             }
         });
+
+        // スポットを強調表示する関数
+        function highlightSpot(spotId, centerMap = true) {
+            // すべてのカードから強調表示を削除
+            document.querySelectorAll('.spot-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // 該当するカードを強調表示
+            const targetCard = document.querySelector(`.spot-card[data-spot-id="${spotId}"]`);
+            if (targetCard) {
+                targetCard.classList.add('active');
+                
+                // カードが表示されるようにスクロール（引数がtrueの時のみ）
+                if (centerMap) {
+                    const scrollContainer = document.getElementById('spot-cards-scroll');
+                    scrollContainer.scrollTo({
+                        left: targetCard.offsetLeft - scrollContainer.offsetWidth / 2 + targetCard.offsetWidth / 2,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+            
+            // すべてのマーカーをデフォルトに戻す
+            markers.forEach(marker => {
+                if (marker.options.spotId === spotId) {
+                    // 強調表示用のアイコンに変更
+                    const highlightedIcon = L.divIcon({
+                        className: 'custom-marker highlighted',
+                        html: `<div class="marker-pin highlighted" data-spot-id="${spotId}"></div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 36]
+                    });
+                    marker.setIcon(highlightedIcon);
+                    
+                    // マップの中心をマーカーの位置に移動（オプション）
+                    if (centerMap && marker.getLatLng()) {
+                        map.panTo(marker.getLatLng());
+                    }
+                } else {
+                    // 他のマーカーはデフォルトに戻す
+                    const defaultIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div class="marker-pin" data-spot-id="${marker.options.spotId}"></div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 30]
+                    });
+                    marker.setIcon(defaultIcon);
+                }
+            });
+        }
+        
+        // スポットカードをクリックイベントを設定
+        function setupCardEvents() {
+            const cards = document.querySelectorAll('.spot-card');
+            
+            cards.forEach(card => {
+                // カードのクリックでモーダルを表示（フォーカスは変更しない）
+                card.addEventListener('click', () => {
+                    const spotId = parseInt(card.dataset.spotId);
+                    const spot = spots.find(s => s.id === spotId);
+                    if (spot) {
+                        showSpotDetail(spot);
+                    }
+                });
+            });
+            
+            // スクロール時にフォーカスを更新
+            const spotCardsScroll = document.getElementById('spot-cards-scroll');
+            
+            // スクロール時にフォーカスを更新する処理
+            spotCardsScroll.addEventListener('scroll', debounce(() => {
+                updateFocusOnScroll();
+            }, 100));
+            
+            // 初期表示時にフォーカスを設定
+            setTimeout(() => {
+                updateFocusOnScroll();
+            }, 500);
+        }
+        
+        // スクロール位置に基づいて中央付近のカードにフォーカスを当てる
+        function updateFocusOnScroll() {
+            const spotCardsScroll = document.getElementById('spot-cards-scroll');
+            const cards = spotCardsScroll.querySelectorAll('.spot-card');
+            
+            if (cards.length === 0) return;
+            
+            // スクロールコンテナの表示領域の中央のX座標を計算
+            const containerRect = spotCardsScroll.getBoundingClientRect();
+            const containerCenterX = containerRect.left + containerRect.width / 2;
+            
+            // 中央に最も近いカードを見つける
+            let closestCard = null;
+            let minDistance = Infinity;
+            
+            cards.forEach(card => {
+                const cardRect = card.getBoundingClientRect();
+                const cardCenterX = cardRect.left + cardRect.width / 2;
+                const distance = Math.abs(cardCenterX - containerCenterX);
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestCard = card;
+                }
+            });
+            
+            // 最も中央に近いカードにフォーカスを当てる
+            if (closestCard) {
+                const spotId = parseInt(closestCard.dataset.spotId);
+                highlightSpot(spotId, false); // 地図は移動しない
+            }
+        }
+        
+        // デバウンス関数（スクロールイベントの連続発火を防ぐ）
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                const context = this;
+                const args = arguments;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    func.apply(context, args);
+                }, wait);
+            };
+        }
     </script>
 </body>
 </html> 

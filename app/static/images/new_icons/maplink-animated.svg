@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="512px" height="512px" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg">
-    <title>マップリンクアイコン</title>
+    <title>マップリンクアニメーションアイコン</title>
     <defs>
         <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="mapGradient">
             <stop stop-color="#A5F3FC" offset="0%"></stop>
@@ -11,12 +11,21 @@
             <stop stop-color="#60A5FA" offset="0%"></stop>
             <stop stop-color="#3B82F6" offset="100%"></stop>
         </linearGradient>
+        <!-- パルスアニメーション用 -->
+        <radialGradient id="pulseGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+            <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5">
+                <animate attributeName="stop-opacity" values="0.5;0.1;0.5" dur="2s" repeatCount="indefinite" />
+            </stop>
+            <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0">
+                <animate attributeName="stop-opacity" values="0;0.2;0" dur="2s" repeatCount="indefinite" />
+            </stop>
+        </radialGradient>
     </defs>
     <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <!-- 丸いベース背景 -->
+        <!-- ベース背景 -->
         <circle fill="url(#mapGradient)" cx="256" cy="256" r="220"></circle>
         
-        <!-- マップグリッド（上部で淡く) -->
+        <!-- マップグリッド -->
         <path d="M110,110 L402,110 L402,402 L110,402 Z" stroke="#FFFFFF" stroke-width="6" opacity="0.3"></path>
         <path d="M160,110 L160,402" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
         <path d="M210,110 L210,402" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
@@ -31,17 +40,40 @@
         
         <!-- ロケーションピン -->
         <g transform="translate(190, 140)">
-            <path d="M66,20 C66,8.954 57.046,0 46,0 C34.954,0 26,8.954 26,20 C26,37.6 46,60 46,60 C46,60 66,37.6 66,20 Z" fill="#FFFFFF"></path>
+            <!-- パルシングエフェクト -->
+            <circle cx="46" cy="20" r="30" fill="url(#pulseGradient)">
+                <animate attributeName="r" values="20;30;20" dur="3s" repeatCount="indefinite" />
+            </circle>
+            
+            <!-- ピン本体 -->
+            <path d="M66,20 C66,8.954 57.046,0 46,0 C34.954,0 26,8.954 26,20 C26,37.6 46,60 46,60 C46,60 66,37.6 66,20 Z" fill="#FFFFFF">
+                <animate attributeName="opacity" values="1;0.8;1" dur="2s" repeatCount="indefinite" />
+            </path>
             <circle cx="46" cy="20" r="10" fill="url(#mapGradient)"></circle>
         </g>
         
         <!-- シェア要素（右下の放射状ライン） -->
         <g transform="translate(256, 256)">
             <circle cx="44" cy="44" r="60" fill="url(#shareGradient)"></circle>
-            <path d="M44,14 L44,74" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
-            <path d="M14,44 L74,44" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
-            <path d="M24,24 L64,64" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
-            <path d="M24,64 L64,24" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+            
+            <!-- 拡散エフェクト -->
+            <circle cx="44" cy="44" r="70" fill="url(#pulseGradient)" opacity="0.3">
+                <animate attributeName="r" values="60;70;60" dur="2s" repeatCount="indefinite" />
+            </circle>
+            
+            <!-- 十字マーク（回転アニメーション） -->
+            <g>
+                <animateTransform attributeName="transform" type="rotate" from="0 44 44" to="360 44 44" dur="10s" repeatCount="indefinite" />
+                <path d="M44,14 L44,74" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+                <path d="M14,44 L74,44" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+            </g>
+            
+            <!-- クロスマーク（反対回転） -->
+            <g>
+                <animateTransform attributeName="transform" type="rotate" from="0 44 44" to="-360 44 44" dur="12s" repeatCount="indefinite" />
+                <path d="M24,24 L64,64" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+                <path d="M24,64 L64,24" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+            </g>
         </g>
         
         <!-- 高光沢効果 -->

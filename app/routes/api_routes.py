@@ -102,7 +102,8 @@ def place_details():
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
         'X-Goog-FieldMask': 'displayName,formattedAddress,location,types,photos',
-        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+        'X-Goog-LanguageCode': 'ja',  # 日本語を指定
+        'User-Agent': 'maplink App (https://maplink.example.com)'
     }
     
     print(f"Calling Google Places API v1 Details with URL: {url}")
@@ -237,7 +238,7 @@ def place_details():
                 if place_details.get('latitude') and place_details.get('longitude'):
                     nominatim_url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={place_details['latitude']}&lon={place_details['longitude']}&accept-language=ja"
                     nominatim_headers = {
-                        'User-Agent': 'Spacey App (https://spacey.example.com)'
+                        'User-Agent': 'maplink App (https://maplink.example.com)'
                     }
                     
                     nominatim_response = requests.get(nominatim_url, headers=nominatim_headers)
@@ -316,7 +317,8 @@ def places_autocomplete():
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
         'X-Goog-FieldMask': 'suggestions.placePrediction.structuredFormat.mainText.text,suggestions.placePrediction.structuredFormat.secondaryText.text,suggestions.placePrediction.placeId',
-        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+        'X-Goog-LanguageCode': 'ja',  # 日本語を指定
+        'User-Agent': 'maplink App (https://maplink.example.com)'
     }
     
     data = {
@@ -426,7 +428,8 @@ def place_photo():
     headers = {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'photos.0.name'  # 最初の写真のみ取得
+        'X-Goog-FieldMask': 'photos.0.name',  # 最初の写真のみ取得
+        'User-Agent': 'maplink App (https://maplink.example.com)'
     }
     
     print(f"Calling Google Places API with URL: {url}")
@@ -832,7 +835,8 @@ def analyze_instagram_posts():
                         'Content-Type': 'application/json',
                         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
                         'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.types,places.id',
-                        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+                        'X-Goog-LanguageCode': 'ja',  # 日本語を指定
+                        'User-Agent': 'maplink App (https://maplink.example.com)'
                     }
                     search_data = {
                         "textQuery": spot_name,
@@ -903,10 +907,11 @@ def analyze_instagram_posts():
                                         'Content-Type': 'application/json',
                                         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
                                         'X-Goog-FieldMask': 'addressComponents',
-                                        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+                                        'X-Goog-LanguageCode': 'ja',  # 日本語を指定
+                                        'User-Agent': 'maplink App (https://maplink.example.com)'
                                     }
                                     
-                                    details_response = requests.get(details_url, headers=details_headers, timeout=10)
+                                    details_response = requests.get(details_url, headers=details_headers)
                                     
                                     if details_response.status_code == 200:
                                         details_data = details_response.json()
@@ -1156,7 +1161,8 @@ def save_instagram_spots():
                         'Content-Type': 'application/json',
                         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
                         'X-Goog-FieldMask': 'addressComponents',
-                        'X-Goog-LanguageCode': 'ja'  # 日本語を指定
+                        'X-Goog-LanguageCode': 'ja',  # 日本語を指定
+                        'User-Agent': 'maplink App (https://maplink.example.com)'
                     }
                     
                     details_response = requests.get(details_url, headers=details_headers)

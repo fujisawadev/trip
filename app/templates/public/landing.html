@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Spacey - スポット系インフルエンサーのためのAIマップツール。Instagram投稿を自動でスポットマップに変換し、フォロワーの「どこ？」という質問に自動返信。">
-    <title>Spacey - スポット系インフルエンサーのためのAIマップツール</title>
+    <meta name="description" content="maplink - スポット系インフルエンサーのためのAIマップツール。Instagram投稿を自動でスポットマップに変換し、フォロワーの「どこ？」という質問に自動返信。">
+    <title>maplink - スポット系インフルエンサーのためのAIマップツール</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -25,10 +25,10 @@
         <div class="flex justify-between h-16">
           <div class="flex items-center">
             <div class="relative">
-              <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="Spacey Logo" class="h-8 w-8 mr-2 filter drop-shadow-md">
+              <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="maplink Logo" class="h-8 w-8 mr-2 filter drop-shadow-md">
               <div class="absolute -inset-1 bg-blue-500/30 rounded-full blur-xl animate-pulse opacity-70" style="animation-delay: 0.5s;"></div>
             </div>
-            <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 bg-clip-text text-transparent">Spacey</span>
+            <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 bg-clip-text text-transparent">maplink</span>
           </div>
           <div class="flex items-center space-x-4">
             <a href="{{ url_for('auth.login') }}" class="text-gray-700 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-300">ログイン</a>
@@ -872,8 +872,8 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
           <div>
             <div class="flex items-center mb-6">
-              <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="Spacey Logo" class="h-8 w-8 mr-2">
-              <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Spacey</span>
+              <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="maplink Logo" class="h-8 w-8 mr-2">
+              <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">maplink</span>
             </div>
             <p class="text-gray-400 mb-6">インフルエンサーのための次世代プラットフォーム。簡単ウェブ作成、自動同期、AIオートリプライ。</p>
             <div class="flex space-x-4">

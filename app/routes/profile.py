@@ -26,7 +26,9 @@ def allowed_file(filename):
 @login_required
 def mypage():
     """マイページ"""
-    spots = Spot.query.filter_by(user_id=current_user.id).all()
+    spots = Spot.query.filter_by(user_id=current_user.id)\
+        .order_by(Spot.is_active.desc(), Spot.created_at.desc())\
+        .all()
     return render_template('mypage.html', user=current_user, spots=spots)
 
 @bp.route('/update-spots-heading', methods=['POST'])

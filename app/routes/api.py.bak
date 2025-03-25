@@ -235,7 +235,7 @@ def place_details():
                 if place_details.get('latitude') and place_details.get('longitude'):
                     nominatim_url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={place_details['latitude']}&lon={place_details['longitude']}&accept-language=ja"
                     nominatim_headers = {
-                        'User-Agent': 'Spacey App (https://spacey.example.com)'
+                        'User-Agent': 'maplink App (https://maplink.example.com)'
                     }
                     
                     nominatim_response = requests.get(nominatim_url, headers=nominatim_headers)

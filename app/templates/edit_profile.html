@@ -4,15 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>プロフィール編集 | Spacey</title>
+    <title>プロフィール編集 | maplink</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <style>
+      body {
+        background-color: white;
+        min-height: 100vh;
+      }
+      .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        background-color: #f8fafc;
+      }
+    </style>
   </head>
   <body>
-    <div class="mx-auto w-full bg-white max-w-[480px]">
-      <div class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+    <div class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 page-container">
         <!-- フラッシュメッセージ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -103,20 +115,6 @@
             />
           </div>
 
-          <!-- Email -->
-          <div class="flex flex-col gap-2 w-full">
-            <label for="email" class="text-sm font-medium text-neutral-900">メールアドレス</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              required
-              value="{{ user.email }}"
-              placeholder="メールアドレスを入力"
-              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
           <!-- Bio -->
           <div class="flex flex-col gap-2 w-full">
             <label for="bio" class="text-sm font-medium text-neutral-900">自己紹介</label>
@@ -130,7 +128,7 @@
           </div>
 
           <!-- Social Media Accounts -->
-          <div class="flex flex-col gap-4 w-full">
+          <div id="social-media-section" class="flex flex-col gap-4 w-full hidden">
             <h2 class="text-base font-medium text-neutral-900">SNSアカウント</h2>
             
             <!-- Instagram -->

@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from app import db
 from app.models.user import User
+from app.models.sent_message import SentMessage
 import os
 import json
 import requests
@@ -184,6 +185,8 @@ def process_webhook_entry(entry):
     filtered_events = []
     for event in messaging_events:
         message = event.get('message', {})
+        sender_id = event.get('sender', {}).get('id')
+        recipient_id = event.get('recipient', {}).get('id')
         
         # エコーメッセージはスキップ
         if message.get('is_echo') == True:
@@ -195,9 +198,9 @@ def process_webhook_entry(entry):
             print("テキストのないメッセージ（画像など）はスキップします")
             continue
             
-        # 自動返信メッセージかどうかをチェック（ループ防止）
-        if message.get('text', '').startswith("これは自動返信メッセージです"):
-            print("自動返信メッセージを検出しました。ループ防止のため処理をスキップします")
+        # 自動返信メッセージかどうかをチェック（ループ防止）- テキスト内容にかかわらず送信者と受信者の組み合わせをチェック
+        if SentMessage.has_recent_message(sender_id, sender_id):
+            print(f"24時間以内に自動返信を送信済みの相手からのメッセージです。処理をスキップします。sender_id={sender_id}, recipient_id={recipient_id}")
             continue
             
         # 有効なメッセージだけを追加
@@ -366,6 +369,7 @@ def process_field_based_webhook(entry):
             
         # メッセージ情報を取得
         sender_id = value.get('sender', {}).get('id')
+        recipient_id = value.get('recipient', {}).get('id')  # 受信者ID（通常はページID）
         message = value.get('message', {})
         message_text = message.get('text', '')
         
@@ -379,9 +383,9 @@ def process_field_based_webhook(entry):
             print(f"フィールドベースのエコーメッセージを検出しました。処理をスキップします: {message_text[:50]}...")
             continue
         
-        # 自動返信メッセージかどうかをチェック（ループ防止）
-        if message_text.startswith("これは自動返信メッセージです"):
-            print(f"自動返信メッセージを検出しました。ループ防止のため処理をスキップします")
+        # 送信済みメッセージのチェック（ループ防止）
+        if SentMessage.has_recent_message(sender_id, sender_id):
+            print(f"24時間以内に自動返信を送信済みの相手からのメッセージです。処理をスキップします。sender_id={sender_id}, recipient_id={recipient_id}")
             continue
             
         # 有効なメッセージ変更を追加
@@ -449,11 +453,6 @@ def process_field_based_webhook(entry):
 def analyze_message(message):
     """メッセージが場所に関する質問かどうかをキーワードベースで分析する"""
     try:
-        # 自動返信メッセージかどうかを確認し、早期リターン
-        if message.startswith("これは自動返信メッセージです"):
-            print("自動返信メッセージを検出したため分析をスキップします")
-            return False, 0.0, "自動返信メッセージ（スキップ）"
-        
         # キーワードベースでの判定
         print(f"キーワードベースで分析します: {message[:30]}...")
         is_location = any(keyword in message for keyword in ["場所", "どこ", "スポット", "教えて", "行った", "どの辺"])
@@ -526,6 +525,37 @@ def send_instagram_reply(access_token, recipient_id, message_text, max_retries=1
             
             if response.status_code == 200:
                 print("Instagram返信送信成功")
+                
+                # メッセージIDを抽出してデータベースに記録
+                try:
+                    response_data = json.loads(response_content)
+                    message_id = response_data.get('message_id')
+                    
+                    # インスタンスのページIDと受信者IDを使って記録
+                    # 注意: Instagram APIではリクエスト時のrecipient_idが受信者となり、
+                    # page_idが送信者となるため、このように記録します
+                    # 呼び出し元で sender_id <-> recipient_id の関係を認識して処理する
+                    
+                    # 送信したメッセージを記録
+                    sent_message = SentMessage(
+                        message_id=message_id,
+                        sender_id=recipient_id,  # メッセージの受信者IDをSentMessageの送信者IDとして記録
+                        recipient_id=recipient_id # 同じIDを受信者としても記録（フィルタリングの目的のため）
+                    )
+                    db.session.add(sent_message)
+                    db.session.commit()
+                    
+                    print(f"メッセージ送信記録を作成しました: message_id={message_id}, sender_id={recipient_id}, recipient_id={recipient_id}")
+                    
+                    # 24時間以上経過した古いメッセージ記録をクリーンアップ
+                    deleted_count = SentMessage.cleanup_expired()
+                    if deleted_count > 0:
+                        print(f"期限切れのメッセージ記録 {deleted_count}件 を削除しました")
+                except Exception as e:
+                    print(f"メッセージ記録の作成中にエラー発生: {str(e)}")
+                    print(traceback.format_exc())
+                    # メッセージ記録に失敗しても、メッセージ自体は送信されているため成功とみなす
+                
                 return True
             elif retry_count < max_retries:
                 # リトライする場合

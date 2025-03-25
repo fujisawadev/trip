@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
-    <title>AI基本設定 | Spacey</title>
+    <title>AI基本設定 | maplink</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -159,7 +159,7 @@
             {% endif %}
           </section>
 
-          <!-- 自動返信設定セクション -->
+          <!-- 自動返信設定セクション（非表示）
           <section>
             <h2
               class="px-4 pt-6 pb-2 w-full text-lg font-bold leading-none min-h-[47px] text-neutral-900"
@@ -203,7 +203,7 @@
               <div class="flex flex-col items-end">
                 {% if current_user.instagram_username %}
                   {% if current_user.facebook_token %}
-                  <!-- Facebook連携済みの場合：無効化ボタン -->
+                  {# Facebook連携済みの場合：無効化ボタン #}
                   <form action="{{ url_for('profile.disconnect_facebook') }}" method="POST" id="disconnectFacebookForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="button" id="disconnectFacebookBtn" class="text-xs text-red-500 underline" 
@@ -212,7 +212,7 @@
                     </button>
                   </form>
                   {% else %}
-                  <!-- Instagram連携済み、Facebook未連携：設定するボタンと事前連携案内 -->
+                  {# Instagram連携済み、Facebook未連携：設定するボタンと事前連携案内 #}
                   <a href="{{ url_for('profile.connect_facebook') }}" 
                      class="self-stretch my-auto text-sm font-medium text-center whitespace-nowrap text-white">
                     <div
@@ -227,7 +227,7 @@
             </article>
             
             {% if current_user.instagram_username and not current_user.facebook_token %}
-            <!-- Instagram連携済み、Facebook未連携の場合の事前連携案内 -->
+            {# Instagram連携済み、Facebook未連携の場合の事前連携案内 #}
             <div class="px-4 mt-6">
               <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-100">
                 <h4 class="text-sm font-medium text-yellow-800 mb-2">重要：Facebookページ連携の確認</h4>
@@ -281,11 +281,12 @@
                 </div>
               </div>
               <div class="flex flex-col items-end">
-                <!-- Instagram未連携の場合はボタンを非表示 -->
+                {# Instagram未連携の場合はボタンを非表示 #}
               </div>
             </article>
             {% endif %}
           </section>
+          -->
 
         </main>
 

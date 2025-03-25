@@ -134,7 +134,7 @@ async function geocodeAddress(address) {
     const encodedAddress = encodeURIComponent(address);
     const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`, {
       headers: {
-        'User-Agent': 'Spacey App (https://spacey.example.com)'
+        'User-Agent': 'maplink App (https://maplink.example.com)'
       }
     });
     const data = await response.json();
@@ -160,7 +160,7 @@ async function reverseGeocode(lat, lng) {
   try {
     const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
       headers: {
-        'User-Agent': 'Spacey App (https://spacey.example.com)'
+        'User-Agent': 'maplink App (https://maplink.example.com)'
       }
     });
     const data = await response.json();

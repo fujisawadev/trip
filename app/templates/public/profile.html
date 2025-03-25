@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ user.username }} | Spacey</title>
+    <title>{{ user.username }} | maplink</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     
@@ -201,16 +201,25 @@
                 </section>
 
                 <section class="favorite-spots">
-                    <h2 class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none min-h-[60px] text-neutral-900">{{ user.spots_heading or 'Favorite Spots' }}</h2>
+                    <h2 class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none min-h-[60px] text-neutral-900">{{ user.spots_heading or 'おすすめスポット' }}</h2>
 
                     <!-- 地図表示エリア -->
                     <div class="flex items-start px-4 py-2 w-full">
-                        <div id="map" class="w-full rounded-xl aspect-[1.78] min-w-60">
+                        <div id="map" class="w-full rounded-xl aspect-[1.78] min-w-60 relative">
                             <!-- 地図フィルターボタン（オーバーレイ） -->
                             <div class="map-filter-container">
                                 <button id="map-filter-button" class="map-filter-button">
                                     <span>このエリアで絞り込む</span>
                                 </button>
+                            </div>
+                            
+                            <!-- 地図拡大ボタン（右上に配置） -->
+                            <div class="absolute top-3 right-3 z-[1000] pointer-events-auto">
+                                <a href="/{{ user.username }}/map" class="flex items-center justify-center w-10 h-10 bg-white bg-opacity-85 rounded-lg shadow-sm hover:bg-opacity-100 transition-all border border-slate-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h4M4 3v4M21 4h-4m4 0v4M3 20h4m-4 0v-4m18 4h-4m4-4v4" />
+                                    </svg>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -290,25 +299,9 @@
                 </section>
             </main>
             
-            <footer class="w-full py-6 pb-28 text-center text-gray-500 text-sm">
+            <footer class="w-full py-6 text-center text-gray-500 text-sm">
                 <p>&copy; 2024 CAPSULE CORP. All rights reserved.</p>
             </footer>
-            
-            <!-- グローバルナビゲーション -->
-            <nav class="global-nav">
-                <div class="global-nav-container">
-                    <a href="/{{ user.username }}" class="nav-item active">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                    </a>
-                    <a href="/{{ user.username }}/map" class="nav-item">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                        </svg>
-                    </a>
-                </div>
-            </nav>
         </div>
     </header>
 
@@ -688,7 +681,7 @@
         
         // 現在のURLを取得
         const currentUrl = window.location.href;
-        const shareTitle = "{{ user.username }} | Spacey";
+        const shareTitle = "{{ user.username }} | maplink";
         const shareText = "{{ user.username }}さんのお気に入りスポットをチェックしよう！";
         
         // シェアボタンクリック時の処理

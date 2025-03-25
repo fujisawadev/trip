@@ -1,10 +1,10 @@
 /**
- * Spacey共通トースト通知システム
+ * maplink共通トースト通知システム
  * 画面中央に通知メッセージを表示する
  */
 
 // グローバルスコープで使えるように
-window.SpaceyToast = {
+window.maplinkToast = {
   /**
    * トーストメッセージを表示する
    * @param {string} message - 表示するメッセージ
@@ -13,7 +13,7 @@ window.SpaceyToast = {
    */
   show: function(message, type = 'info', duration = 3000) {
     // 既存のメッセージがあれば削除
-    const existingMessage = document.querySelector('.spacey-toast-message');
+    const existingMessage = document.querySelector('.maplink-toast-message');
     if (existingMessage) {
       existingMessage.remove();
     }
@@ -48,7 +48,7 @@ window.SpaceyToast = {
     }
     
     // クラスを設定
-    messageElement.className = `spacey-toast-message fixed inset-x-0 top-4 mx-auto w-4/5 max-w-sm p-4 rounded-lg shadow-lg z-50 transition-opacity duration-300 text-center ${backgroundColor} ${textColor} border ${borderColor}`;
+    messageElement.className = `maplink-toast-message fixed inset-x-0 top-4 mx-auto w-4/5 max-w-sm p-4 rounded-lg shadow-lg z-50 transition-opacity duration-300 text-center ${backgroundColor} ${textColor} border ${borderColor}`;
     messageElement.textContent = message;
     
     // bodyに追加
@@ -127,5 +127,5 @@ window.SpaceyToast = {
 // DOMが読み込まれたら自動的にフラッシュメッセージを処理
 document.addEventListener('DOMContentLoaded', function() {
   // Flaskのフラッシュメッセージがあれば処理
-  SpaceyToast.processFlashMessages();
+  maplinkToast.processFlashMessages();
 }); 

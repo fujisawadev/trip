@@ -11,16 +11,16 @@ class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), nullable=True, index=True, unique=True)
-    email = db.Column(db.String(120), nullable=True, index=True, unique=True)
-    password_hash = db.Column(db.String(128), nullable=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     
-    bio = db.Column(db.Text, nullable=True)
-    profile_pic_url = db.Column(db.String(255), nullable=True)
-    spots_heading = db.Column(db.String(100), nullable=True, default='Favorite Spots')
+    bio = db.Column(db.String(500), nullable=True)
+    profile_pic_url = db.Column(db.String(500), nullable=True)
+    spots_heading = db.Column(db.String(100), nullable=True, default='おすすめスポット')
     
     # アカウント検証
     is_verified = db.Column(db.Boolean, default=False)
@@ -57,7 +57,7 @@ class User(UserMixin, db.Model):
     spots = db.relationship('Spot', back_populates='user', lazy=True, cascade='all, delete-orphan')
     social_accounts = db.relationship('SocialAccount', back_populates='user', lazy=True, cascade='all, delete-orphan')
     
-    def __init__(self, username, email, password=None, bio=None, profile_pic_url=None, spots_heading='Favorite Spots'):
+    def __init__(self, username, email, password=None, bio=None, profile_pic_url=None, spots_heading='おすすめスポット'):
         self.username = username
         self.email = email
         self.bio = bio

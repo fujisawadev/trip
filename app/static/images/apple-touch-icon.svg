@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512px" height="512px" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>マップリンクタッチアイコン</title>
+    <defs>
+        <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="mapGradient">
+            <stop stop-color="#A5F3FC" offset="0%"></stop>
+            <stop stop-color="#0EA5E9" offset="50%"></stop>
+            <stop stop-color="#0369A1" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="shareGradient">
+            <stop stop-color="#60A5FA" offset="0%"></stop>
+            <stop stop-color="#3B82F6" offset="100%"></stop>
+        </linearGradient>
+        <rect id="roundedRect" x="36" y="36" width="440" height="440" rx="100"></rect>
+    </defs>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <!-- 丸みを帯びた正方形の背景 -->
+        <mask id="mask">
+            <use href="#roundedRect" fill="white"></use>
+        </mask>
+        <use href="#roundedRect" fill="url(#mapGradient)"></use>
+        
+        <!-- マップグリッド -->
+        <g mask="url(#mask)">
+            <path d="M120,120 L392,120 L392,392 L120,392 Z" stroke="#FFFFFF" stroke-width="6" opacity="0.3"></path>
+            <path d="M170,120 L170,392" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M220,120 L220,392" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M270,120 L270,392" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M320,120 L320,392" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M370,120 L370,392" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M120,170 L392,170" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M120,220 L392,220" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M120,270 L392,270" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M120,320 L392,320" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            <path d="M120,370 L392,370" stroke="#FFFFFF" stroke-width="3" opacity="0.3"></path>
+            
+            <!-- ロケーションピン -->
+            <g transform="translate(190, 140)">
+                <path d="M66,20 C66,8.954 57.046,0 46,0 C34.954,0 26,8.954 26,20 C26,37.6 46,60 46,60 C46,60 66,37.6 66,20 Z" fill="#FFFFFF"></path>
+                <circle cx="46" cy="20" r="10" fill="url(#mapGradient)"></circle>
+            </g>
+            
+            <!-- シェア要素（右下の放射状ライン） -->
+            <g transform="translate(256, 256)">
+                <circle cx="44" cy="44" r="60" fill="url(#shareGradient)"></circle>
+                <path d="M44,14 L44,74" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+                <path d="M14,44 L74,44" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+                <path d="M24,24 L64,64" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+                <path d="M24,64 L64,24" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+            </g>
+            
+            <!-- 高光沢効果 -->
+            <path d="M256,96 C186.5,96 130,152.5 130,222 C130,262 148.5,297 178,319 C196,334.5 218,344.5 242,347 C234,341.5 228,332 228,321 C228,299.5 245.5,282 267,282 C288.5,282 306,299.5 306,321 C306,332 300,341.5 292,347 C316,344.5 338,334.5 356,319 C385.5,297 404,262 404,222 C404,152.5 347.5,96 278,96 L256,96 Z" fill="#FFFFFF" opacity="0.2"></path>
+        </g>
+    </g>
+</svg> 
