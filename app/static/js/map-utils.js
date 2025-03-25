@@ -7,13 +7,15 @@ function initMap(elementId, options = {}) {
     const defaultOptions = {
         zoomControl: false,
         center: [36.5748, 139.2394],
-        zoom: 5
+        zoom: 5,
+        minZoom: 3
     };
     
     const mapOptions = { ...defaultOptions, ...options };
     
     const map = L.map(elementId, {
-        zoomControl: mapOptions.zoomControl
+        zoomControl: mapOptions.zoomControl,
+        minZoom: mapOptions.minZoom
     }).setView(mapOptions.center, mapOptions.zoom);
     
     // OpenStreetMapのタイルレイヤーを追加
@@ -62,9 +64,10 @@ function showMarkersAndFitBounds(map, markers) {
     // マーカーの位置を取得
     const bounds = L.latLngBounds(markers.map(marker => marker.getLatLng()));
     
-    // 地図の表示範囲を調整（パディングを追加）
+    // 地図の表示範囲を調整（パディングを追加、最小ズームレベルを設定）
     map.fitBounds(bounds, {
-        padding: [50, 50]
+        padding: [50, 50],
+        minZoom: 3 // 最小ズームレベルを3（大陸レベル）に制限
     });
 }
 

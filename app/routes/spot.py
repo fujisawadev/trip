@@ -9,6 +9,7 @@ from app import db
 from app.models.user import User
 from app.models.spot import Spot
 from app.models.photo import Photo
+from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
 
 bp = Blueprint('spot', __name__)
 
@@ -147,20 +148,38 @@ def add_spot():
         photos = request.files.getlist('photos')
         for photo in photos:
             if photo and allowed_file(photo.filename):
-                filename = secure_filename(photo.filename)
-                # ユニークなファイル名を生成
-                unique_filename = f"{uuid.uuid4().hex}_{filename}"
-                photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
-                
-                # 写真情報をデータベースに保存
-                photo_url = url_for('static', filename=f'uploads/{unique_filename}')
-                photo_obj = Photo(
-                    spot_id=spot.id,
-                    photo_url=photo_url,
-                    google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
-                    is_google_photo=False
-                )
-                db.session.add(photo_obj)
+                # S3が有効かチェック
+                if current_app.config.get('USE_S3', False):
+                    # S3にアップロード (spot_photoフォルダに保存)
+                    photo_url = upload_file_to_s3(photo, folder='spot_photo')
+                    
+                    # アップロードに成功した場合のみ処理
+                    if photo_url:
+                        photo_obj = Photo(
+                            spot_id=spot.id,
+                            photo_url=photo_url,
+                            google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
+                            is_google_photo=False
+                        )
+                        db.session.add(photo_obj)
+                    else:
+                        flash(f'写真「{photo.filename}」のアップロードに失敗しました。', 'danger')
+                else:
+                    # 従来のローカルストレージにアップロード
+                    filename = secure_filename(photo.filename)
+                    # ユニークなファイル名を生成
+                    unique_filename = f"{uuid.uuid4().hex}_{filename}"
+                    photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                    
+                    # 写真情報をデータベースに保存
+                    photo_url = url_for('static', filename=f'uploads/{unique_filename}')
+                    photo_obj = Photo(
+                        spot_id=spot.id,
+                        photo_url=photo_url,
+                        google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
+                        is_google_photo=False
+                    )
+                    db.session.add(photo_obj)
         
         db.session.commit()
         flash('スポットを追加しました。', 'success')
@@ -263,26 +282,48 @@ def edit_spot(spot_id):
             for photo_id in photo_ids:
                 photo = Photo.query.get(photo_id)
                 if photo and photo.spot_id == spot.id:
+                    # S3が有効で、ユーザーアップロード写真の場合、S3からも削除
+                    if current_app.config.get('USE_S3', False) and not photo.is_google_photo:
+                        delete_file_from_s3(photo.photo_url)
+                    # データベースから削除
                     db.session.delete(photo)
         
         # 新しい写真のアップロード処理
         photos = request.files.getlist('photos')
         for photo in photos:
             if photo and allowed_file(photo.filename):
-                filename = secure_filename(photo.filename)
-                # ユニークなファイル名を生成
-                unique_filename = f"{uuid.uuid4().hex}_{filename}"
-                photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
-                
-                # 写真情報をデータベースに保存
-                photo_url = url_for('static', filename=f'uploads/{unique_filename}')
-                photo_obj = Photo(
-                    spot_id=spot.id,
-                    photo_url=photo_url,
-                    google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
-                    is_google_photo=False
-                )
-                db.session.add(photo_obj)
+                # S3が有効かチェック
+                if current_app.config.get('USE_S3', False):
+                    # S3にアップロード (spot_photoフォルダに保存)
+                    photo_url = upload_file_to_s3(photo, folder='spot_photo')
+                    
+                    # アップロードに成功した場合のみ処理
+                    if photo_url:
+                        photo_obj = Photo(
+                            spot_id=spot.id,
+                            photo_url=photo_url,
+                            google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
+                            is_google_photo=False
+                        )
+                        db.session.add(photo_obj)
+                    else:
+                        flash(f'写真「{photo.filename}」のアップロードに失敗しました。', 'danger')
+                else:
+                    # 従来のローカルストレージにアップロード
+                    filename = secure_filename(photo.filename)
+                    # ユニークなファイル名を生成
+                    unique_filename = f"{uuid.uuid4().hex}_{filename}"
+                    photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                    
+                    # 写真情報をデータベースに保存
+                    photo_url = url_for('static', filename=f'uploads/{unique_filename}')
+                    photo_obj = Photo(
+                        spot_id=spot.id,
+                        photo_url=photo_url,
+                        google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
+                        is_google_photo=False
+                    )
+                    db.session.add(photo_obj)
         
         db.session.commit()
         flash('スポット情報を更新しました。', 'success')
@@ -340,32 +381,33 @@ def delete_spot(spot_id):
         return redirect(url_for('profile.mypage'))
     
     try:
-        # スポットに関連する写真を削除
+        # 関連する写真の削除処理
         photos = Photo.query.filter_by(spot_id=spot.id).all()
         for photo in photos:
-            # ユーザーがアップロードした写真の場合、ファイルも削除
-            if not photo.is_google_photo and photo.photo_url:
+            # S3が有効で、ユーザーアップロード写真の場合、S3からも削除
+            if current_app.config.get('USE_S3', False) and not photo.is_google_photo and photo.photo_url:
+                delete_file_from_s3(photo.photo_url)
+            elif not photo.is_google_photo and photo.photo_url:
+                # ローカルファイルの場合は静的ファイルから削除（コメント部分のユースケースのため残しています）
                 try:
-                    # 静的ファイルのパスを取得
+                    # ファイルパスを取得（/static/uploads/filename.jpg形式）
                     filename = photo.photo_url.split('/')[-1]
                     file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    
+                    # ファイルが存在するかチェック
                     if os.path.exists(file_path):
                         os.remove(file_path)
                 except Exception as e:
-                    print(f"写真ファイル削除エラー: {str(e)}")
-            
-            # 写真レコードを削除
-            db.session.delete(photo)
+                    print(f"ファイル削除エラー: {str(e)}")
         
-        # スポットを削除
+        # スポットの削除（関連するオブジェクトはcascadeで削除）
         db.session.delete(spot)
         db.session.commit()
         
         flash('スポットを削除しました。', 'success')
     except Exception as e:
         db.session.rollback()
-        print(f"スポット削除エラー: {str(e)}")
-        flash('スポットの削除に失敗しました。', 'danger')
+        flash(f'スポットの削除中にエラーが発生しました: {str(e)}', 'danger')
     
     return redirect(url_for('profile.mypage'))
 

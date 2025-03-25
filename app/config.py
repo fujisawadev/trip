@@ -50,6 +50,13 @@ class Config:
     UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
     
+    # AWS S3設定
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_S3_BUCKET_NAME = os.environ.get('AWS_S3_BUCKET_NAME')
+    AWS_S3_REGION = os.environ.get('AWS_S3_REGION', 'ap-northeast-1')  # デフォルトは東京リージョン
+    USE_S3 = os.environ.get('USE_S3', 'false').lower() in ['true', 'on', '1']  # デフォルトではS3を使用しない
+    
     # Instagram API設定
     INSTAGRAM_CLIENT_ID = os.environ.get('INSTAGRAM_CLIENT_ID')
     INSTAGRAM_CLIENT_SECRET = os.environ.get('INSTAGRAM_CLIENT_SECRET')

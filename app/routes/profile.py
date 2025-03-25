@@ -26,10 +26,48 @@ def allowed_file(filename):
 @login_required
 def mypage():
     """マイページ"""
-    spots = Spot.query.filter_by(user_id=current_user.id)\
+    # ページネーションのためのページ番号を取得（デフォルトは1ページ目）
+    page = request.args.get('page', 1, type=int)
+    # 1ページあたりの表示件数
+    per_page = 10
+    
+    # ユーザーのスポットをクエリし、ページネーション
+    spots_pagination = Spot.query.filter_by(user_id=current_user.id)\
         .order_by(Spot.is_active.desc(), Spot.created_at.desc())\
-        .all()
-    return render_template('mypage.html', user=current_user, spots=spots)
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    # APIリクエストの場合はJSONレスポンスを返す
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # スポットデータをJSON形式に変換
+        spots_data = []
+        for spot in spots_pagination.items:
+            spot_dict = {
+                'id': spot.id,
+                'name': spot.name,
+                'location': spot.location,
+                'summary_location': spot.summary_location,
+                'category': spot.category,
+                'is_active': spot.is_active,
+                'photo_url': spot.photos[0].photo_url if spot.photos and len(spot.photos) > 0 else None
+            }
+            spots_data.append(spot_dict)
+        
+        # ページネーション情報を含めてJSONを返す
+        return jsonify({
+            'spots': spots_data,
+            'has_next': spots_pagination.has_next,
+            'has_prev': spots_pagination.has_prev,
+            'next_page': spots_pagination.next_num,
+            'prev_page': spots_pagination.prev_num,
+            'total_pages': spots_pagination.pages,
+            'current_page': spots_pagination.page
+        })
+    
+    # 通常のリクエストの場合はテンプレートをレンダリング
+    return render_template('mypage.html', 
+                          user=current_user, 
+                          spots=spots_pagination.items,
+                          pagination=spots_pagination)
 
 @bp.route('/update-spots-heading', methods=['POST'])
 @login_required
@@ -70,15 +108,27 @@ def edit_profile():
         if 'profile_pic' in request.files:
             file = request.files['profile_pic']
             if file and file.filename != '' and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                # ユーザーIDをファイル名に含める
-                filename = f"{current_user.id}_{filename}"
-                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                file.save(file_path)
-                
-                # データベースに保存するパスは相対パス
-                relative_path = os.path.join('uploads', filename)
-                current_user.profile_pic_url = relative_path
+                # S3が有効かチェック
+                if current_app.config.get('USE_S3', False):
+                    # S3にアップロード (profile_imgフォルダに保存)
+                    photo_url = upload_file_to_s3(file, folder='profile_img')
+                    
+                    # アップロードに成功した場合のみ処理
+                    if photo_url:
+                        current_user.profile_pic_url = photo_url
+                    else:
+                        flash('プロフィール画像のアップロードに失敗しました。', 'danger')
+                else:
+                    # ローカルに保存
+                    filename = secure_filename(file.filename)
+                    # ユーザーIDをファイル名に含める
+                    filename = f"{current_user.id}_{filename}"
+                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
+                    
+                    # データベースに保存するパスは相対パス
+                    relative_path = os.path.join('uploads', filename)
+                    current_user.profile_pic_url = relative_path
         
         # ユーザー情報の更新
         current_user.username = username

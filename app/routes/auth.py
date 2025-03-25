@@ -200,7 +200,7 @@ def forgot_password():
                                     "email": user.email
                                 }
                             ],
-                            "subject": "Password Reset Request"
+                            "subject": "[maplink] パスワードリセットのご案内"
                         }
                     ],
                     "from": {
@@ -209,7 +209,7 @@ def forgot_password():
                     "content": [
                         {
                             "type": "text/plain",
-                            "value": f"Click the link below to reset your password:\n{reset_url}\n\nThis link will expire in 24 hours.\n\nIf you did not request a password reset, please ignore this email."
+                            "value": f"以下のリンクをクリックして、パスワードをリセットしてください：\n{reset_url}\n\nこのリンクは24時間後に期限切れとなります。\n\nパスワードリセットをリクエストしていない場合は、このメールを無視してください。"
                         }
                     ]
                 }
