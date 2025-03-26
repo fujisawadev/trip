@@ -6,6 +6,7 @@ from app import db, csrf
 from app.models.user import User
 from app.models.spot import Spot
 from app.models.import_progress import ImportProgress
+from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
 import uuid
 import requests
 from datetime import datetime, timedelta
