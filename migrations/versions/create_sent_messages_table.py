@@ -1,7 +1,7 @@
 """create sent_messages table
 
 Revision ID: 293a57f8c925
-Revises: 
+Revises: add_missing_user_columns
 Create Date: 2025-03-23 14:30:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '293a57f8c925'
-down_revision = None  # 実際の環境に合わせて調整する必要があります
+down_revision = 'add_missing_user_columns'
 branch_labels = None
 depends_on = None
 
