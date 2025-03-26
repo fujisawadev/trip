@@ -61,7 +61,12 @@ def upload_file_to_s3(file, filename=None, content_type=None, acl=None, folder='
         if content_type:
             extra_args["ContentType"] = content_type
             
-        # ACLが指定されている場合のみACLを設定（現在はデフォルトではACLを使用しない）
+        # ACLの設定（パラメータまたは環境変数から取得）
+        if acl is None:
+            # 環境変数S3_ACLが設定されている場合、それを使用
+            acl = current_app.config.get('S3_ACL')
+            
+        # ACLが指定されている場合はACLを設定
         if acl:
             extra_args["ACL"] = acl
             

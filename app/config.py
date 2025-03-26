@@ -56,6 +56,7 @@ class Config:
     AWS_S3_BUCKET_NAME = os.environ.get('AWS_S3_BUCKET_NAME')
     AWS_S3_REGION = os.environ.get('AWS_S3_REGION', 'ap-northeast-1')  # デフォルトは東京リージョン
     USE_S3 = os.environ.get('USE_S3', 'false').lower() in ['true', 'on', '1']  # デフォルトではS3を使用しない
+    S3_ACL = os.environ.get('S3_ACL')  # S3オブジェクトのアクセス権限（例: public-read）
     
     # Instagram API設定
     INSTAGRAM_CLIENT_ID = os.environ.get('INSTAGRAM_CLIENT_ID')
