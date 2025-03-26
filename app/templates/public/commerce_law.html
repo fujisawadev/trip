@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex">
+    <title>特定商取引法に基づく表記 | maplink</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background-color: white;
+        min-height: 100vh;
+      }
+      .page-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        background-color: #f8fafc;
+      }
+      .content {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .content h2 {
+        margin-top: 24px;
+        margin-bottom: 16px;
+      }
+      .content p {
+        margin-bottom: 16px;
+        line-height: 1.6;
+      }
+      .info-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .info-table th {
+        width: 30%;
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 600;
+        background-color: #f8fafc;
+      }
+      .info-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="w-full max-w-4xl mx-auto">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
+        <!-- ヘッダー -->
+        <header class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50">
+          <a href="javascript:history.back()" class="flex items-center self-stretch my-auto w-12 min-h-12" aria-label="戻る">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+          <h1 class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-h-[23px] min-w-60 text-neutral-900">
+            特定商取引法に基づく表記
+          </h1>
+        </header>
+
+        <section class="content">
+          <div class="bg-white p-6 rounded-lg shadow-sm mb-8">
+            <h2 class="text-xl font-bold text-neutral-900 mb-4">特定商取引法に基づく表記</h2>
+            
+            <div class="text-neutral-700">
+              <p>
+                「特定商取引に関する法律」第11条（通信販売についての広告）に基づき以下に明示いたします。
+              </p>
+              
+              <table class="info-table mt-6">
+                <tr>
+                  <th>販売業者の名称</th>
+                  <td>株式会社CAPSULE</td>
+                </tr>
+                <tr>
+                  <th>所在地</th>
+                  <td>神奈川県藤沢市鵠沼石上3-1-13</td>
+                </tr>
+                <tr>
+                  <th>電話番号</th>
+                  <td>請求があったら遅滞なく開示します</td>
+                </tr>
+                <tr>
+                  <th>メールアドレス</th>
+                  <td>support@its-capsule.com</td>
+                </tr>
+                <tr>
+                  <th>運営統括責任者</th>
+                  <td>矢野太一</td>
+                </tr>
+                <tr>
+                  <th>追加手数料などの追加料金</th>
+                  <td>商品・サービスの代金以外に追加料金はかかりません</td>
+                </tr>
+                <tr>
+                  <th>交換および返金（返金ポリシー）</th>
+                  <td>基本的にキャンセルは行っておりません。ただし、クレジットの購入に関して問題がある場合は、お問い合わせください。システムエラーなどでクレジットが適切に反映されない場合は、サポートセンターにご連絡いただければ対応いたします。</td>
+                </tr>
+                <tr>
+                  <th>引渡時期</th>
+                  <td>クレジットカード決済後、クレジットは即時にチャージされ、すぐにサービスをご利用いただけます</td>
+                </tr>
+                <tr>
+                  <th>受付可能な決済手段</th>
+                  <td>クレジットカードのみ</td>
+                </tr>
+                <tr>
+                  <th>決済期間</th>
+                  <td>クレジットカード決済の場合、ただちに決済が実行されます</td>
+                </tr>
+                <tr>
+                  <th>販売価格</th>
+                  <td>販売価格は決済ページに記載されています</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </section>
+        
+      </div>
+    </main>
+  </body>
+</html> 

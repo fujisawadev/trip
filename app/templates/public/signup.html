@@ -162,8 +162,8 @@
           class="px-4 pt-1 pb-3 w-full text-sm leading-5 text-center text-slate-500"
         >
           登録することで、
-          <a href="https://taichijp.notion.site/1b77cae788c180aa93e0d90f09f77ae9" class="underline hover:text-slate-700" target="_blank">利用規約</a>と
-          <a href="https://taichijp.notion.site/1b77cae788c18033a02bd7c46104ba7e" class="underline hover:text-slate-700" target="_blank">プライバシーポリシー</a>に同意したものとみなされます。
+          <a href="{{ url_for('public.terms') }}" class="underline hover:text-slate-700" target="_blank">利用規約</a>と
+          <a href="{{ url_for('public.privacy_policy') }}" class="underline hover:text-slate-700" target="_blank">プライバシーポリシー</a>に同意したものとみなされます。
         </footer>
 
         <div class="flex w-full bg-slate-50 min-h-5"></div>

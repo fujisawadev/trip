@@ -858,7 +858,7 @@
                   無料アカウント作成
                 </button>
                 
-                <p class="text-xs text-center text-blue-100 mt-4">登録することで、<a href="#" class="underline">利用規約</a>と<a href="#" class="underline">プライバシーポリシー</a>に同意したことになります。</p>
+                <p class="text-xs text-center text-blue-100 mt-4">登録することで、<a href="{{ url_for('public.terms') }}" class="underline">利用規約</a>と<a href="{{ url_for('public.privacy_policy') }}" class="underline">プライバシーポリシー</a>に同意したことになります。</p>
               </form>
             </div>
           </div>
@@ -891,8 +891,9 @@
             <h3 class="text-lg font-semibold mb-6">会社情報</h3>
             <ul class="space-y-4">
               <li><a href="https://www.its-capsule.com/" class="text-gray-400 hover:text-white">会社概要</a></li>
-              <li><a href="#" class="text-gray-400 hover:text-white">プライバシーポリシー</a></li>
-              <li><a href="#" class="text-gray-400 hover:text-white">利用規約</a></li>
+              <li><a href="{{ url_for('public.privacy_policy') }}" class="text-gray-400 hover:text-white">プライバシーポリシー</a></li>
+              <li><a href="{{ url_for('public.terms') }}" class="text-gray-400 hover:text-white">利用規約</a></li>
+              <li><a href="{{ url_for('public.commerce_law') }}" class="text-gray-400 hover:text-white">特定商取引法に基づく表記</a></li>
             </ul>
           </div>
           

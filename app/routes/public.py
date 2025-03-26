@@ -351,3 +351,18 @@ def spot_api(spot_id):
     except Exception as e:
         print(f"API Error for spot {spot_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500 
+
+@public_bp.route('/terms')
+def terms():
+    """利用規約ページを表示する"""
+    return render_template('public/terms.html')
+
+@public_bp.route('/privacy-policy')
+def privacy_policy():
+    """プライバシーポリシーページを表示する"""
+    return render_template('public/privacy_policy.html')
+
+@public_bp.route('/commerce-law')
+def commerce_law():
+    """特定商取引法に基づく表記ページを表示する"""
+    return render_template('public/commerce_law.html') 
