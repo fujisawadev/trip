@@ -22,7 +22,7 @@ def upload_file_to_s3(file, filename=None, content_type=None, acl=None, folder='
         file: アップロードするファイルオブジェクト
         filename: 保存するファイル名（指定しない場合はUUIDを生成）
         content_type: ファイルのMIMEタイプ（指定しない場合はファイルから推測）
-        acl: アクセス権限（デフォルトはNone。バケットのデフォルト設定を使用）
+        acl: アクセス権限（この引数は使用しません）
         folder: 保存先フォルダ（デフォルトは'spot_photo'）
         
     Returns:
@@ -61,15 +61,8 @@ def upload_file_to_s3(file, filename=None, content_type=None, acl=None, folder='
         if content_type:
             extra_args["ContentType"] = content_type
             
-        # ACLの設定（パラメータまたは環境変数から取得）
-        if acl is None:
-            # 環境変数S3_ACLが設定されている場合、それを使用
-            acl = current_app.config.get('S3_ACL')
-            
-        # ACLが指定されている場合はACLを設定
-        if acl:
-            extra_args["ACL"] = acl
-            
+        # ACL設定は使用しません
+        
         # S3にアップロード
         s3_client.upload_fileobj(
             file,
