@@ -52,35 +52,33 @@
           <!-- 左側のテキスト -->
           <div class="md:w-1/2 md:pr-8 fade-in">
             <div class="inline-flex items-center bg-black/30 backdrop-blur-md px-5 py-2 rounded-md text-sm mb-8 border-l-2 border-yellow-300">
-              スポット系インフルエンサー専用
+              マップインフルエンサー専用
             </div>
             
             <h1 class="mb-10 leading-tight tracking-tight">
-              <div class="text-4xl md:text-6xl font-light text-white">スポット</div>
               <div class="text-5xl md:text-7xl font-semibold text-white mt-1 relative inline-block">
-                コレクション
-                <span class="absolute -bottom-2 left-0 w-24 h-0.5 bg-yellow-300"></span>
+                投稿を、<br>マップに変える。
               </div>
             </h1>
             
-            <p class="text-xl mb-8 text-blue-50/90 max-w-lg">あなたの訪れた場所を、美しいマップ上のコレクションとして共有する新しい方法</p>
+            <p class="text-xl mb-8 text-blue-50/90 max-w-lg">フォロワー体験を、ワンランク上へあげる新しいかたちです。</p>
             
             <div class="flex flex-col gap-4 mb-10">
               <div class="flex items-center space-x-3">
                 <svg class="w-5 h-5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-                <span class="text-base md:text-lg text-white">投稿を自動でマップ化</span>
-              </div>
-              <div class="flex items-center space-x-3">
-                <svg class="w-5 h-5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                <span class="text-base md:text-lg text-white">Instagramとシームレス連携</span>
+                <span class="text-base md:text-lg text-white">投稿をマップ化</span>
               </div>
               <div class="flex items-center space-x-3">
                 <svg class="w-5 h-5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 <span class="text-base md:text-lg text-white">場所の質問に自動応答</span>
               </div>
+              <div class="flex items-center space-x-3">
+                <svg class="w-5 h-5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                <span class="text-base md:text-lg text-white">Instagramとシームレス連携</span>
+              </div>
             </div>
             
-            <p class="text-base mb-10 text-blue-50/80 leading-relaxed max-w-lg">カフェ、レストラン、観光スポットなど、あなたのお気に入りの場所をコレクションとして整理。フォロワーからの「どこ？」という質問にも自動で対応します。</p>
+            <p class="text-base mb-10 text-blue-50/80 leading-relaxed max-w-lg">レストラン、ホテル、観光スポットなどを投稿から抽出し、フォロワーが探しやすいマップに変換します。準備ができたらプロフィールにmaplinkを貼るだけ。「おすすめある？」にも、自動返信で即対応。</p>
             
             <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
               <a href="{{ url_for('auth.signup') }}" class="bg-white text-blue-600 hover:bg-blue-50 font-bold py-3 px-8 rounded-full text-center transition-all shadow-lg hover:shadow-xl hover:shadow-white/30 hover:-translate-y-1 group relative overflow-hidden">
@@ -291,12 +289,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div class="text-center mb-16 fade-in">
           <span class="inline-block bg-blue-100 text-blue-600 px-4 py-1 rounded-full text-sm font-medium mb-4 shadow-md">AI搭載サービス</span>
-          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6">フォロワーを魅了するための<br><span class="text-gradient">全機能</span></h2>
-          <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-            <span class="inline-block bg-red-50 text-red-500 px-2 py-1 rounded-md mx-1 shadow-sm">投稿が埋もれる</span>
-            <span class="inline-block bg-yellow-50 text-yellow-600 px-2 py-1 rounded-md mx-1 shadow-sm">「どこ？」と何度も聞かれる</span>
-            <span class="inline-block bg-orange-50 text-orange-500 px-2 py-1 rounded-md mx-1 shadow-sm">フォロワーが場所を見失う</span>
-          </p>
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6">フォロワーを魅了する<span class="text-gradient">全機能</span></h2>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -359,15 +352,10 @@
                 </div>
               </div>
             </div>
-            <p class="text-gray-600 mb-4">「どこにあるの？」の質問を解決！あなたのおすすめカフェやホテルがマップ上で<span class="font-semibold text-blue-600">ひと目で確認</span>できるページを簡単に作成できます。</p>
-            <div class="h-8 flex items-center">
-              <a href="https://trip-staging-e2866d45a042.herokuapp.com/Taichi%20Yano" class="group inline-flex items-center text-blue-500 font-medium hover:text-blue-600">
-                <span>地図付きガイド機能</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1 transform transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-              </a>
+            <div class="h-6 flex items-center mb-2">
+              <span class="text-blue-500 font-medium">探しやすいマップ表示</span>
             </div>
+            <p class="text-gray-600 mb-4">おすすめスポットを、カテゴリとエリアで整理。探しやすさが、エンゲージメントを高める。</p>
           </div>
           
           <!-- 特徴カード2 (DMオートリプライ) -->
@@ -422,15 +410,10 @@
                 </div>
               </div>
             </div>
-            <p class="text-gray-600 mb-4">「このカフェどこ？」「予約方法は？」よくある質問に<span class="font-semibold text-blue-600">24時間AI自動返信</span>。寝ている間もファンを増やせます！</p>
-            <div class="h-8 flex items-center">
-              <a href="#" class="group inline-flex items-center text-blue-500 font-medium hover:text-blue-600">
-                <span>返信の手間ゼロ</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1 transform transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-              </a>
+            <div class="h-6 flex items-center mb-2">
+              <span class="text-blue-500 font-medium">返信の手間ゼロ</span>
             </div>
+            <p class="text-gray-600 mb-4">「おすすめを教えて」の質問に、いつでも自動返信。あなたの代わりに、休まず案内。</p>
           </div>
           
           <!-- 特徴カード3 (インポート機能) -->
@@ -525,15 +508,10 @@
                 </div>
               </div>
             </div>
-            <p class="text-gray-600 mb-4">投稿が埋もれる問題を解決！Instagramに投稿するだけで、AIが自動的に<span class="font-semibold text-blue-600">位置情報を抽出</span>してスポットマップに追加します。</p>
-            <div class="h-8 flex items-center">
-              <a href="#" class="group inline-flex items-center text-blue-500 font-medium hover:text-blue-600">
-                <span>自動コンテンツ同期</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1 transform transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-              </a>
+            <div class="h-6 flex items-center mb-2">
+              <span class="text-blue-500 font-medium">自動コンテンツ同期</span>
             </div>
+            <p class="text-gray-600 mb-4">Instagramに投稿するだけ。AIが場所を抽出し、自動でマップに。"まとめる時間"が、いらなくなる。</p>
           </div>
         </div>
       </div>
@@ -692,7 +670,7 @@
         <div class="text-center mb-16 fade-in">
           <span class="inline-block bg-indigo-100 text-indigo-600 px-4 py-1 rounded-full text-sm font-medium mb-4 shadow-md">PRICING</span>
           <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">サブスクリプション<span class="heading-accent">プラン</span></h2>
-          <p class="text-lg text-gray-600 max-w-2xl mx-auto">必要な機能だけを、必要なだけ。あなたのステージに合わせたプランをご用意しています</p>
+          <p class="text-lg text-gray-600 max-w-2xl mx-auto">必要な機能だけを、必要なだけ。</p>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 md:gap-16 gap-8 fade-in justify-center max-w-4xl mx-auto">
@@ -736,7 +714,7 @@
           
           <!-- 推奨プラン -->
           <div class="relative bg-white rounded-2xl shadow-xl p-8 transform md:scale-105 z-10 border border-indigo-100">
-            <div class="absolute -top-5 left-0 right-0 text-center">
+            <div class="absolute -top-9 left-0 right-0 text-center z-20">
               <span class="inline-block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium shadow-lg">おすすめ</span>
             </div>
             
@@ -745,7 +723,7 @@
             
             <h3 class="text-xl font-bold text-gray-900 mt-6 mb-4">Pro</h3>
             <div class="flex items-baseline mb-2">
-              <span class="text-4xl font-extrabold text-gray-900 line-through text-gray-400">¥980</span>
+              <span class="text-4xl font-extrabold text-gray-900 line-through text-gray-400">¥480</span>
               <span class="text-gray-400 ml-1 line-through">/月</span>
             </div>
             <div class="mb-4">
@@ -817,45 +795,41 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div class="text-white fade-in">
             <span class="inline-block bg-white/20 backdrop-blur-sm text-white px-4 py-1 rounded-full text-sm font-medium mb-6 shadow-lg">今すぐスタート</span>
-            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-shadow">AI搭載スポットマップで<br>あなたの<span class="text-blue-200">影響力アップ</span></h2>
-            <p class="text-xl mb-8 text-blue-100">埋もれがちな投稿を地図付きスポットガイドに変換。位置情報の自動認識、質問への24時間自動応答。フォロワーに喜ばれる体験をカンタンに提供できます。</p>
-            
-            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-              <a href="{{ url_for('auth.signup') }}" class="bg-white text-indigo-700 hover:bg-blue-50 font-bold py-4 px-10 rounded-xl text-center transition-all shadow-lg hover:shadow-xl hover-lift text-lg flex items-center justify-center">
-                <span>無料ではじめる</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </a>
-              <a href="#" class="bg-transparent hover:bg-white/10 backdrop-blur-sm text-white font-bold py-4 px-10 rounded-xl text-center transition-all border border-white/20 text-lg">お問い合わせ</a>
-            </div>
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 text-shadow">投稿をマップ化する<span class="text-blue-200">新しい体験</span></h2>
+            <p class="text-xl mb-8 text-blue-100">投稿をマップ上で一元管理。場所を自動で抽出し、カテゴリ別に整理。フォロワーからの「どこ？」という質問にも自動返信。フォロワー満足度が高まります。</p>
           </div>
           
           <div class="fade-in">
             <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20">
-              <h3 class="text-xl font-bold text-white mb-6">新機能体験に登録</h3>
+              <h3 class="text-xl font-bold text-white mb-6">無料アカウント登録</h3>
               
-              <form class="space-y-4">
+              <form method="POST" action="{{ url_for('auth.signup') }}" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
-                  <label class="block text-blue-100 mb-2 text-sm">お名前</label>
-                  <input type="text" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="山田 太郎">
+                  <label class="block text-blue-100 mb-2 text-sm" for="fullName">お名前</label>
+                  <input type="text" id="fullName" name="fullName" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="お名前を入力" required>
                 </div>
                 
                 <div>
-                  <label class="block text-blue-100 mb-2 text-sm">メールアドレス</label>
-                  <input type="email" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="your@email.com">
+                  <label class="block text-blue-100 mb-2 text-sm" for="email">メールアドレス</label>
+                  <input type="email" id="email" name="email" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="メールアドレスを入力" required>
                 </div>
                 
                 <div>
-                  <label class="block text-blue-100 mb-2 text-sm">Instagramユーザー名</label>
-                  <div class="flex">
-                    <span class="bg-white/5 border border-white/10 border-r-0 rounded-l-xl px-3 py-3 text-white">@</span>
-                    <input type="text" class="w-full bg-white/5 border border-white/10 rounded-r-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="username">
+                  <label class="block text-blue-100 mb-2 text-sm" for="password">パスワード</label>
+                  <div class="relative">
+                    <input type="password" id="password" name="password" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="パスワードを入力" required>
+                    <button type="button" class="absolute inset-y-0 right-0 flex items-center px-4 text-white/70 toggle-password" data-target="password" aria-label="パスワードの表示/非表示">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 eye-icon">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
                 
                 <button type="submit" class="w-full bg-gradient-to-r from-blue-400 to-indigo-500 hover:from-blue-500 hover:to-indigo-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
-                  無料アカウント作成
+                  アカウントを作成
                 </button>
                 
                 <p class="text-xs text-center text-blue-100 mt-4">登録することで、<a href="{{ url_for('public.terms') }}" class="underline">利用規約</a>と<a href="{{ url_for('public.privacy_policy') }}" class="underline">プライバシーポリシー</a>に同意したことになります。</p>
@@ -875,14 +849,10 @@
               <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="maplink Logo" class="h-8 w-8 mr-2">
               <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">maplink</span>
             </div>
-            <p class="text-gray-400 mb-6">インフルエンサーのための次世代プラットフォーム。簡単ウェブ作成、自動同期、AIオートリプライ。</p>
+            <p class="text-gray-400 mb-6">マップインフルエンサーのための専用ツール。投稿をマップ化し、整理・共有。フォロワーとの関係を深めます。</p>
             <div class="flex space-x-4">
               <a href="#" class="text-gray-400 hover:text-white">
                 <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clip-rule="evenodd"></path></svg>
-              </a>
-              <a href="#" class="text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.723 10.054 10.054 0 01-3.127 1.184 4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                    </svg>
               </a>
             </div>
           </div>
@@ -945,6 +915,32 @@
           } else {
             header.classList.remove('scrolled');
           }
+        });
+      });
+    </script>
+    
+    <!-- パスワード表示/非表示の切り替え -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // パスワード表示/非表示の切り替え
+        document.querySelectorAll('.toggle-password').forEach(button => {
+          button.addEventListener('click', function() {
+            const targetId = this.dataset.target;
+            const passwordInput = document.getElementById(targetId);
+            
+            if (passwordInput.type === 'password') {
+              passwordInput.type = 'text';
+              this.querySelector('.eye-icon').innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+              `;
+            } else {
+              passwordInput.type = 'password';
+              this.querySelector('.eye-icon').innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              `;
+            }
+          });
         });
       });
     </script>

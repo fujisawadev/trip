@@ -333,17 +333,6 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-block;
 }
 
-.heading-accent::after {
-  content: '';
-  position: absolute;
-  bottom: -5px;
-  left: 0;
-  width: 40%;
-  height: 4px;
-  background: var(--gradient-accent);
-  border-radius: 4px;
-}
-
 .text-gradient {
   background: var(--gradient-primary);
   -webkit-background-clip: text;
