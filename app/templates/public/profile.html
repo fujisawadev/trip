@@ -3,8 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ user.username }}のおすすめスポット">
     <title>{{ user.username }} | maplink</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    
+    <!-- OGP設定 -->
+    <meta property="og:title" content="{{ user.username }} | maplink">
+    <meta property="og:description" content="{{ user.username }}のおすすめスポット">
+    <meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card設定 -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ user.username }} | maplink">
+    <meta name="twitter:description" content="{{ user.username }}のおすすめスポット">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     
     <!-- OGP タグとTwitter Card - コメントアウト -->
@@ -205,7 +220,7 @@
                 <section class="profile-info flex justify-start items-center px-4 py-2 w-full text-xl font-bold leading-none whitespace-nowrap bg-slate-50 text-neutral-900">
                     <div class="flex flex-row justify-start items-center gap-4 self-stretch my-auto">
                         <img
-                            src="{{ url_for('static', filename='default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"
+                            src="{{ url_for('static', filename='images/default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"
                             alt="Profile picture of {{ user.username }}"
                             class="object-cover overflow-hidden w-16 h-16 rounded-full"
                         />

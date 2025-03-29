@@ -3,9 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="maplink - スポット系インフルエンサーのためのAIマップツール。Instagram投稿を自動でスポットマップに変換し、フォロワーの「どこ？」という質問に自動返信。">
-    <title>maplink - スポット系インフルエンサーのためのAIマップツール</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    <meta name="description" content="Instagram投稿を自動でマップ化し、位置情報を整理。フォロワーの「どこ？」という質問にも自動返信。あなたの投稿をもっと価値あるものに。">
+    <title>maplink - インフルエンサーのためのマップ化ツール</title>
+    
+    <!-- OGP設定 -->
+    <meta property="og:title" content="maplink - インフルエンサーのためのマップ化ツール">
+    <meta property="og:description" content="Instagram投稿を自動でマップ化し、位置情報を整理。フォロワーの「どこ？」という質問にも自動返信。あなたの投稿をもっと価値あるものに。">
+    <meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card設定 -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="maplink - インフルエンサーのためのマップ化ツール">
+    <meta name="twitter:description" content="Instagram投稿を自動でマップ化し、位置情報を整理。フォロワーの「どこ？」という質問にも自動返信。あなたの投稿をもっと価値あるものに。">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
@@ -58,11 +72,7 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
           <div class="flex items-center">
-            <div class="relative">
-              <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="maplink Logo" class="h-8 w-8 mr-2 filter drop-shadow-md">
-              <div class="absolute -inset-1 bg-blue-500/20 rounded-full blur-xl animate-pulse opacity-50" style="animation-delay: 0.5s;"></div>
-            </div>
-            <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 bg-clip-text text-transparent">maplink</span>
+            <img src="{{ url_for('static', filename='images/logo_.png') }}" alt="maplink" class="h-8">
           </div>
           <div class="flex items-center space-x-4">
             <a href="{{ url_for('auth.login') }}" class="text-slate-600 hover:text-blue-500 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-300">ログイン</a>
@@ -83,11 +93,13 @@
         <div class="flex flex-col md:flex-row items-center">
           <!-- 左側のテキスト -->
           <div class="md:w-1/2 md:pr-8 fade-in">
-            <div class="inline-flex items-center bg-blue-500/15 backdrop-blur-md px-4 py-1.5 rounded-full text-sm mb-8 border border-blue-300/30 text-blue-100 font-medium shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <div class="inline-flex items-center bg-white px-4 py-2 rounded-full text-sm mb-8 border-2 border-blue-500 text-blue-600 font-bold shadow-lg relative overflow-hidden">
+              <span class="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-blue-500/10 to-indigo-500/5"></span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 text-blue-500 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               </svg>
-              マップインフルエンサー専用
+              <span class="relative z-10">マップインフルエンサー専用</span>
+              <span class="absolute -top-6 -right-6 w-12 h-12 bg-blue-400/20 rounded-full blur-xl"></span>
             </div>
             
             <h1 class="mb-10 leading-tight tracking-tight">
@@ -741,7 +753,7 @@
           
           <!-- 推奨プラン -->
           <div class="relative bg-white rounded-2xl shadow-xl p-8 transform md:scale-105 z-10 border border-indigo-100">
-            <div class="absolute -top-9 left-0 right-0 text-center z-20">
+            <div class="absolute -top-3 left-0 right-0 text-center z-20">
               <span class="inline-block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium shadow-lg">おすすめ</span>
             </div>
             
@@ -814,7 +826,7 @@
     <section class="cta-section py-20 relative overflow-hidden">
       <!-- 背景要素 -->
       <div class="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-800 z-0"></div>
-      <div class="absolute w-full h-full bg-pattern-grid opacity-10 z-0"></div>
+      <!-- <div class="absolute w-full h-full bg-pattern-grid opacity-10 z-0"></div> -->
       <!-- 背景の丸い要素を削除 -->
       
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -831,8 +843,8 @@
               <form method="POST" action="{{ url_for('auth.signup') }}" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
-                  <label class="block text-blue-100 mb-2 text-sm" for="fullName">お名前</label>
-                  <input type="text" id="fullName" name="fullName" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="お名前を入力" required>
+                  <label class="block text-blue-100 mb-2 text-sm" for="fullName">プロフィール名</label>
+                  <input type="text" id="fullName" name="fullName" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="プロフィール名を入力" required>
                 </div>
                 
                 <div>
@@ -871,8 +883,7 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
           <div>
             <div class="flex items-center mb-6">
-              <img src="{{ url_for('static', filename='images/diamond.svg') }}" alt="maplink Logo" class="h-8 w-8 mr-2">
-              <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">maplink</span>
+              <img src="{{ url_for('static', filename='images/logo_.png') }}" alt="maplink" class="h-8">
             </div>
             <p class="text-slate-500 mb-6">マップインフルエンサーのための専用ツール。投稿をマップ化し、整理・共有。フォロワーとの関係を深めます。</p>
             <div class="flex space-x-4">

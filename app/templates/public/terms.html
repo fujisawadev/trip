@@ -4,8 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
+    <meta name="description" content="maplinkの利用規約に関するページです。サービスの利用条件についてご確認いただけます。">
     <title>利用規約 | maplink</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/diamond.svg') }}">
+    
+    <!-- OGP設定 -->
+    <meta property="og:title" content="利用規約 | maplink">
+    <meta property="og:description" content="maplinkの利用規約に関するページです。サービスの利用条件についてご確認いただけます。">
+    <meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card設定 -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="利用規約 | maplink">
+    <meta name="twitter:description" content="maplinkの利用規約に関するページです。サービスの利用条件についてご確認いただけます。">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
