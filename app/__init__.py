@@ -95,25 +95,25 @@ def create_app(config_class=None):
     from app.routes.public import public_bp
     from app.routes.spot import bp as spot_bp
     
-    # 各ブループリントを登録
+    # API関連のブループリント
+    from app.routes.api import url_api_bp  # URL検証用API
+    from app.routes.api_routes import api_bp  # 一般的なAPI
+    from app.routes.api.autoreply import autoreply_bp  # 自動返信API
+    from app.routes.api.webhook import webhook_bp, configure_webhook  # WebhookAPI
+    
+    # 基本ブループリントを登録
     flask_app.register_blueprint(auth_bp, url_prefix='/auth')
     flask_app.register_blueprint(main_bp)
     flask_app.register_blueprint(profile_bp)
     flask_app.register_blueprint(public_bp)
     flask_app.register_blueprint(spot_bp)
     
-    # APIルートの登録 - api.pyから直接ブループリントをインポート
-    # モジュールをインポートするだけで、api_bpを直接使わない
-    from app.routes.api import api_bp
-    flask_app.register_blueprint(api_bp)
+    # API関連のブループリントを登録
+    flask_app.register_blueprint(url_api_bp)  # URL検証用API
+    flask_app.register_blueprint(api_bp)  # 一般的なAPI
+    flask_app.register_blueprint(autoreply_bp)  # 自動返信API
+    flask_app.register_blueprint(webhook_bp)  # WebhookAPI
     
-    # 自動返信APIルートの登録
-    from app.routes.api.autoreply import autoreply_bp
-    flask_app.register_blueprint(autoreply_bp)
-    
-    # Webhookルートの登録
-    from app.routes.api.webhook import webhook_bp, configure_webhook
-    flask_app.register_blueprint(webhook_bp)
     # webhook用のCSRF設定を適用
     configure_webhook(flask_app)
     

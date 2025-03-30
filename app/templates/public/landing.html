@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="ja">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Instagram投稿を自動でマップ化し、位置情報を整理。フォロワーの「どこ？」という質問にも自動返信。あなたの投稿をもっと価値あるものに。">
@@ -125,7 +134,12 @@
               </div>
             </div>
             
-            <p class="text-base mb-10 text-blue-50/80 leading-relaxed max-w-lg">レストラン、ホテル、観光スポットなどを投稿から抽出し、フォロワーが探しやすいマップに変換します。準備ができたらプロフィールにmaplinkを貼るだけ。「おすすめある？」にも、自動返信で即対応。</p>
+            <p class="text-base md:text-lg leading-relaxed max-w-lg mb-10 text-blue-50/90">
+              <span class="font-medium">レストラン、ホテル、観光スポット</span>などを投稿から抽出し、<br class="hidden md:block">
+              フォロワーが探しやすい<span class="font-medium">マップに変換</span>します。<br class="hidden md:block">
+              準備ができたらプロフィールにmaplinkを貼るだけ。<br class="hidden md:block">
+              <span class="italic">「おすすめある？」</span>にも、自動返信で即対応。
+            </p>
             
             <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
               <a href="{{ url_for('auth.signup') }}" class="bg-white text-blue-600 hover:bg-blue-50 font-bold py-3 px-8 rounded-full text-center transition-all shadow-lg hover:shadow-xl hover:shadow-white/30 hover:-translate-y-1 group relative overflow-hidden">
@@ -334,7 +348,7 @@
       
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div class="text-center mb-16 fade-in">
-          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6">フォロワーを魅了する<span class="text-gradient">全機能</span></h2>
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6">フォロワーを魅了する<span class="md:inline block text-gradient">全機能</span></h2>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -866,7 +880,7 @@
                 </div>
                 
                 <button type="submit" class="w-full bg-gradient-to-r from-blue-400 to-indigo-500 hover:from-blue-500 hover:to-indigo-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
-                  アカウントを作成
+                  30秒でスタート
                 </button>
                 
                 <p class="text-xs text-center text-blue-100 mt-4">登録することで、<a href="{{ url_for('public.terms') }}" class="underline">利用規約</a>と<a href="{{ url_for('public.privacy_policy') }}" class="underline">プライバシーポリシー</a>に同意したことになります。</p>
@@ -882,8 +896,8 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-10">
           <div>
-            <div class="flex items-center mb-6">
-              <img src="{{ url_for('static', filename='images/logo_.png') }}" alt="maplink" class="h-8">
+            <div class="flex items-center justify-start mb-6">
+              <img src="{{ url_for('static', filename='images/logo_.png') }}" alt="maplink" class="h-8 ml-0">
             </div>
             <p class="text-slate-500 mb-6">マップインフルエンサーのための専用ツール。投稿をマップ化し、整理・共有。フォロワーとの関係を深めます。</p>
             <div class="flex space-x-4">

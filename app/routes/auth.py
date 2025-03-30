@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-from app import db, mail
+from app import db, mail, csrf
 from app.models.user import User
 from werkzeug.urls import url_parse
 from flask_mail import Message
@@ -12,7 +12,7 @@ bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
-    """サインアップページ"""
+    """サインアップページ（ステップ1: 基本情報の入力）"""
     if current_user.is_authenticated:
         return redirect(url_for('profile.mypage'))
     
@@ -35,15 +35,57 @@ def signup():
             flash('このメールアドレスは既に登録されています。', 'danger')
             return render_template('public/signup.html')
         
+        # セッションにユーザー情報を保存（ステップ2へ）
+        session['signup_username'] = username
+        session['signup_email'] = email
+        session['signup_password'] = password
+        
+        # 表示名設定画面へリダイレクト
+        return redirect(url_for('auth.signup_url'))
+    
+    return render_template('public/signup.html')
+
+@bp.route('/signup-url', methods=['GET', 'POST'])
+def signup_url():
+    """サインアップページ（ステップ2: URL設定）"""
+    if current_user.is_authenticated:
+        return redirect(url_for('profile.mypage'))
+    
+    # セッションデータがない場合は最初のステップへリダイレクト
+    if 'signup_username' not in session:
+        flash('最初からサインアップを始めてください。', 'warning')
+        return redirect(url_for('auth.signup'))
+    
+    if request.method == 'POST':
+        display_name = request.form.get('display_name')
+        
+        # セッションからユーザー情報を取得
+        username = session.get('signup_username')
+        email = session.get('signup_email')
+        password = session.get('signup_password')
+        
+        # 表示名の検証
+        is_valid, message = User.validate_display_name(display_name)
+        if not is_valid:
+            flash(message, 'danger')
+            return render_template('public/signup_url.html')
+        
         # ユーザー作成
-        user = User(username=username, email=email, password=password)
+        user = User(username=username, email=email, password=password, display_name=display_name)
         db.session.add(user)
         db.session.commit()
         
-        flash('アカウントが作成されました。ログインしてください。', 'success')
-        return redirect(url_for('auth.login'))
+        # セッションからサインアップデータを削除
+        session.pop('signup_username', None)
+        session.pop('signup_email', None)
+        session.pop('signup_password', None)
+        
+        # 成功メッセージとログイン
+        flash('アカウントが作成されました。', 'success')
+        login_user(user)
+        return redirect(url_for('profile.mypage'))
     
-    return render_template('public/signup.html')
+    return render_template('public/signup_url.html')
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -248,15 +290,28 @@ def reset_password(token):
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
         
+        # 入力チェック
         if not password or not confirm_password:
             flash('すべての項目を入力してください。', 'danger')
             return render_template('public/reset_password.html', token=token)
         
+        # パスワード一致チェック
         if password != confirm_password:
             flash('パスワードが一致しません。', 'danger')
             return render_template('public/reset_password.html', token=token)
         
+        # パスワードの強度チェック
+        if len(password) < 8:
+            flash('パスワードは8文字以上である必要があります。', 'danger')
+            return render_template('public/reset_password.html', token=token)
+        
+        # パスワードの更新
         user.set_password(password)
+        
+        # リセットトークンを無効化
+        user.reset_password_token = None
+        user.reset_password_expires = None
+        
         db.session.commit()
         
         flash('パスワードが変更されました。新しいパスワードでログインしてください。', 'success')

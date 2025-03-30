@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="ja">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex">
@@ -116,7 +125,7 @@
           </h1>
           <div class="w-[90px] flex justify-end">
             <a
-              href="{{ url_for('public.username_profile', username=user.username) }}"
+              href="{{ url_for('profile.display_name_profile', display_name=user.display_name) if user.display_name else url_for('public.username_profile', username=user.username) }}"
               class="text-blue-500 hover:text-blue-700"
             >
               プレビュー

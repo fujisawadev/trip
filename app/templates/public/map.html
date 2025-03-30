@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
@@ -451,7 +460,7 @@
     <!-- 上部ナビゲーションエリア -->
     <div class="top-navigation">
         <!-- 戻るボタン -->
-        <a href="/{{ user.username }}" class="back-button">
+        <a href="{{ '/' + user.display_name if user.display_name else '/' + user.username }}" class="back-button">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>

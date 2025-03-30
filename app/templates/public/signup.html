@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="ja">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="maplinkの新規登録ページです。アカウントを作成してサービスをご利用ください。">
@@ -24,17 +33,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
   </head>
-  <body class="bg-slate-100 min-h-screen flex items-center justify-center">
+  <body class="bg-slate-100 min-h-screen flex items-center justify-center py-6 px-4">
     <form
-      class="mx-auto w-full bg-white max-w-[480px]"
+      class="mx-auto w-full bg-white max-w-[480px] rounded-2xl shadow-sm"
       aria-labelledby="signup-title"
       method="POST"
       action="{{ url_for('auth.signup') }}"
     >
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <main class="overflow-hidden w-full bg-slate-50 min-h-[844px]">
+      <main class="overflow-hidden w-full bg-white min-h-[600px] rounded-2xl">
         <header
-          class="flex justify-between items-center px-4 pt-4 pb-2 w-full bg-slate-50"
+          class="flex justify-between items-center px-5 pt-5 pb-2 w-full border-b border-slate-100"
         >
           <a
             href="{{ url_for('main.index') }}"
@@ -58,16 +67,17 @@
           {% endif %}
         {% endwith %}
 
-        <h1
-          class="px-4 pt-5 pb-3 w-full text-2xl font-bold leading-none text-neutral-900"
-        >
-          新規登録
-        </h1>
+        <div class="px-6 pt-8 pb-4">
+          <h1
+            class="text-2xl font-bold leading-tight text-neutral-900 mb-6"
+            id="signup-title"
+          >
+            新規登録
+          </h1>
 
-        <div class="flex gap-4 items-end px-4 py-3 w-full text-base">
-          <div class="flex-1 shrink w-full basis-0 min-w-40">
+          <div class="w-full text-base mb-4">
             <label
-              class="pb-2 w-full font-medium text-neutral-900"
+              class="block pb-2 font-medium text-neutral-900"
               for="fullName"
             >
               プロフィール名
@@ -77,15 +87,13 @@
               id="fullName"
               name="fullName"
               placeholder="プロフィール名を入力"
-              class="overflow-hidden self-stretch p-4 w-full rounded-xl bg-slate-200 min-h-14 text-slate-500"
+              class="overflow-hidden p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 text-slate-700 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
-        </div>
 
-        <div class="flex gap-4 items-end px-4 py-3 w-full text-base">
-          <div class="flex-1 shrink w-full basis-0 min-w-40">
-            <label class="pb-2 w-full font-medium text-neutral-900" for="email">
+          <div class="w-full text-base mb-4">
+            <label class="block pb-2 font-medium text-neutral-900" for="email">
               メールアドレス
             </label>
             <input
@@ -93,16 +101,14 @@
               id="email"
               name="email"
               placeholder="メールアドレスを入力"
-              class="overflow-hidden self-stretch p-4 w-full rounded-xl bg-slate-200 min-h-14 text-slate-500"
+              class="overflow-hidden p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 text-slate-700 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
-        </div>
 
-        <div class="flex gap-4 items-end px-4 py-3 w-full">
-          <div class="flex-1 shrink w-full basis-0 min-w-40">
+          <div class="w-full text-base mb-6">
             <label
-              class="pb-2 w-full text-base font-medium whitespace-nowrap text-neutral-900"
+              class="block pb-2 font-medium text-neutral-900"
               for="password"
             >
               パスワード
@@ -113,7 +119,7 @@
                 id="password"
                 name="password"
                 placeholder="パスワードを入力"
-                class="px-4 py-3 w-full text-base bg-slate-200 rounded-xl min-h-14 text-slate-500"
+                class="p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 text-slate-700 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
               <button
@@ -144,43 +150,31 @@
               </button>
             </div>
           </div>
-        </div>
 
-        <div
-          class="flex justify-between items-start w-full text-sm font-bold text-center"
-        >
-          <div
-            class="flex-1 shrink px-4 py-3 w-full basis-0 max-w-[480px] min-w-60"
-          >
+          <div class="flex flex-col w-full gap-3 mt-6">
             <button
               type="submit"
-              class="flex overflow-hidden justify-center items-center px-4 w-full bg-blue-500 rounded-xl min-h-10 min-w-[84px] text-slate-50 hover:bg-blue-600 transition-colors"
+              class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 rounded-xl text-white font-medium hover:bg-blue-600 transition-colors"
             >
-              <span class="overflow-hidden my-auto whitespace-nowrap">
-                アカウントを作成
-              </span>
+              次へ
             </button>
 
             <a
               href="{{ url_for('auth.login') }}"
-              class="flex overflow-hidden justify-center items-center px-4 mt-3 w-full rounded-xl min-h-10 min-w-[84px] text-neutral-900 hover:bg-slate-100 transition-colors"
+              class="flex justify-center items-center px-4 py-3 w-full rounded-xl text-neutral-700 font-medium border border-slate-200 hover:bg-slate-50 transition-colors mt-2"
             >
-              <span class="overflow-hidden my-auto whitespace-nowrap">
-                すでにアカウントをお持ちの方はこちら
-              </span>
+              アカウントをお持ちの方はこちら
             </a>
           </div>
+
+          <footer
+            class="mt-6 text-sm leading-5 text-center text-slate-500"
+          >
+            登録することで、
+            <a href="{{ url_for('public.terms') }}" class="underline text-blue-500 hover:text-blue-600" target="_blank">利用規約</a>と
+            <a href="{{ url_for('public.privacy_policy') }}" class="underline text-blue-500 hover:text-blue-600" target="_blank">プライバシーポリシー</a>に同意したものとみなされます。
+          </footer>
         </div>
-
-        <footer
-          class="px-4 pt-1 pb-3 w-full text-sm leading-5 text-center text-slate-500"
-        >
-          登録することで、
-          <a href="{{ url_for('public.terms') }}" class="underline hover:text-slate-700" target="_blank">利用規約</a>と
-          <a href="{{ url_for('public.privacy_policy') }}" class="underline hover:text-slate-700" target="_blank">プライバシーポリシー</a>に同意したものとみなされます。
-        </footer>
-
-        <div class="flex w-full bg-slate-50 min-h-5"></div>
       </main>
     </form>
 

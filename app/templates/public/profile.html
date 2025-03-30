@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="ja">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{{ user.username }}のおすすめスポット">
@@ -229,7 +238,7 @@
                 </section>
 
                 <section class="bio px-4 pb-3 w-full text-[15px] leading-5 text-center text-neutral-900">
-                    <p>{{ user.bio if user.bio else "No bio provided." }}</p>
+                    <p>{{ user.bio }}</p>
                 </section>
 
                 <section class="favorite-spots">
@@ -247,7 +256,7 @@
                             
                             <!-- 地図拡大ボタン（右上に配置） -->
                             <div class="absolute top-3 right-3 z-[1000] pointer-events-auto">
-                                <a href="/{{ user.username }}/map" class="flex items-center justify-center w-10 h-10 bg-white bg-opacity-85 rounded-lg shadow-sm hover:bg-opacity-100 transition-all border border-slate-200">
+                                <a href="{{ '/' + user.display_name + '/map' if user.display_name else '/' + user.username + '/map' }}" class="flex items-center justify-center w-10 h-10 bg-white bg-opacity-85 rounded-lg shadow-sm hover:bg-opacity-100 transition-all border border-slate-200">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h4M4 3v4M21 4h-4m4 0v4M3 20h4m-4 0v-4m18 4h-4m4-4v4" />
                                     </svg>

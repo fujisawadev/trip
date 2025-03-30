@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db, csrf
@@ -1227,4 +1227,105 @@ def enable_autoreply():
         flash('自動返信機能の有効化中にエラーが発生しました。', 'danger')
     
     # 自動返信設定ページへリダイレクト
-    return redirect(url_for('profile.autoreply_settings')) 
+    return redirect(url_for('profile.autoreply_settings'))
+
+@bp.route('/settings/url')
+@login_required
+def url_settings():
+    """URL設定ページ"""
+    return render_template('url_settings.html')
+
+@bp.route('/settings/url', methods=['POST'])
+@login_required
+def update_url():
+    """URLの更新処理"""
+    display_name = request.form.get('display_name')
+    password = request.form.get('password')
+    
+    # パスワード確認
+    if not current_user.check_password(password):
+        flash('パスワードが正しくありません。', 'danger')
+        return redirect(url_for('profile.url_settings'))
+    
+    # 変更がない場合
+    if current_user.display_name == display_name:
+        flash('URLに変更はありません。', 'info')
+        return redirect(url_for('profile.url_settings'))
+    
+    # 表示名の検証
+    is_valid, message = User.validate_display_name(display_name)
+    if not is_valid:
+        flash(message, 'danger')
+        return redirect(url_for('profile.url_settings'))
+    
+    # 表示名の更新
+    current_user.display_name = display_name
+    db.session.commit()
+    
+    flash('URLが更新されました。', 'success')
+    return redirect(url_for('profile.url_settings'))
+
+@bp.route('/<display_name>')
+def display_name_profile(display_name):
+    """表示名によるユーザープロファイル表示"""
+    # 予約語チェック（システムで使用されるパスの場合はエラー）
+    reserved_words = ['login', 'logout', 'signup', 'auth', 'admin', 'settings', 
+                    'mypage', 'import', 'spot', 'api', 'static', 'upload', 
+                    'profile', 'user', 'users', 'search', 'map', 'maps']
+    if display_name.lower() in reserved_words:
+        abort(404)
+    
+    user = User.query.filter_by(display_name=display_name).first_or_404()
+    spots = Spot.query.filter_by(user_id=user.id).all()
+    
+    # Google Maps API Keyをconfigとして渡す
+    from app.routes.public import GOOGLE_MAPS_API_KEY
+    
+    return render_template('public/profile.html', 
+                          user=user, 
+                          spots=spots, 
+                          config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
+
+@bp.route('/<display_name>/map')
+def display_name_map(display_name):
+    """表示名によるユーザーマップページ表示"""
+    # 予約語チェック（システムで使用されるパスの場合はエラー）
+    reserved_words = ['login', 'logout', 'signup', 'auth', 'admin', 'settings', 
+                    'mypage', 'import', 'spot', 'api', 'static', 'upload', 
+                    'profile', 'user', 'users', 'search', 'map', 'maps']
+    if display_name.lower() in reserved_words:
+        abort(404)
+    
+    user = User.query.filter_by(display_name=display_name).first_or_404()
+    
+    # アクティブなスポットを取得
+    spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
+    
+    # スポットをJSONシリアライズ可能な形式に変換
+    from app.models import SocialAccount
+    spots_data = []
+    for spot in spots:
+        spot_dict = {
+            'id': spot.id,
+            'name': spot.name,
+            'location': spot.location,
+            'latitude': spot.latitude,
+            'longitude': spot.longitude,
+            'category': spot.category,
+            'description': spot.description,
+            'user_id': spot.user_id,
+            'photos': [{'photo_url': photo.photo_url} for photo in spot.photos] if spot.photos else []
+        }
+        spots_data.append(spot_dict)
+    
+    # ソーシャルアカウント情報を取得
+    social_accounts = SocialAccount.query.filter_by(user_id=user.id).all()
+    
+    # Google Maps API Keyをconfigとして渡す
+    from app.routes.public import GOOGLE_MAPS_API_KEY
+    
+    return render_template('public/map.html',
+                         user=user,
+                         spots=spots_data,
+                         social_accounts=social_accounts,
+                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY}) 

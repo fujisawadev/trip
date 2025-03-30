@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex">
+    <title>URL設定 | maplink</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+  </head>
+  <body class="bg-slate-100 min-h-screen flex items-center justify-center py-6 px-4">
+    <form
+      class="mx-auto w-full bg-white max-w-[480px] rounded-2xl shadow-sm"
+      aria-labelledby="signup-url-title"
+      method="POST"
+      action="{{ url_for('auth.signup_url') }}"
+    >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <main class="overflow-hidden w-full bg-white min-h-[600px] rounded-2xl">
+        <header
+          class="flex justify-between items-center px-5 pt-5 pb-2 w-full border-b border-slate-100"
+        >
+          <a
+            href="{{ url_for('auth.signup') }}"
+            class="flex items-center self-stretch my-auto w-12 min-h-12"
+            aria-label="戻る"
+          >
+            <img
+              src="https://cdn.builder.io/api/v1/image/assets/b8fa2d7a435f48ebab0c12e03b54941b/dc35af4f720669171b19e767ff8083df959589376e3db375fb2496d480e542d8?placeholderIfAbsent=true"
+              alt="戻る"
+              class="object-contain self-stretch my-auto w-6 aspect-square"
+            />
+          </a>
+        </header>
+
+        <!-- フラッシュメッセージ -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flask-flash-message hidden" data-category="{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="px-6 pt-8 pb-4">
+          <h1
+            class="text-2xl font-bold leading-tight text-neutral-900 mb-4"
+            id="signup-url-title"
+          >
+            URLを設定
+          </h1>
+          
+          <p class="text-base text-gray-600 mb-6">
+            あなたのプロフィールページのURLを設定します。<br>
+            英数字、ハイフン(-)、アンダースコア(_)のみ使用できます。
+          </p>
+
+          <div class="w-full text-base mb-8">
+            <label
+              class="block pb-2 font-medium text-neutral-900"
+              for="displayName"
+            >
+              URL
+            </label>
+            <div class="flex items-center">
+              <div class="flex items-center bg-slate-100 rounded-xl pl-3 pr-0 w-full border border-slate-200">
+                <span class="text-gray-500 whitespace-nowrap text-sm sm:text-base">https://my-map.link/</span>
+                <input
+                  type="text"
+                  id="displayName"
+                  name="display_name"
+                  placeholder="あなたのURL"
+                  class="overflow-hidden p-3 sm:p-4 w-full rounded-r-xl bg-slate-100 min-h-12 sm:min-h-14 text-slate-700 border-l border-slate-200 ml-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  pattern="[a-zA-Z0-9_-]+"
+                  minlength="3"
+                  maxlength="30"
+                />
+              </div>
+            </div>
+            <div id="display-name-feedback" class="mt-2 text-sm"></div>
+            
+            <p class="text-sm text-gray-500 mt-3">
+              <strong>メモ:</strong> このURLは後からいつでも変更することができます。
+            </p>
+          </div>
+
+          <div class="flex flex-col w-full gap-3 mt-10">
+            <button
+              type="submit"
+              id="submit-button"
+              class="flex justify-center items-center px-4 py-3 w-full bg-blue-500 rounded-xl text-white font-medium hover:bg-blue-600 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
+              disabled
+            >
+              登録を完了する
+            </button>
+
+            <a
+              href="{{ url_for('auth.signup') }}"
+              class="flex justify-center items-center px-4 py-3 w-full rounded-xl text-neutral-700 font-medium border border-slate-200 hover:bg-slate-50 transition-colors"
+            >
+              戻る
+            </a>
+          </div>
+        </div>
+      </main>
+    </form>
+
+    <script>
+      // 表示名のリアルタイム検証
+      const displayNameInput = document.getElementById('displayName');
+      const feedbackElement = document.getElementById('display-name-feedback');
+      const submitButton = document.getElementById('submit-button');
+      
+      displayNameInput.addEventListener('input', validateDisplayName);
+      
+      function validateDisplayName() {
+        const displayName = displayNameInput.value.trim();
+        
+        // 空のときは検証しない
+        if (!displayName) {
+          feedbackElement.textContent = '';
+          feedbackElement.className = 'mt-2 text-sm';
+          submitButton.disabled = true;
+          return;
+        }
+        
+        // 長さの検証
+        if (displayName.length < 3 || displayName.length > 30) {
+          feedbackElement.textContent = '表示名は3〜30文字にしてください';
+          feedbackElement.className = 'mt-2 text-sm text-red-500';
+          submitButton.disabled = true;
+          return;
+        }
+        
+        // 文字のパターン検証
+        if (!/^[a-zA-Z0-9_-]+$/.test(displayName)) {
+          feedbackElement.textContent = '表示名に使用できるのは英数字、ハイフン(-)、アンダースコア(_)のみです';
+          feedbackElement.className = 'mt-2 text-sm text-red-500';
+          submitButton.disabled = true;
+          return;
+        }
+        
+        // 予約語チェック
+        const reservedWords = ['login', 'logout', 'signup', 'auth', 'admin', 'settings', 
+                            'mypage', 'import', 'spot', 'api', 'static', 'upload', 
+                            'profile', 'user', 'users', 'search', 'map', 'maps'];
+        if (reservedWords.includes(displayName.toLowerCase())) {
+          feedbackElement.textContent = 'この表示名は使用できません';
+          feedbackElement.className = 'mt-2 text-sm text-red-500';
+          submitButton.disabled = true;
+          return;
+        }
+        
+        // サーバーサイドで重複チェック
+        fetch(`/api/check-display-name?display_name=${encodeURIComponent(displayName)}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.available) {
+              feedbackElement.textContent = '✓ 使用可能です';
+              feedbackElement.className = 'mt-2 text-sm text-green-500';
+              submitButton.disabled = false;
+            } else {
+              feedbackElement.textContent = 'この表示名は既に使用されています';
+              feedbackElement.className = 'mt-2 text-sm text-red-500';
+              submitButton.disabled = true;
+            }
+          })
+          .catch(error => {
+            console.error('Error checking display name:', error);
+            feedbackElement.textContent = '表示名の確認中にエラーが発生しました';
+            feedbackElement.className = 'mt-2 text-sm text-red-500';
+            submitButton.disabled = true;
+          });
+      }
+      
+      // 初期状態でボタンを無効化
+      submitButton.disabled = true;
+    </script>
+  </body>
+</html> 
