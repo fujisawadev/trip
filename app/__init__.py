@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -26,6 +26,16 @@ def create_app(config_class=None):
     
     # Flaskアプリケーションの設定
     flask_app = Flask(__name__)
+    
+    # www サブドメインから非www へのリダイレクトミドルウェア
+    @flask_app.before_request
+    def redirect_www_to_non_www():
+        # 本番環境で、かつホストがwww.my-map.linkの場合
+        if request.host.startswith('www.my-map.link'):
+            url_parts = list(request.url.partition('://'))
+            url_parts[1] = '://'
+            url_parts[2] = url_parts[2].replace('www.my-map.link', 'my-map.link', 1)
+            return redirect('https' + url_parts[1] + url_parts[2], code=301)
     
     # CSRF保護の設定 - 完全に無効化（開発環境向け）
     flask_app.config['WTF_CSRF_ENABLED'] = False  # CSRF保護を完全に無効化

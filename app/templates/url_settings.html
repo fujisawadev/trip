@@ -66,10 +66,10 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </a>
-          <h1 class="flex-1 text-lg font-bold text-center text-neutral-900">
+          <h1 class="absolute left-0 right-0 mx-auto text-center text-lg font-bold text-neutral-900 w-full pointer-events-none">
             URL設定
           </h1>
-          <div class="w-[90px] flex justify-end"><!-- 右側の空白スペース（バランス用） --></div>
+          <div class="w-12"><!-- 右側の空白スペース（バランス用） --></div>
         </nav>
 
         <section class="px-4 py-4">
@@ -93,14 +93,14 @@
               
               <div class="mb-4">
                 <label for="display_name" class="block text-gray-700 font-medium mb-2">新しいURL</label>
-                <div class="flex items-center">
-                  <span class="text-gray-500 mr-1">https://my-map.link/</span>
+                <div class="flex items-center bg-slate-100 rounded-xl pl-3 pr-0 w-full border border-slate-200">
+                  <span class="text-gray-500 whitespace-nowrap text-sm sm:text-base">https://my-map.link/</span>
                   <input
                     type="text"
                     id="display_name"
                     name="display_name"
-                    placeholder="your-custom-url"
-                    class="overflow-hidden p-3 w-full rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="あなたのURL"
+                    class="overflow-hidden p-3 sm:p-4 w-full rounded-r-xl bg-slate-100 min-h-12 sm:min-h-14 text-slate-700 border-l border-slate-200 ml-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     value="{{ current_user.display_name or '' }}"
                     required
                     pattern="[a-zA-Z0-9_-]+"
@@ -124,7 +124,7 @@
                   id="password"
                   name="password"
                   placeholder="変更を確認するためのパスワード"
-                  class="overflow-hidden p-3 w-full rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  class="overflow-hidden p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -132,7 +132,7 @@
               <button
                 type="submit"
                 id="submit-button"
-                class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full bg-blue-500 text-white py-3 px-4 rounded-xl font-medium hover:bg-blue-600 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
                 disabled
               >
                 URLを更新する

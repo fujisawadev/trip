@@ -19,21 +19,37 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
     <style>
+      /* グローバルナビゲーション用のスタイル */
+      .global-nav {
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0;
+        width: 100%;
+      }
+      .nav-item svg {
+        margin-bottom: 4px;
+      }
       body {
-        background-color: white;
+        padding-bottom: 64px; /* ナビゲーションの高さ分の余白を追加 */
+        background-color: white; /* 背景色を白に設定 */
         min-height: 100vh;
       }
       .page-container {
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
-        background-color: #f8fafc;
+        min-height: calc(100vh - 64px); /* 画面の高さからナビゲーションの高さを引いた分 */
+        background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
       }
     </style>
   </head>
   <body>
-    <div class="mx-auto w-full max-w-[480px]">
-      <div class="overflow-hidden w-full bg-slate-50 page-container">
+    <main class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
         <!-- フラッシュメッセージ -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -43,128 +59,125 @@
           {% endif %}
         {% endwith %}
         
-        <!-- Top Navigation -->
-        <nav
-          class="flex justify-between items-center px-4 pt-4 pb-2 w-full"
-        >
-          <a
-            href="{{ url_for('profile.settings') }}"
-            class="flex items-center self-stretch my-auto w-12 min-h-12"
-            aria-label="戻る"
-          >
+        <!-- ヘッダー -->
+        <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50">
+          <a href="{{ url_for('profile.settings') }}" class="flex items-center self-stretch my-auto w-12 min-h-12" aria-label="戻る">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </a>
-          <h1
-            class="flex-1 shrink self-stretch pr-12 my-auto text-lg font-bold leading-none text-center basis-0 min-w-60 text-neutral-900"
-          >
+          <h1 class="absolute left-0 right-0 mx-auto text-center text-lg font-bold text-neutral-900 w-full pointer-events-none">
             メールアドレス変更
           </h1>
+          <div class="w-12"><!-- 右側の空白スペース（バランス用） --></div>
         </nav>
 
-        <!-- Change Email Form -->
-        <form 
-          action="{{ url_for('auth.change_email') }}" 
-          method="POST" 
-          class="flex flex-col gap-6 p-4 w-full"
-        >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          
-          <!-- Current Email -->
-          <div class="flex flex-col gap-2 w-full">
-            <label for="current_email" class="text-sm font-medium text-neutral-900">現在のメールアドレス</label>
-            <input
-              type="email"
-              id="current_email"
-              name="current_email"
-              value="{{ user.email }}"
-              readonly
-              class="px-4 py-3 w-full text-base bg-slate-100 rounded-xl border border-slate-300 focus:outline-none"
-            />
-          </div>
+        <section class="px-4 py-4">
+          <div class="bg-white rounded-lg p-4 shadow-sm">
+            <!-- Change Email Form -->
+            <form 
+              action="{{ url_for('auth.change_email') }}" 
+              method="POST" 
+              class="flex flex-col gap-6 w-full"
+            >
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              
+              <!-- Current Email -->
+              <div class="mb-4">
+                <label for="current_email" class="block text-gray-700 font-medium mb-2">現在のメールアドレス</label>
+                <input
+                  type="email"
+                  id="current_email"
+                  name="current_email"
+                  value="{{ user.email }}"
+                  readonly
+                  class="p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 border border-slate-200 focus:outline-none"
+                />
+              </div>
 
-          <!-- New Email -->
-          <div class="flex flex-col gap-2 w-full">
-            <label for="new_email" class="text-sm font-medium text-neutral-900">新しいメールアドレス</label>
-            <input
-              type="email"
-              id="new_email"
-              name="new_email"
-              required
-              placeholder="新しいメールアドレスを入力"
-              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+              <!-- New Email -->
+              <div class="mb-4">
+                <label for="new_email" class="block text-gray-700 font-medium mb-2">新しいメールアドレス</label>
+                <input
+                  type="email"
+                  id="new_email"
+                  name="new_email"
+                  required
+                  placeholder="新しいメールアドレスを入力"
+                  class="p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
 
-          <!-- Confirm New Email -->
-          <div class="flex flex-col gap-2 w-full">
-            <label for="confirm_email" class="text-sm font-medium text-neutral-900">新しいメールアドレス（確認）</label>
-            <input
-              type="email"
-              id="confirm_email"
-              name="confirm_email"
-              required
-              placeholder="新しいメールアドレスを再入力"
-              class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div id="email-match-message" class="text-xs hidden"></div>
-          </div>
+              <!-- Confirm New Email -->
+              <div class="mb-4">
+                <label for="confirm_email" class="block text-gray-700 font-medium mb-2">新しいメールアドレス（確認）</label>
+                <input
+                  type="email"
+                  id="confirm_email"
+                  name="confirm_email"
+                  required
+                  placeholder="新しいメールアドレスを再入力"
+                  class="p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <div id="email-match-message" class="mt-2 text-sm"></div>
+              </div>
 
-          <!-- Password Confirmation -->
-          <div class="flex flex-col gap-2 w-full">
-            <label for="password" class="text-sm font-medium text-neutral-900">パスワード確認</label>
-            <div class="relative">
-              <input
-                type="password"
-                id="password"
-                name="password"
-                required
-                placeholder="現在のパスワードを入力"
-                class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <!-- Password Confirmation -->
+              <div class="mb-4">
+                <label for="password" class="block text-gray-700 font-medium mb-2">パスワード確認</label>
+                <div class="relative">
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    placeholder="現在のパスワードを入力"
+                    class="p-3 sm:p-4 w-full rounded-xl bg-slate-100 min-h-12 sm:min-h-14 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 toggle-password"
+                    data-target="password"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="w-5 h-5 eye-icon"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">
+                  セキュリティのため、現在のパスワードを入力してください。
+                </p>
+              </div>
+
+              <!-- Submit Button -->
               <button
-                type="button"
-                class="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 toggle-password"
-                data-target="password"
+                type="submit"
+                id="submit-button"
+                class="w-full bg-blue-500 text-white py-3 px-4 rounded-xl font-medium hover:bg-blue-600 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  class="w-5 h-5 eye-icon"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
+                メールアドレスを変更
               </button>
-            </div>
-            <div class="text-xs text-slate-500">
-              セキュリティのため、現在のパスワードを入力してください。
-            </div>
+            </form>
           </div>
-
-          <!-- Submit Button -->
-          <button
-            type="submit"
-            class="flex justify-center items-center px-4 w-full bg-blue-500 text-white rounded-xl min-h-12 mt-4"
-            id="submit-button"
-          >
-            <span class="text-base font-medium">メールアドレスを変更</span>
-          </button>
-        </form>
+        </section>
       </div>
-    </div>
+    </main>
 
     <script>
       // Toggle password visibility
@@ -201,20 +214,21 @@
         }
         
         if (newEmail.value === confirmEmail.value) {
-          matchMessage.textContent = 'メールアドレスが一致しています';
-          matchMessage.classList.remove('hidden', 'text-red-500');
-          matchMessage.classList.add('text-green-500');
+          matchMessage.textContent = '✓ メールアドレスが一致しています';
+          matchMessage.className = 'mt-2 text-sm text-green-500';
           submitButton.disabled = false;
         } else {
           matchMessage.textContent = 'メールアドレスが一致していません';
-          matchMessage.classList.remove('hidden', 'text-green-500');
-          matchMessage.classList.add('text-red-500');
+          matchMessage.className = 'mt-2 text-sm text-red-500';
           submitButton.disabled = true;
         }
       }
       
       newEmail.addEventListener('input', checkEmailMatch);
       confirmEmail.addEventListener('input', checkEmailMatch);
+      
+      // 初期状態でボタンを無効化
+      submitButton.disabled = true;
     </script>
   </body>
 </html> 
