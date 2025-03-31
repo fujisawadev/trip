@@ -1286,6 +1286,7 @@ def display_name_profile(display_name):
             'id': spot.id,
             'name': spot.name,
             'location': spot.location or '',
+            'summary_location': spot.summary_location or '',
             'latitude': spot.latitude,
             'longitude': spot.longitude,
             'category': spot.category or '',
