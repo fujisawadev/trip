@@ -1276,14 +1276,20 @@ def display_name_profile(display_name):
         abort(404)
     
     user = User.query.filter_by(display_name=display_name).first_or_404()
-    spots = Spot.query.filter_by(user_id=user.id).all()
+    # アクティブなスポットのみを取得するように修正
+    spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
     
     # Google Maps API Keyをconfigとして渡す
     from app.routes.public import GOOGLE_MAPS_API_KEY
     
+    # ソーシャルアカウント情報を取得
+    from app.models import SocialAccount
+    social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
+    
     return render_template('public/profile.html', 
                           user=user, 
-                          spots=spots, 
+                          spots=spots,
+                          social_accounts=social_accounts,
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 
 @bp.route('/<display_name>/map')
