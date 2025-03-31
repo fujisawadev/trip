@@ -98,51 +98,60 @@ def add_spot():
         
         # Google Places APIから写真参照情報を取得して保存
         if google_place_id:
-            # 2枚目以降の写真を取得する場合のみAPIリクエスト
-            try:
-                # Google Places APIを呼び出す
-                url = f"https://places.googleapis.com/v1/places/{google_place_id}"
-                headers = {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                    'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
-                }
-                
-                api_response = requests.get(url, headers=headers)
-                
-                if api_response.status_code == 200:
-                    data = api_response.json()
+            # ユーザーがアップロードした写真があるかチェック
+            user_uploaded_photos = False
+            photos = request.files.getlist('photos')
+            for photo in photos:
+                if photo and photo.filename and allowed_file(photo.filename):
+                    user_uploaded_photos = True
+                    break
+            
+            # ユーザーがアップロードした写真がない場合のみGoogle Places APIから写真を取得
+            if not user_uploaded_photos:
+                try:
+                    # Google Places APIを呼び出す
+                    url = f"https://places.googleapis.com/v1/places/{google_place_id}"
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                        'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
+                    }
                     
-                    if 'photos' in data and len(data['photos']) > 0:
-                        # 写真参照情報の配列
-                        photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
+                    api_response = requests.get(url, headers=headers)
+                    
+                    if api_response.status_code == 200:
+                        data = api_response.json()
                         
-                        # 既存の写真参照情報を取得
-                        existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
-                        
-                        # 最初の写真参照情報をスポットに設定
-                        if len(photo_references) > 0:
-                            # フォームから送信された写真参照情報がない場合は、APIから取得した最初の写真を使用
-                            if not google_photo_reference:
-                                spot.google_photo_reference = photo_references[0]
-                        
-                        # すべての写真を保存（最大5枚）
-                        for i, photo_reference in enumerate(photo_references[:5]):
-                            # 既に保存した写真参照情報と重複しないようにする
-                            if photo_reference not in existing_references:
-                                # Google Photo ReferenceからCDN URLを取得
-                                cdn_url = get_cdn_url_from_reference(photo_reference)
-                                
-                                # 写真参照情報をデータベースに保存
-                                photo = Photo(
-                                    spot_id=spot.id,
-                                    photo_url=cdn_url,  # CDN URLを保存
-                                    google_photo_reference=photo_reference,
-                                    is_google_photo=True
-                                )
-                                db.session.add(photo)
-            except Exception as e:
-                print(f"Google Places API写真取得エラー: {str(e)}")
+                        if 'photos' in data and len(data['photos']) > 0:
+                            # 写真参照情報の配列
+                            photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
+                            
+                            # 既存の写真参照情報を取得
+                            existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
+                            
+                            # 最初の写真参照情報をスポットに設定
+                            if len(photo_references) > 0:
+                                # フォームから送信された写真参照情報がない場合は、APIから取得した最初の写真を使用
+                                if not google_photo_reference:
+                                    spot.google_photo_reference = photo_references[0]
+                            
+                            # すべての写真を保存（最大5枚）
+                            for i, photo_reference in enumerate(photo_references[:5]):
+                                # 既に保存した写真参照情報と重複しないようにする
+                                if photo_reference not in existing_references:
+                                    # Google Photo ReferenceからCDN URLを取得
+                                    cdn_url = get_cdn_url_from_reference(photo_reference)
+                                    
+                                    # 写真参照情報をデータベースに保存
+                                    photo = Photo(
+                                        spot_id=spot.id,
+                                        photo_url=cdn_url,  # CDN URLを保存
+                                        google_photo_reference=photo_reference,
+                                        is_google_photo=True
+                                    )
+                                    db.session.add(photo)
+                except Exception as e:
+                    print(f"Google Places API写真取得エラー: {str(e)}")
         
         # 写真のアップロード処理
         photos = request.files.getlist('photos')
@@ -228,53 +237,74 @@ def edit_spot(spot_id):
         
         # Google Places IDが変更された場合、新しい写真参照情報を取得
         if new_place_id and new_place_id != old_place_id:
-            try:
-                # 既存のGoogle写真を削除
-                Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
-                
-                # Google Places APIを呼び出す
-                url = f"https://places.googleapis.com/v1/places/{new_place_id}"
-                headers = {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                    'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
-                }
-                
-                api_response = requests.get(url, headers=headers)
-                
-                if api_response.status_code == 200:
-                    data = api_response.json()
+            # ユーザーがアップロードした写真があるかチェック
+            user_has_photos = False
+            
+            # 既存の写真をチェック
+            existing_user_photos = Photo.query.filter_by(spot_id=spot.id, is_google_photo=False).count()
+            if existing_user_photos > 0:
+                user_has_photos = True
+            
+            # 新しくアップロードされる写真をチェック
+            if not user_has_photos:
+                photos = request.files.getlist('photos')
+                for photo in photos:
+                    if photo and photo.filename and allowed_file(photo.filename):
+                        user_has_photos = True
+                        break
+            
+            # ユーザーがアップロードした写真がない場合のみGoogle Places APIから写真を取得
+            if not user_has_photos:
+                try:
+                    # 既存のGoogle写真を削除
+                    Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
                     
-                    if 'photos' in data and len(data['photos']) > 0:
-                        # 写真参照情報の配列
-                        photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
+                    # Google Places APIを呼び出す
+                    url = f"https://places.googleapis.com/v1/places/{new_place_id}"
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                        'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
+                    }
+                    
+                    api_response = requests.get(url, headers=headers)
+                    
+                    if api_response.status_code == 200:
+                        data = api_response.json()
                         
-                        # 既存の写真参照情報を取得
-                        existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
-                        
-                        # 最初の写真参照情報をスポットに設定
-                        if len(photo_references) > 0:
-                            # フォームから送信された写真参照情報がない場合は、APIから取得した最初の写真を使用
-                            if not google_photo_reference:
-                                spot.google_photo_reference = photo_references[0]
-                        
-                        # すべての写真を保存（最大5枚）
-                        for i, photo_reference in enumerate(photo_references[:5]):
-                            # 既に保存した写真参照情報と重複しないようにする
-                            if photo_reference not in existing_references:
-                                # Google Photo ReferenceからCDN URLを取得
-                                cdn_url = get_cdn_url_from_reference(photo_reference)
-                                
-                                # 写真参照情報をデータベースに保存
-                                photo = Photo(
-                                    spot_id=spot.id,
-                                    photo_url=cdn_url,  # CDN URLを保存
-                                    google_photo_reference=photo_reference,
-                                    is_google_photo=True
-                                )
-                                db.session.add(photo)
-            except Exception as e:
-                print(f"Google Places API写真取得エラー: {str(e)}")
+                        if 'photos' in data and len(data['photos']) > 0:
+                            # 写真参照情報の配列
+                            photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
+                            
+                            # 既存の写真参照情報を取得
+                            existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
+                            
+                            # 最初の写真参照情報をスポットに設定
+                            if len(photo_references) > 0:
+                                # フォームから送信された写真参照情報がない場合は、APIから取得した最初の写真を使用
+                                if not google_photo_reference:
+                                    spot.google_photo_reference = photo_references[0]
+                            
+                            # すべての写真を保存（最大5枚）
+                            for i, photo_reference in enumerate(photo_references[:5]):
+                                # 既に保存した写真参照情報と重複しないようにする
+                                if photo_reference not in existing_references:
+                                    # Google Photo ReferenceからCDN URLを取得
+                                    cdn_url = get_cdn_url_from_reference(photo_reference)
+                                    
+                                    # 写真参照情報をデータベースに保存
+                                    photo = Photo(
+                                        spot_id=spot.id,
+                                        photo_url=cdn_url,  # CDN URLを保存
+                                        google_photo_reference=photo_reference,
+                                        is_google_photo=True
+                                    )
+                                    db.session.add(photo)
+                except Exception as e:
+                    print(f"Google Places API写真取得エラー: {str(e)}")
+            else:
+                # ユーザーの写真がある場合、Google画像を削除
+                Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
         
         # 削除する写真の処理
         if 'delete_photos' in request.form:
