@@ -305,7 +305,7 @@ def process_message_event(event, user):
                 return
             
             # プロフィールURLを構築
-            profile_url = f"https://{request.host}/{user.username}"
+            profile_url = f"https://{request.host}{user.get_public_url()}"
             reply_message = template.replace('{profile_url}', profile_url)
             
             # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用
@@ -427,7 +427,7 @@ def process_field_based_webhook(entry):
                 continue
             
             # プロフィールURLを構築
-            profile_url = f"https://{request.host}/{user.username}"
+            profile_url = f"https://{request.host}{user.get_public_url()}"
             reply_message = template.replace('{profile_url}', profile_url)
             
             # Instagram API with Instagram Login対応 - Instagram Tokenを優先して使用

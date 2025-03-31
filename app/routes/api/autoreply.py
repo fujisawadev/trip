@@ -86,7 +86,7 @@ def test():
         print(f"[分析結果] 場所に関する質問: {is_location_question}, 確信度: {confidence:.2f}, 理由: '{reasoning}'")
         
         # 返信メッセージを生成
-        profile_url = request.host_url.rstrip('/') + f'/u/{current_user.username}'
+        profile_url = request.host_url.rstrip('/') + current_user.get_public_url()
         reply_message = template.replace('{profile_url}', profile_url) if is_location_question and enabled and template else ''
         print(f"[返信生成] テンプレート使用: {bool(template)}, プロフィールURL: '{profile_url}'")
         print(f"[返信生成] 最終返信メッセージ: '{reply_message}'")

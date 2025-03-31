@@ -68,6 +68,8 @@ class User(UserMixin, db.Model):
         self.display_name = display_name
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
+        # 自動返信のデフォルトテンプレートを設定
+        self.autoreply_template = 'ご質問ありがとうございます！スポットの詳細はこちらのプロフィールページでご確認いただけます：{profile_url}'
         if password:
             self.set_password(password)
     

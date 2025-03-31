@@ -216,8 +216,27 @@
                   </p>
                 </div>
                 
-                <div class="mt-4">
-                  <h3 class="text-sm font-medium text-slate-700 mb-2">
+                <!-- Save Button Section -->
+                <div class="flex items-start w-full mt-4 mb-4">
+                  <button
+                    id="save-btn"
+                    class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    <span class="overflow-hidden self-stretch my-auto">
+                      テンプレートを保存
+                    </span>
+                  </button>
+                </div>
+                
+                <!-- メッセージ分析シミュレーション Section -->
+                <div class="mt-2">
+                  <h3 class="text-lg font-bold text-neutral-900 mb-3 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
                     メッセージ分析シミュレーション
                   </h3>
                   <p class="text-xs text-slate-600 mb-2">
@@ -244,23 +263,6 @@
                 </div>
               </div>
             </section>
-
-            <!-- Save Button Section -->
-            <footer class="mb-8">
-              <div class="flex items-start w-full">
-                <button
-                  id="save-btn"
-                  class="flex overflow-hidden flex-1 shrink justify-center items-center px-5 w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl basis-0 max-w-[480px] min-h-12 min-w-[84px] hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                  </svg>
-                  <span class="overflow-hidden self-stretch my-auto">
-                    テンプレートを保存
-                  </span>
-                </button>
-              </div>
-            </footer>
             {% endif %}
           </section>
         </main>
