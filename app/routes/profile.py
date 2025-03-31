@@ -1279,6 +1279,21 @@ def display_name_profile(display_name):
     # アクティブなスポットのみを取得するように修正
     spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
     
+    # スポットデータをJSONシリアライズ可能な形式に変換
+    spots_data = []
+    for spot in spots:
+        spot_dict = {
+            'id': spot.id,
+            'name': spot.name,
+            'location': spot.location or '',
+            'latitude': spot.latitude,
+            'longitude': spot.longitude,
+            'category': spot.category or '',
+            'description': spot.description or '',
+            'photos': [{'photo_url': photo.photo_url} for photo in spot.photos] if spot.photos else []
+        }
+        spots_data.append(spot_dict)
+    
     # Google Maps API Keyをconfigとして渡す
     from app.routes.public import GOOGLE_MAPS_API_KEY
     
@@ -1288,7 +1303,7 @@ def display_name_profile(display_name):
     
     return render_template('public/profile.html', 
                           user=user, 
-                          spots=spots,
+                          spots=spots_data,
                           social_accounts=social_accounts,
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 

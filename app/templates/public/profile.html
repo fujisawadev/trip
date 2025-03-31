@@ -400,19 +400,7 @@
         const map = initMap('map');
         
         // スポットデータの配列
-        const spots = [
-          {% for spot in spots %}
-            {
-              "id": {{ spot.id }},
-              "name": "{{ spot.name }}",
-              "location": "{{ spot.location or '' }}",
-              {% if spot.latitude %}"lat": {{ spot.latitude }},{% else %}"lat": null,{% endif %}
-              {% if spot.longitude %}"lng": {{ spot.longitude }}{% else %}"lng": null{% endif %},
-              "category": "{{ spot.category or '' }}",
-              "description": "{{ spot.description or '' }}"
-            }{% if not loop.last %},{% endif %}
-          {% endfor %}
-        ];
+        const spots = {{ spots|tojson|safe }};
         
         // マーカーオブジェクトの配列（スポットIDと紐付け）
         const markerObjects = [];
@@ -421,12 +409,12 @@
         let mapFilterActive = false;
         
         // 有効な座標を持つスポットだけを抽出
-        const validSpots = spots.filter(spot => spot.lat && spot.lng);
+        const validSpots = spots.filter(spot => spot.latitude && spot.longitude);
         
         // スポットごとにマーカーを作成し、マーカーオブジェクトに格納
         validSpots.forEach(spot => {
-          if (spot.lat && spot.lng) {
-            const marker = addMarker(map, spot.lat, spot.lng);
+          if (spot.latitude && spot.longitude) {
+            const marker = addMarker(map, spot.latitude, spot.longitude);
             marker.bindPopup(`<b>${spot.name}</b><br>${spot.location}`);
             
             // マーカーとスポットを紐付けたオブジェクトを作成
@@ -454,8 +442,8 @@
               if (spot.id === otherSpot.id || processed.has(otherSpot.id)) return;
               
               const distance = calculateDistance(
-                spot.lat, spot.lng, 
-                otherSpot.lat, otherSpot.lng
+                spot.latitude, spot.longitude, 
+                otherSpot.latitude, otherSpot.longitude
               );
               
               if (distance <= maxDistance) {
@@ -503,8 +491,8 @@
             let sumLat = 0, sumLng = 0;
             
             maxCluster.forEach(spot => {
-              sumLat += spot.lat;
-              sumLng += spot.lng;
+              sumLat += spot.latitude;
+              sumLng += spot.longitude;
             });
             
             const avgLat = sumLat / maxCluster.length;
@@ -693,7 +681,7 @@
                     (spot.location && spot.location.toLowerCase().includes(searchTerm.toLowerCase()));
                 const matchesCategory = category === 'all' || spot.category === category;
                 const matchesMapBounds = !mapFilterActive || 
-                    (spot.lat && spot.lng && mapBounds.contains([spot.lat, spot.lng]));
+                    (spot.latitude && spot.longitude && mapBounds.contains([spot.latitude, spot.longitude]));
                 
                 if (matchesSearch && matchesCategory && matchesMapBounds) {
                     // 条件に一致する場合は表示
@@ -769,15 +757,15 @@
                         
                         // モーダル内の地図を初期化（必要な場合）
                         const spot = spots.find(s => s.id === parseInt(spotId));
-                        if (spot && spot.lat && spot.lng && document.getElementById('spot-map-modal')) {
+                        if (spot && spot.latitude && spot.longitude && document.getElementById('spot-map-modal')) {
                             setTimeout(() => {
-                                const modalMap = L.map('spot-map-modal').setView([spot.lat, spot.lng], 15);
+                                const modalMap = L.map('spot-map-modal').setView([spot.latitude, spot.longitude], 15);
                                 
                                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 }).addTo(modalMap);
                                 
-                                L.marker([spot.lat, spot.lng])
+                                L.marker([spot.latitude, spot.longitude])
                                     .addTo(modalMap)
                                     .bindPopup(spot.name);
                                 
