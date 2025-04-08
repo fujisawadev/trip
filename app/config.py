@@ -31,11 +31,11 @@ class Config:
     
     # PostgreSQL固有の設定
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'pool_recycle': 3600,
-        'pool_timeout': 30,
-        'max_overflow': 2,
-        'pool_pre_ping': True,  # 接続前に軽量なクエリでチェック
+        'pool_size': 15,         # 10→15に増加（基本接続プールサイズ）
+        'pool_recycle': 1800,    # 3600→1800に短縮（30分でコネクションをリサイクル）
+        'pool_timeout': 20,      # 30→20に短縮（接続待ち時間を短縮）
+        'max_overflow': 5,       # 2→5に増加（ピーク時の追加接続数）
+        'pool_pre_ping': True,   # 接続前に軽量なクエリでチェック（変更なし）
     }
     
     # メール設定
