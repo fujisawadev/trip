@@ -51,9 +51,8 @@ class User(UserMixin, db.Model):
     autoreply_template = db.Column(db.Text, nullable=True)  # 返信テンプレート
     autoreply_last_updated = db.Column(db.DateTime, nullable=True)  # 最終更新日時
     
-    # 追加設定
-    website = db.Column(db.String(255), nullable=True)
-    location = db.Column(db.String(100), nullable=True)
+    # アフィリエイト設定
+    rakuten_affiliate_id = db.Column(db.String(100), nullable=True)  # 楽天アフィリエイトID
     
     # リレーションシップ
     spots = db.relationship('Spot', back_populates='user', lazy=True, cascade='all, delete-orphan')

@@ -310,6 +310,135 @@
             </div>
           </div>
 
+          <!-- アフィリエイトリンク設定 -->
+          <div class="flex flex-col gap-2 w-full">
+            <div class="flex justify-between items-center">
+              <label class="text-sm font-bold text-neutral-900">予約・アフィリエイトリンク</label>
+              {% if current_user.rakuten_affiliate_id and not is_edit %}
+                <span class="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded-full">自動設定が有効</span>
+              {% endif %}
+            </div>
+            
+            {% if is_edit %}
+              <!-- 編集時は既存のアフィリエイトリンクを表示 -->
+              <!-- コントローラから直接渡されるrakuten_linkを使用 -->
+              
+              <div class="flex flex-col gap-4 p-4 bg-white rounded-xl border border-slate-200">
+                <div class="flex items-center gap-2">
+                  <img src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}" 
+                       alt="楽天トラベル" 
+                       class="w-6 h-6"
+                       onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'">
+                  <span class="font-medium">楽天トラベル</span>
+                </div>
+                
+                <div class="flex flex-col gap-2">
+                  <label for="rakuten_url" class="text-xs text-slate-500">URL</label>
+                  <input
+                    type="url"
+                    id="rakuten_url"
+                    name="rakuten_url"
+                    value="{{ rakuten_link.url if rakuten_link else '' }}"
+                    placeholder="https://..."
+                    class="px-3 py-2 text-sm bg-slate-100 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div class="flex items-center py-2">
+                  <div class="flex flex-col flex-1">
+                    <label for="rakuten_active" class="text-xs text-slate-500">表示設定</label>
+                    <p class="text-xs text-slate-500 mt-1">このリンクをスポット詳細に表示する</p>
+                  </div>
+                  <label
+                    class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[28px] w-[48px] cursor-pointer toggle-bg transition-colors duration-200 {% if rakuten_link and rakuten_link.is_active %}bg-blue-500{% endif %}"
+                    role="switch"
+                  >
+                    <input type="checkbox" name="rakuten_active" id="rakuten_active" class="toggle-switch sr-only" {% if rakuten_link and rakuten_link.is_active %}checked{% endif %} />
+                    <span
+                      class="toggle-slider flex bg-white rounded-2xl h-[24px] min-h-[24px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[24px] transition-all duration-200"
+                    ></span>
+                  </label>
+                </div>
+                
+                {% if current_user.rakuten_affiliate_id %}
+                <p class="text-xs text-slate-500 mt-2">
+                  <a href="{{ url_for('profile.affiliate_settings') }}" target="_blank" class="text-blue-600 hover:underline">アフィリエイト設定</a>からアフィリエイトIDを設定・管理できます。
+                </p>
+                {% else %}
+                <p class="text-xs text-slate-500 mt-2">
+                  <a href="{{ url_for('profile.affiliate_settings') }}" target="_blank" class="text-blue-600 hover:underline">アフィリエイト設定</a>からIDを設定すると、自動でリンクが生成されます。
+                </p>
+                {% endif %}
+              </div>
+            {% else %}
+              <!-- 新規登録時 -->
+              {% if current_user.rakuten_affiliate_id %}
+                <div class="flex flex-col p-4 bg-white rounded-xl border border-slate-200">
+                  <div class="flex items-center gap-2 mb-3">
+                    <img src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}" 
+                         alt="楽天トラベル" 
+                         class="w-6 h-6"
+                         onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'">
+                    <span class="font-medium">楽天トラベル</span>
+                  </div>
+                  
+                  <p class="text-sm text-slate-600">
+                    スポット名に基づいて、楽天トラベルのアフィリエイトリンクが自動的に追加されます。
+                  </p>
+                  <p class="text-xs text-blue-500 mt-2">
+                    アフィリエイトID「{{ current_user.rakuten_affiliate_id }}」を使用します
+                  </p>
+                </div>
+              {% else %}
+                <div class="flex flex-col p-4 bg-white rounded-xl border border-slate-200">
+                  <div class="flex items-center gap-2 mb-3">
+                    <img src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}" 
+                         alt="楽天トラベル" 
+                         class="w-6 h-6"
+                         onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'">
+                    <span class="font-medium">楽天トラベル</span>
+                  </div>
+                  
+                  <p class="text-sm text-slate-600 mb-2">
+                    アフィリエイトIDを設定すると、スポット名に基づいて自動的にリンクが追加されます。
+                  </p>
+                  
+                  <div class="flex flex-col gap-2">
+                    <label for="rakuten_url" class="text-xs text-slate-500">URL</label>
+                    <input
+                      type="url"
+                      id="rakuten_url"
+                      name="rakuten_url"
+                      value=""
+                      placeholder="https://..."
+                      class="px-3 py-2 text-sm bg-slate-100 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div class="flex items-center py-2 mt-2">
+                    <div class="flex flex-col flex-1">
+                      <label for="rakuten_active" class="text-xs text-slate-500">表示設定</label>
+                      <p class="text-xs text-slate-500 mt-1">このリンクをスポット詳細に表示する</p>
+                    </div>
+                    <label
+                      class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[28px] w-[48px] cursor-pointer toggle-bg transition-colors duration-200"
+                      role="switch"
+                    >
+                      <input type="checkbox" name="rakuten_active" id="rakuten_active" class="toggle-switch sr-only" checked />
+                      <span
+                        class="toggle-slider flex bg-white rounded-2xl h-[24px] min-h-[24px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[24px] transition-all duration-200"
+                      ></span>
+                    </label>
+                  </div>
+                  
+                  <p class="text-xs text-slate-500 mt-2">
+                    <a href="{{ url_for('profile.affiliate_settings') }}" target="_blank" class="text-blue-600 hover:underline">アフィリエイト設定</a>からIDを設定すると、自動でリンクが生成されます。
+                  </p>
+                </div>
+              {% endif %}
+            {% endif %}
+          </div>
+
           <!-- Active Status -->
           <div class="flex items-center py-3 mb-5 w-full">
             <div class="flex flex-col flex-1">
@@ -446,6 +575,7 @@
 
       // トグルスイッチの挙動を設定
       document.addEventListener('DOMContentLoaded', function() {
+        // 通常のトグルスイッチ
         const toggleSwitch = document.querySelector('.toggle-switch');
         const toggleBg = document.querySelector('.toggle-bg');
         
@@ -470,6 +600,34 @@
               toggleBg.classList.add('bg-slate-200');
             }
           });
+        }
+        
+        // 楽天トラベルのトグルスイッチ
+        const rakutenToggleSwitch = document.getElementById('rakuten_active');
+        if (rakutenToggleSwitch) {
+          const rakutenToggleBg = rakutenToggleSwitch.closest('.toggle-bg');
+          
+          // 初期状態の設定
+          if (rakutenToggleBg) {
+            if (rakutenToggleSwitch.checked) {
+              rakutenToggleBg.classList.remove('bg-slate-200');
+              rakutenToggleBg.classList.add('bg-blue-500');
+            } else {
+              rakutenToggleBg.classList.remove('bg-blue-500');
+              rakutenToggleBg.classList.add('bg-slate-200');
+            }
+            
+            // クリックイベントのハンドラ
+            rakutenToggleSwitch.addEventListener('change', function() {
+              if (this.checked) {
+                rakutenToggleBg.classList.remove('bg-slate-200');
+                rakutenToggleBg.classList.add('bg-blue-500');
+              } else {
+                rakutenToggleBg.classList.remove('bg-blue-500');
+                rakutenToggleBg.classList.add('bg-slate-200');
+              }
+            });
+          }
         }
       });
 

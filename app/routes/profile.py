@@ -1350,4 +1350,23 @@ def display_name_map(display_name):
                          user=user,
                          spots=spots_data,
                          social_accounts=social_accounts,
-                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY}) 
+                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
+
+@bp.route('/settings/affiliate')
+@login_required
+def affiliate_settings():
+    """アフィリエイト設定ページ"""
+    return render_template('affiliate_settings.html')
+
+@bp.route('/settings/affiliate', methods=['POST'])
+@login_required
+def update_affiliate_settings():
+    """アフィリエイト設定の更新"""
+    rakuten_affiliate_id = request.form.get('rakuten_affiliate_id', '').strip()
+    
+    # 更新して保存
+    current_user.rakuten_affiliate_id = rakuten_affiliate_id
+    db.session.commit()
+    
+    flash('アフィリエイト設定を保存しました', 'success')
+    return redirect(url_for('profile.affiliate_settings')) 

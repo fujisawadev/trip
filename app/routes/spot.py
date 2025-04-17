@@ -9,7 +9,10 @@ from app import db
 from app.models.user import User
 from app.models.spot import Spot
 from app.models.photo import Photo
+from app.models.affiliate_link import AffiliateLink
 from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
+from app.utils.rakuten_api import search_hotel, similar_text, generate_rakuten_affiliate_url
+from sqlalchemy.orm import joinedload
 
 bp = Blueprint('spot', __name__)
 
@@ -72,6 +75,9 @@ def add_spot():
         types = request.form.get('types', '')
         google_photo_reference = request.form.get('google_photo_reference', '')  # 写真参照情報を取得
         
+        # サマリーロケーションを取得
+        summary_location = request.form.get('summary_location', '')
+        
         # 入力チェック
         if not name:
             flash('スポット名を入力してください。', 'danger')
@@ -79,22 +85,22 @@ def add_spot():
         
         # スポット作成
         spot = Spot(
-            user_id=current_user.id,
             name=name,
             description=description,
             location=location,
             category=category,
-            is_active=is_active,
+            user_id=current_user.id,
             latitude=float(latitude) if latitude else None,
             longitude=float(longitude) if longitude else None,
             google_place_id=google_place_id,
             formatted_address=formatted_address,
             types=types,
-            google_photo_reference=google_photo_reference,  # 写真参照情報を設定
-            summary_location=request.form.get('summary_location', '')  # サマリーロケーションを設定
+            google_photo_reference=google_photo_reference,
+            summary_location=summary_location,
+            is_active=is_active
         )
         db.session.add(spot)
-        db.session.flush()
+        db.session.flush()  # IDを確定するためにflush
         
         # Google Places APIから写真参照情報を取得して保存
         if google_place_id:
@@ -190,6 +196,106 @@ def add_spot():
                     )
                     db.session.add(photo_obj)
         
+        # 手動アフィリエイトリンク処理
+        rakuten_url = request.form.get('rakuten_url', '').strip()
+        rakuten_active = 'rakuten_active' in request.form
+        
+        if rakuten_url:  # URL入力がある場合は手動設定を優先
+            # 既存のリンクがあれば更新、なければ新規作成
+            existing_link = AffiliateLink.query.filter_by(
+                spot_id=spot.id, 
+                platform='rakuten'
+            ).first()
+            
+            if existing_link:
+                # 既存リンクの更新
+                existing_link.url = rakuten_url
+                existing_link.title = '楽天トラベル'
+                existing_link.description = '楽天トラベルで予約 (PRを含む)'
+                existing_link.is_active = rakuten_active
+            else:
+                # 新規リンク作成
+                affiliate_link = AffiliateLink(
+                    spot_id=spot.id,
+                    platform='rakuten',
+                    url=rakuten_url,
+                    title='楽天トラベル',
+                    description='楽天トラベルで予約 (PRを含む)',
+                    icon_key='rakuten-travel',
+                    is_active=rakuten_active
+                )
+                db.session.add(affiliate_link)
+            
+            print(f"手動設定された楽天トラベルアフィリエイトリンクを作成/更新: {rakuten_url}")
+            
+        else:  # 手動入力がない場合
+            # 既存のリンクがあれば、非アクティブに設定しURLも空にする
+            existing_link = AffiliateLink.query.filter_by(
+                spot_id=spot.id, 
+                platform='rakuten'
+            ).first()
+            
+            if existing_link:
+                existing_link.is_active = False
+                existing_link.url = ''  # URLを空にする
+                print(f"既存の楽天トラベルアフィリエイトリンクを非アクティブに設定: ID={existing_link.id}")
+            
+            # 新規登録時のみ自動設定を行う
+            # 楽天トラベルアフィリエイトリンクの自動生成
+            if current_user.rakuten_affiliate_id and name:
+                try:
+                    print(f"楽天トラベルAPI検索: {name}")
+                    # 楽天トラベルAPIを呼び出してホテル情報を取得
+                    hotel_results = search_hotel(name, current_user.rakuten_affiliate_id)
+                    
+                    if 'error' not in hotel_results and 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
+                        print(f"ホテル検索結果: {len(hotel_results['hotels'])}件見つかりました")
+                        # ホテル情報を取得
+                        for hotel_item in hotel_results['hotels']:
+                            # 修正: hotel_item['hotel']はリスト型なのでインデックスでアクセス
+                            if 'hotel' in hotel_item and len(hotel_item['hotel']) > 0:
+                                # 最初の要素に 'hotelBasicInfo' が含まれている
+                                hotel_info = hotel_item['hotel'][0]
+                                if 'hotelBasicInfo' in hotel_info:
+                                    basic_info = hotel_info['hotelBasicInfo']
+                                    hotel_name = basic_info.get('hotelName', '')
+                                    print(f"ホテル名: {hotel_name}")
+                                    
+                                    # ホテル名が一致または類似していれば、アフィリエイトリンクを作成
+                                    similarity = similar_text(name, hotel_name, min_similarity=0.5)
+                                    print(f"類似度チェック: '{name}' と '{hotel_name}' の類似度: {similarity}")
+                                    
+                                    if similarity:
+                                        print(f"類似と判定: {hotel_name}")
+                                        
+                                        # URLがある場合のみ処理
+                                        if basic_info.get('hotelInformationUrl'):
+                                            hotel_url = basic_info.get('hotelInformationUrl')
+                                            print(f"ホテルURL: {hotel_url}")
+                                            # アフィリエイトURLを生成
+                                            affiliate_url = generate_rakuten_affiliate_url(
+                                                hotel_url,
+                                                current_user.rakuten_affiliate_id
+                                            )
+                                            print(f"アフィリエイトURL生成: {affiliate_url}")
+                                            
+                                            # 新規リンク作成
+                                            affiliate_link = AffiliateLink(
+                                                spot_id=spot.id,
+                                                platform='rakuten',
+                                                url=affiliate_url,
+                                                title='楽天トラベル',
+                                                description='楽天トラベルで予約 (PRを含む)',
+                                                icon_key='rakuten-travel',
+                                                is_active=True
+                                            )
+                                            db.session.add(affiliate_link)
+                                            
+                                            print(f"楽天トラベルアフィリエイトリンクを自動生成: スポット名={name}")
+                                            break  # 最初の一致したホテルのみ使用
+                except Exception as e:
+                    print(f"楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
+        
         db.session.commit()
         flash('スポットを追加しました。', 'success')
         return redirect(url_for('profile.mypage'))
@@ -200,12 +306,12 @@ def add_spot():
 @login_required
 def edit_spot(spot_id):
     """スポット編集ページ"""
-    spot = Spot.query.get_or_404(spot_id)
+    # アフィリエイトリンクを積極的に読み込む
+    spot = Spot.query.options(joinedload(Spot.affiliate_links)).filter_by(id=spot_id, user_id=current_user.id).first_or_404()
     
-    # 自分のスポットでない場合はリダイレクト
-    if spot.user_id != current_user.id:
-        flash('他のユーザーのスポットは編集できません。', 'danger')
-        return redirect(url_for('profile.mypage'))
+    # デバッグログの追加
+    rakuten_links = [link for link in spot.affiliate_links if link.platform == 'rakuten']
+    print(f"編集前の楽天アフィリエイトリンク: {[(link.id, link.url) for link in rakuten_links]}")
     
     if request.method == 'POST':
         spot.name = request.form.get('spotName')
@@ -355,14 +461,72 @@ def edit_spot(spot_id):
                     )
                     db.session.add(photo_obj)
         
+        # 手動アフィリエイトリンク処理
+        rakuten_url = request.form.get('rakuten_url', '').strip()
+        rakuten_active = 'rakuten_active' in request.form
+        
+        if rakuten_url:  # URL入力がある場合は手動設定を優先
+            # 既存のリンクがあれば更新、なければ新規作成
+            existing_link = AffiliateLink.query.filter_by(
+                spot_id=spot.id, 
+                platform='rakuten'
+            ).first()
+            
+            if existing_link:
+                # 既存リンクの更新
+                existing_link.url = rakuten_url
+                existing_link.title = '楽天トラベル'
+                existing_link.description = '楽天トラベルで予約 (PRを含む)'
+                existing_link.is_active = rakuten_active
+            else:
+                # 新規リンク作成
+                affiliate_link = AffiliateLink(
+                    spot_id=spot.id,
+                    platform='rakuten',
+                    url=rakuten_url,
+                    title='楽天トラベル',
+                    description='楽天トラベルで予約 (PRを含む)',
+                    icon_key='rakuten-travel',
+                    is_active=rakuten_active
+                )
+                db.session.add(affiliate_link)
+            
+            print(f"手動設定された楽天トラベルアフィリエイトリンクを作成/更新: {rakuten_url}")
+            
+        else:  # 手動入力がない場合
+            # 既存のリンクがあれば、非アクティブに設定しURLも空にする
+            existing_link = AffiliateLink.query.filter_by(
+                spot_id=spot.id, 
+                platform='rakuten'
+            ).first()
+            
+            if existing_link:
+                existing_link.is_active = False
+                existing_link.url = ''  # URLを空にする
+                print(f"既存の楽天トラベルアフィリエイトリンクを非アクティブに設定: ID={existing_link.id}")
+            
+            # 編集時は自動設定を行わない
+        
         db.session.commit()
         flash('スポット情報を更新しました。', 'success')
         return redirect(url_for('profile.mypage'))
     
     # 写真情報を取得
     photos = Photo.query.filter_by(spot_id=spot_id).all()
-    
-    return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True)
+
+    # 楽天アフィリエイトリンクを明示的に取得
+    rakuten_link = AffiliateLink.query.filter_by(
+        spot_id=spot_id, 
+        platform='rakuten'
+    ).first()
+
+    # デバッグログの追加
+    if rakuten_link:
+        print(f"テンプレートに渡す楽天アフィリエイトリンク: ID={rakuten_link.id}, URL={rakuten_link.url}")
+    else:
+        print("テンプレートに渡す楽天アフィリエイトリンク: なし")
+
+    return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True, rakuten_link=rakuten_link)
 
 @bp.route('/toggle-spot/<int:spot_id>')
 @login_required

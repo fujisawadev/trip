@@ -86,6 +86,45 @@
                 もっと見る
             </h2>
             
+            <!-- アフィリエイトリンク (存在する場合のみ表示) -->
+            {% if spot.affiliate_links %}
+                {% for link in spot.affiliate_links %}
+                    {% if link.is_active %}
+                        <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
+                            {% if link.icon_key %}
+                                <img
+                                    src="{{ url_for('static', filename='icons/affiliates/' ~ link.icon_key ~ '.svg') }}"
+                                    alt="{{ link.platform }} logo"
+                                    class="object-contain shrink-0 self-stretch my-auto w-10 rounded-lg aspect-square"
+                                    onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'"
+                                />
+                            {% else %}
+                                <!-- フォールバックアイコン -->
+                                <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                </div>
+                            {% endif %}
+                            <div class="flex flex-col justify-center self-stretch my-auto flex-1">
+                                <h3 class="overflow-hidden max-w-full text-base font-medium whitespace-nowrap text-neutral-900">
+                                    {{ link.title or link.platform|title }}
+                                </h3>
+                                <p class="overflow-hidden max-w-full text-sm text-slate-500">
+                                    {{ link.description or '詳細を見る' }}
+                                </p>
+                            </div>
+                            <a href="{{ link.url }}" 
+                               target="_blank" 
+                               class="flex justify-center items-center px-4 py-2 rounded-xl 
+                                    {% if link.platform == 'rakuten' %}bg-[#00B900]{% else %}bg-blue-500{% endif %} text-white shrink-0">
+                                {% if link.platform == 'rakuten' %}予約{% else %}開く{% endif %}
+                            </a>
+                        </article>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            
             <!-- Google Maps Link -->
             <article class="flex gap-4 items-center px-4 py-2 w-full bg-slate-50">
                 <img
