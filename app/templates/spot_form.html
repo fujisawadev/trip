@@ -189,22 +189,15 @@
 
           <!-- Spot Location -->
           <div class="flex flex-col gap-2 w-full">
-            <label for="location" class="text-sm font-bold text-neutral-900">場所</label>
+            <label for="location" class="text-sm font-bold text-neutral-900">住所</label>
             <input
               type="text"
               id="location"
               name="location"
               value="{% if is_edit %}{{ spot.location }}{% endif %}"
-              placeholder="場所を入力"
+              placeholder="住所を入力"
               class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button 
-              type="button" 
-              id="search-location" 
-              class="px-4 py-2 mt-1 text-sm font-medium text-white bg-blue-500 rounded-xl hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              場所を検索
-            </button>
           </div>
 
           <!-- Location Map -->
