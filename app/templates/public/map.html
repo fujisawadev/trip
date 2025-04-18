@@ -674,11 +674,14 @@
         // スポットカードを生成する関数
         function createSpotCard(spot) {
             console.log('Creating card for spot:', spot); // デバッグログ追加
-            const photo = spot.photos && spot.photos.length > 0 ? spot.photos[0].photo_url : '/static/images/default_profile.png';
+            const hasPhoto = spot.photos && spot.photos.length > 0;
             const location = spot.location || '';
             const cardHtml = `
                 <div class="spot-card" data-spot-id="${spot.id}">
-                    <img src="${photo}" alt="${spot.name}">
+                    ${hasPhoto ? `<img src="${spot.photos[0].photo_url}" alt="${spot.name}">` : 
+                    `<div class="no-photo-placeholder bg-gray-100 flex items-center justify-center" style="height: 100px;">
+                        <span class="text-gray-400 text-sm">写真なし</span>
+                     </div>`}
                     <div class="spot-card-content">
                         <h3 title="${spot.name}">${spot.name}</h3>
                         <p title="${location}">${location}</p>

@@ -77,14 +77,15 @@ function renderSpotDetail(spot) {
     
     // スポットの写真を取得
     const photos = spot.photos || [];
-    const mainPhoto = photos[0] || { photo_url: '/static/images/default_profile.png' };
     
     // モーダルコンテンツを生成
     const content = `
         <div class="spot-detail">
+            ${photos.length > 0 ? `
             <div class="spot-photos">
-                <img src="${mainPhoto.photo_url}" alt="${spot.name}" class="w-full h-48 object-cover">
+                <img src="${photos[0].photo_url}" alt="${spot.name}" class="w-full h-48 object-cover">
             </div>
+            ` : ''}
             <div class="spot-info p-4">
                 <h2 class="text-xl font-bold mb-2">${spot.name}</h2>
                 <p class="text-gray-600 mb-4">${spot.location || ''}</p>

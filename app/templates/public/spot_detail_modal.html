@@ -66,16 +66,6 @@
                             </div>
                         {% endfor %}
                     </div>
-                {% else %}
-                    <div class="flex flex-1 gap-3 size-full">
-                        <div class="w-[173px]">
-                            <img
-                                src="{{ url_for('static', filename='images/default_profile.png') }}"
-                                alt="Spot photo 1"
-                                class="object-cover flex-1 rounded-xl aspect-square w-[173px]"
-                            />
-                        </div>
-                    </div>
                 {% endif %}
             </div>
         </section>
