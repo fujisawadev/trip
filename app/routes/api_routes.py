@@ -11,6 +11,8 @@ from app import db
 import re
 from datetime import datetime
 from app.utils.instagram_helpers import extract_cursor_from_url
+# 楽天APIのユーティリティ関数をインポート
+from app.utils.rakuten_api import search_hotel, similar_text, generate_rakuten_affiliate_url
 
 # API用のブループリントを直接作成
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -1319,6 +1321,61 @@ def save_instagram_spots():
                 except Exception as photo_error:
                     print(f"写真の取得・保存エラー: {str(photo_error)}")
                     # 写真の取得に失敗しても処理を続行
+            
+            # 楽天トラベルアフィリエイトリンクの自動生成
+            if current_user.rakuten_affiliate_id and spot.name:
+                try:
+                    print(f"楽天トラベルAPI検索: {spot.name}")
+                    # 楽天トラベルAPIを呼び出してホテル情報を取得
+                    hotel_results = search_hotel(spot.name, current_user.rakuten_affiliate_id)
+                    
+                    if 'error' not in hotel_results and 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
+                        print(f"ホテル検索結果: {len(hotel_results['hotels'])}件見つかりました")
+                        # ホテル情報を取得
+                        for hotel_item in hotel_results['hotels']:
+                            # 修正: hotel_item['hotel']はリスト型なのでインデックスでアクセス
+                            if 'hotel' in hotel_item and len(hotel_item['hotel']) > 0:
+                                # 最初の要素に 'hotelBasicInfo' が含まれている
+                                hotel_info = hotel_item['hotel'][0]
+                                if 'hotelBasicInfo' in hotel_info:
+                                    basic_info = hotel_info['hotelBasicInfo']
+                                    hotel_name = basic_info.get('hotelName', '')
+                                    print(f"ホテル名: {hotel_name}")
+                                    
+                                    # ホテル名が一致または類似していれば、アフィリエイトリンクを作成
+                                    similarity = similar_text(spot.name, hotel_name, min_similarity=0.5)
+                                    print(f"類似度チェック: '{spot.name}' と '{hotel_name}' の類似度: {similarity}")
+                                    
+                                    if similarity:
+                                        print(f"類似と判定: {hotel_name}")
+                                        
+                                        # URLがある場合のみ処理
+                                        if basic_info.get('hotelInformationUrl'):
+                                            hotel_url = basic_info.get('hotelInformationUrl')
+                                            print(f"ホテルURL: {hotel_url}")
+                                            # アフィリエイトURLを生成
+                                            affiliate_url = generate_rakuten_affiliate_url(
+                                                hotel_url,
+                                                current_user.rakuten_affiliate_id
+                                            )
+                                            print(f"アフィリエイトURL生成: {affiliate_url}")
+                                            
+                                            # 新規リンク作成
+                                            affiliate_link = AffiliateLink(
+                                                spot_id=spot.id,
+                                                platform='rakuten',
+                                                url=affiliate_url,
+                                                title='楽天トラベル',
+                                                description='楽天トラベルで予約 (PRを含む)',
+                                                icon_key='rakuten-travel',
+                                                is_active=True
+                                            )
+                                            db.session.add(affiliate_link)
+                                            
+                                            print(f"楽天トラベルアフィリエイトリンクを自動生成: スポット名={spot.name}")
+                                            break  # 最初の一致したホテルのみ使用
+                except Exception as e:
+                    print(f"楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
         
         print(f"データベースに変更をコミット")
         db.session.commit()
