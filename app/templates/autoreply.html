@@ -68,14 +68,14 @@
         margin-bottom: 4px;
       }
       body {
-        padding-bottom: 64px; /* ナビゲーションの高さ分の余白を追加 */
+        /* padding-bottom: 64px; */ /* ナビゲーションの高さ分の余白を削除 */
         background-color: white; /* 背景色を白に設定 */
         min-height: 100vh;
       }
       .page-container {
         display: flex;
         flex-direction: column;
-        min-height: calc(100vh - 64px); /* 画面の高さからナビゲーションの高さを引いた分 */
+        min-height: 100vh; /* 画面の高さ全体に設定 */
         background-color: #f8fafc; /* コンテナ部分のみグレー背景 */
       }
     </style>
@@ -94,23 +94,17 @@
         
         <main>
           <!-- ヘッダー -->
-          <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50">
-            <div class="w-[90px] flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
-            <h1 class="flex-1 text-lg font-bold text-center basis-0 min-w-60 flex items-center justify-center">
-              <span class="bg-gradient-to-r from-blue-500 to-indigo-600 text-transparent bg-clip-text">maplink AI</span>
+          <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50 relative">
+            <a href="{{ url_for('profile.settings') }}" class="flex items-center self-stretch my-auto w-12 min-h-12" aria-label="戻る">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </a>
+            <h1 class="absolute left-0 right-0 mx-auto text-center text-lg font-bold text-neutral-900 w-full pointer-events-none">
+              自動返信設定
             </h1>
-            <div class="w-[90px] flex justify-end"><!-- 右側の空白スペース（バランス用） --></div>
+            <div class="w-12"><!-- 右側の空白スペース（バランス用） --></div>
           </nav>
-
-          <!-- タブナビゲーション -->
-          <div class="flex w-full border-b border-gray-200 mb-4">
-            <a href="{{ url_for('profile.import_management') }}" class="flex-1 py-2 px-4 text-center font-medium text-gray-500 hover:text-gray-700">
-              インポート
-            </a>
-            <a href="{{ url_for('profile.autoreply_settings') }}" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-gray-600 text-gray-700">
-              自動返信
-            </a>
-          </div>
 
           <!-- DMに自動返信をする Section - 常に表示 -->
           <section class="px-4 mb-8">
@@ -268,29 +262,6 @@
         </main>
       </div>
     </div>
-
-    <!-- グローバルナビゲーション -->
-    <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
-      <a href="{{ url_for('profile.mypage') }}" class="nav-item text-slate-500 hover:text-blue-700">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2" />
-        </svg>
-        <span class="text-xs">マイページ</span>
-      </a>
-      <a href="{{ url_for('profile.import_management') }}" class="nav-item text-blue-500 hover:text-blue-700">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-        <span class="text-xs">maplink AI</span>
-      </a>
-      <a href="{{ url_for('profile.settings') }}" class="nav-item text-slate-500 hover:text-blue-700">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        <span class="text-xs">設定</span>
-      </a>
-    </nav>
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {

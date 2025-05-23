@@ -117,13 +117,13 @@
         <nav
           class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50"
         >
-          <div class="w-[90px] flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
+          <div class="w-[90px] min-h-12 flex justify-start"><!-- 左側の空白スペース（バランス用） --></div>
           <h1
             class="flex-1 text-lg font-bold text-center text-neutral-900"
           >
             ページ管理
           </h1>
-          <div class="w-[90px] flex justify-end">
+          <div class="w-[90px] min-h-12 flex justify-end items-center">
             <a
               href="{{ url_for('profile.display_name_profile', display_name=user.display_name) if user.display_name else url_for('public.username_profile', username=user.username) }}"
               class="text-blue-500 hover:text-blue-700"
@@ -136,7 +136,7 @@
         <!-- Global Navigation は削除 -->
 
         <!-- User Profile Section -->
-        <section class="flex items-start p-4 w-full font-bold text-neutral-900">
+        <section class="flex items-start p-4 w-full text-neutral-900">
           <div class="flex-1 shrink w-full basis-0 min-w-60">
             <div
               class="flex justify-between items-center w-full text-2xl leading-none whitespace-nowrap"
@@ -145,9 +145,9 @@
                 <img
                   src="{{ user.profile_pic_url if user.profile_pic_url else url_for('static', filename='images/default_profile.png') }}"
                   alt="Profile"
-                  class="object-cover shrink-0 rounded-xl aspect-square w-[58px]"
+                  class="object-cover shrink-0 rounded-full aspect-square w-[58px]"
                 />
-                <h2 class="w-[74px]">{{ user.username }}</h2>
+                <h2 class="w-[74px] font-medium">{{ user.username }}</h2>
               </div>
               <a
                 href="{{ url_for('profile.edit_profile') }}"
@@ -313,28 +313,27 @@
       </div>
     </header>
 
-    <!-- 新規スポット追加ボタン -->
-    <a href="{{ url_for('spot.add_spot') }}" class="add-spot-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-      </svg>
-    </a>
+    <!-- 新規スポット追加ボタンは削除 -->
 
     <!-- 固定フッターナビゲーション -->
     <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
-      <a href="{{ url_for('profile.mypage') }}" class="nav-item text-blue-500 hover:text-blue-700">
+      <a href="{{ url_for('profile.mypage') }}" class="nav-item {% if request.endpoint == 'profile.mypage' %}text-blue-500{% else %}text-slate-500 hover:text-blue-700{% endif %}">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2" />
         </svg>
         <span class="text-xs">マイページ</span>
       </a>
-      <a href="{{ url_for('profile.import_management') }}" class="nav-item text-slate-500 hover:text-slate-700">
+      {# スポット登録関連のエンドポイントをリストで定義 #}
+      {% set spot_endpoints = ['spot.add_spot', 'spot.edit_spot', 'profile.import_management'] %}
+      <a href="{{ url_for('spot.add_spot') }}" class="nav-item {% if request.endpoint in spot_endpoints %}text-blue-500{% else %}text-slate-500 hover:text-blue-700{% endif %}">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span class="text-xs">maplink AI</span>
+        <span class="text-xs">スポット登録</span>
       </a>
-      <a href="{{ url_for('profile.settings') }}" class="nav-item text-slate-500 hover:text-slate-700">
+      {# 設定関連のエンドポイントをリストで定義 #}
+      {% set settings_endpoints = ['profile.settings', 'profile.autoreply_settings'] %}
+      <a href="{{ url_for('profile.settings') }}" class="nav-item {% if request.endpoint in settings_endpoints %}text-blue-500{% else %}text-slate-500 hover:text-blue-700{% endif %}">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
