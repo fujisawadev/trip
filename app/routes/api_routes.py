@@ -1074,6 +1074,7 @@ def save_instagram_spots():
             spot = Spot(
                 user_id=current_user.id,
                 name=spot_data.get('name'),
+                description='',  # デフォルトを空文字列に設定
                 location=spot_data.get('formatted_address', ''),
                 latitude=spot_data.get('latitude'),
                 longitude=spot_data.get('longitude'),
