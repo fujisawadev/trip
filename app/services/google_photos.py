@@ -3,10 +3,12 @@ import json
 import redis
 from flask import current_app
 
-# Redisクライアントのセットアップ
-# Flaskアプリケーションのコンテキスト外で直接URLを使う
-# configから直接読み込むのではなく、アプリケーションコンテキストを通じて取得する
 def get_redis_client():
+    """
+    環境に応じたRedisクライアントを取得します。
+    Heroku環境('rediss://')ではSSL接続設定を、ローカル環境('redis://')では
+    標準の接続設定を返します。
+    """
     redis_url = current_app.config.get('REDIS_URL')
     if not redis_url:
         print("エラー: REDIS_URLが設定されていません。")
@@ -14,12 +16,7 @@ def get_redis_client():
     
     # HerokuのRedis URLは 'rediss://' で始まるSSL接続
     if redis_url.startswith('rediss://'):
-        # redis-py 5.xでは、decode_componentsはURLのクエリパラメータとして渡す
-        if 'decode_components' not in redis_url:
-            separator = '&' if '?' in redis_url else '?'
-            redis_url += f"{separator}decode_components=true"
-        
-        # SSL接続の場合のみ、証明書検証を無効にする
+        # SSL接続の場合のみ、Herokuの自己署名証明書を許容する設定を追加
         return redis.from_url(redis_url, ssl_cert_reqs=None)
     else:
         # ローカル環境など、非SSL接続の場合
