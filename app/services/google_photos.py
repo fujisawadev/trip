@@ -11,7 +11,9 @@ def get_redis_client():
     if not redis_url:
         print("エラー: REDIS_URLが設定されていません。")
         return None
-    return redis.from_url(redis_url)
+    # Heroku Redisは自己署名証明書を使用するため、SSL検証を無効にする必要がある
+    # decode_components=True は、URLのユーザー名やパスワードを正しくデコードするために必要
+    return redis.from_url(redis_url, ssl_cert_reqs=None, decode_components=True)
 
 def get_google_photos_by_place_id(place_id: str, max_photos: int = 5) -> list[str]:
     """
