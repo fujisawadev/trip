@@ -48,7 +48,8 @@ class Config:
     
     # アップロード設定
     UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB（複数ファイル対応）
+    SINGLE_FILE_SIZE_LIMIT = 10 * 1024 * 1024  # 1枚あたり10MB制限
     
     # AWS S3設定
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
@@ -69,6 +70,9 @@ class Config:
     # Instagram Webhook設定
     INSTAGRAM_WEBHOOK_VERIFY_TOKEN = os.environ.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'instagram_webhook_verify_token')
     INSTAGRAM_APP_SECRET = os.environ.get('INSTAGRAM_APP_SECRET')
+    
+    # Redisキャッシュ設定
+    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
     
     @staticmethod
     def init_app(app):

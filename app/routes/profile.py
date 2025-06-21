@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import json
 import traceback
+from app.services.google_photos import get_google_photos_by_place_id
 
 bp = Blueprint('profile', __name__)
 
@@ -42,6 +43,23 @@ def mypage():
         # スポットデータをJSON形式に変換
         spots_data = []
         for spot in spots_pagination.items:
+            # ユーザーがアップロードした写真
+            user_photos = [p for p in spot.photos if not p.is_google_photo]
+            user_photo_list = [{'photo_url': p.photo_url} for p in user_photos]
+
+            # Google PhotosをPlace ID経由で取得
+            google_photo_list = []
+            if spot.google_place_id:
+                try:
+                    google_photo_urls = get_google_photos_by_place_id(spot.google_place_id)
+                    google_photo_list = [{'photo_url': url} for url in google_photo_urls]
+                except Exception as e:
+                    print(f"Google Photos取得エラー (spot_id: {spot.id}): {e}")
+                    google_photo_list = []
+            
+            # ユーザー写真とGoogle写真を結合
+            all_photos = user_photo_list + google_photo_list
+            
             spot_dict = {
                 'id': spot.id,
                 'name': spot.name,
@@ -49,7 +67,8 @@ def mypage():
                 'summary_location': spot.summary_location,
                 'category': spot.category,
                 'is_active': spot.is_active,
-                'photo_url': spot.photos[0].photo_url if spot.photos and len(spot.photos) > 0 else None
+                'rating': spot.rating,
+                'photo_url': all_photos[0]['photo_url'] if all_photos else None
             }
             spots_data.append(spot_dict)
         
@@ -64,10 +83,34 @@ def mypage():
             'current_page': spots_pagination.page
         })
     
+    # 通常のリクエストの場合 - プロフィールページと同じようにスポットデータを処理
+    spots_with_photos = []
+    for spot in spots_pagination.items:
+        # ユーザーがアップロードした写真
+        user_photos = [p for p in spot.photos if not p.is_google_photo]
+        user_photo_list = [{'photo_url': p.photo_url} for p in user_photos]
+
+        # Google PhotosをPlace ID経由で取得
+        google_photo_list = []
+        if spot.google_place_id:
+            try:
+                google_photo_urls = get_google_photos_by_place_id(spot.google_place_id)
+                google_photo_list = [{'photo_url': url} for url in google_photo_urls]
+            except Exception as e:
+                print(f"Google Photos取得エラー (spot_id: {spot.id}): {e}")
+                google_photo_list = []
+        
+        # ユーザー写真とGoogle写真を結合
+        all_photos = user_photo_list + google_photo_list
+        
+        # spotオブジェクトに統合された写真リストを追加
+        spot.unified_photos = all_photos
+        spots_with_photos.append(spot)
+    
     # 通常のリクエストの場合はテンプレートをレンダリング
     return render_template('mypage.html', 
                           user=current_user, 
-                          spots=spots_pagination.items,
+                          spots=spots_with_photos,
                           pagination=spots_pagination)
 
 @bp.route('/update-spots-heading', methods=['POST'])
@@ -682,19 +725,7 @@ def disconnect_instagram():
     
     return redirect(url_for('profile.sns_settings'))
 
-@bp.route('/user/<username>')
-def user_profile(username):
-    """ユーザープロフィールページ"""
-    user = User.query.filter_by(username=username).first_or_404()
-    spots = Spot.query.filter_by(user_id=user.id).all()
-    
-    # Google Maps API Keyをconfigとして渡す
-    from app.routes.public import GOOGLE_MAPS_API_KEY
-    
-    return render_template('public/profile.html', 
-                          user=user, 
-                          spots=spots, 
-                          config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
+
 
 @bp.route('/import')
 @login_required
@@ -1282,6 +1313,19 @@ def display_name_profile(display_name):
     # スポットデータをJSONシリアライズ可能な形式に変換
     spots_data = []
     for spot in spots:
+        # ユーザーがアップロードした写真
+        user_photos = [p for p in spot.photos if not p.is_google_photo]
+        user_photo_list = [{'photo_url': p.photo_url} for p in user_photos]
+
+        # Google PhotosをPlace ID経由で取得
+        google_photo_list = []
+        if spot.google_place_id:
+            google_photo_urls = get_google_photos_by_place_id(spot.google_place_id)
+            google_photo_list = [{'photo_url': url} for url in google_photo_urls]
+        
+        # ユーザー写真とGoogle写真を結合
+        all_photos = user_photo_list + google_photo_list
+
         spot_dict = {
             'id': spot.id,
             'name': spot.name,
@@ -1291,7 +1335,8 @@ def display_name_profile(display_name):
             'longitude': spot.longitude,
             'category': spot.category or '',
             'description': spot.description or '',
-            'photos': [{'photo_url': photo.photo_url} for photo in spot.photos] if spot.photos else []
+            'rating': spot.rating,
+            'photos': all_photos
         }
         spots_data.append(spot_dict)
     
@@ -1302,7 +1347,7 @@ def display_name_profile(display_name):
     from app.models import SocialAccount
     social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
     
-    return render_template('public/profile.html', 
+    return render_template('public/new_profile.html', 
                           user=user, 
                           spots=spots_data,
                           social_accounts=social_accounts,
@@ -1327,6 +1372,19 @@ def display_name_map(display_name):
     from app.models import SocialAccount
     spots_data = []
     for spot in spots:
+        # ユーザーがアップロードした写真
+        user_photos = [p for p in spot.photos if not p.is_google_photo]
+        user_photo_list = [{'photo_url': p.photo_url} for p in user_photos]
+
+        # Google PhotosをPlace ID経由で取得
+        google_photo_list = []
+        if spot.google_place_id:
+            google_photo_urls = get_google_photos_by_place_id(spot.google_place_id)
+            google_photo_list = [{'photo_url': url} for url in google_photo_urls]
+        
+        # ユーザー写真とGoogle写真を結合
+        all_photos = user_photo_list + google_photo_list
+
         spot_dict = {
             'id': spot.id,
             'name': spot.name,
@@ -1335,8 +1393,9 @@ def display_name_map(display_name):
             'longitude': spot.longitude,
             'category': spot.category,
             'description': spot.description,
+            'rating': spot.rating,
             'user_id': spot.user_id,
-            'photos': [{'photo_url': photo.photo_url} for photo in spot.photos] if spot.photos else []
+            'photos': all_photos
         }
         spots_data.append(spot_dict)
     
@@ -1346,7 +1405,7 @@ def display_name_map(display_name):
     # Google Maps API Keyをconfigとして渡す
     from app.routes.public import GOOGLE_MAPS_API_KEY
     
-    return render_template('public/map.html',
+    return render_template('public/new_map.html',
                          user=user,
                          spots=spots_data,
                          social_accounts=social_accounts,

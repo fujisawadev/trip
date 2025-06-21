@@ -13,6 +13,7 @@ from app.models.affiliate_link import AffiliateLink
 from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
 from app.utils.rakuten_api import search_hotel, similar_text, generate_rakuten_affiliate_url
 from sqlalchemy.orm import joinedload
+from app.services.google_photos import get_google_photos_by_place_id
 
 bp = Blueprint('spot', __name__)
 
@@ -26,33 +27,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# Google Photo ReferenceからCDN URLを取得する関数
-def get_cdn_url_from_reference(photo_reference):
-    """Google Photo ReferenceからCDN URLを取得する"""
-    if not photo_reference or photo_reference == 'null' or photo_reference == 'None':
-        return None
-    
-    try:
-        # skipHttpRedirect=trueを指定してJSONレスポンスを取得
-        photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}&skipHttpRedirect=true"
-        
-        response = requests.get(photo_url, timeout=5)
-        
-        if response.status_code == 200:
-            try:
-                # JSONレスポンスを解析
-                data = response.json()
-                
-                # photoUriフィールドがあるか確認
-                if 'photoUri' in data:
-                    return data['photoUri']
-            except:
-                pass
-    except Exception as e:
-        print(f"CDN URL取得エラー: {str(e)}")
-    
-    return None
 
 @bp.route('/add-spot', methods=['GET', 'POST'])
 @login_required
@@ -73,10 +47,11 @@ def add_spot():
         google_place_id = request.form.get('google_place_id', '')
         formatted_address = request.form.get('formatted_address', '')
         types = request.form.get('types', '')
-        google_photo_reference = request.form.get('google_photo_reference', '')  # 写真参照情報を取得
-        
         # サマリーロケーションを取得
         summary_location = request.form.get('summary_location', '')
+        
+        # 評価データを取得
+        rating = request.form.get('rating', '')
         
         # 入力チェック
         if not name:
@@ -95,74 +70,32 @@ def add_spot():
             google_place_id=google_place_id,
             formatted_address=formatted_address,
             types=types,
-            google_photo_reference=google_photo_reference,
             summary_location=summary_location,
+            rating=float(rating) if rating else None,
+            review_count=1 if rating else 0,
             is_active=is_active
         )
         db.session.add(spot)
         db.session.flush()  # IDを確定するためにflush
         
-        # Google Places APIから写真参照情報を取得して保存
-        if google_place_id:
-            # ユーザーがアップロードした写真があるかチェック
-            user_uploaded_photos = False
-            photos = request.files.getlist('photos')
-            for photo in photos:
-                if photo and photo.filename and allowed_file(photo.filename):
-                    user_uploaded_photos = True
-                    break
-            
-            # ユーザーがアップロードした写真がない場合のみGoogle Places APIから写真を取得
-            if not user_uploaded_photos:
-                try:
-                    # Google Places APIを呼び出す
-                    url = f"https://places.googleapis.com/v1/places/{google_place_id}"
-                    headers = {
-                        'Content-Type': 'application/json',
-                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                        'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
-                    }
-                    
-                    api_response = requests.get(url, headers=headers)
-                    
-                    if api_response.status_code == 200:
-                        data = api_response.json()
-                        
-                        if 'photos' in data and len(data['photos']) > 0:
-                            # 写真参照情報の配列
-                            photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
-                            
-                            # 既存の写真参照情報を取得
-                            existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
-                            
-                            # 最初の写真参照情報をスポットに設定
-                            if len(photo_references) > 0:
-                                # フォームから送信された写真参照情報がない場合は、APIから取得した最初の写真を使用
-                                if not google_photo_reference:
-                                    spot.google_photo_reference = photo_references[0]
-                            
-                            # すべての写真を保存（最大5枚）
-                            for i, photo_reference in enumerate(photo_references[:5]):
-                                # 既に保存した写真参照情報と重複しないようにする
-                                if photo_reference not in existing_references:
-                                    # Google Photo ReferenceからCDN URLを取得
-                                    cdn_url = get_cdn_url_from_reference(photo_reference)
-                                    
-                                    # 写真参照情報をデータベースに保存
-                                    photo = Photo(
-                                        spot_id=spot.id,
-                                        photo_url=cdn_url,  # CDN URLを保存
-                                        google_photo_reference=photo_reference,
-                                        is_google_photo=True
-                                    )
-                                    db.session.add(photo)
-                except Exception as e:
-                    print(f"Google Places API写真取得エラー: {str(e)}")
-        
-        # 写真のアップロード処理
+        # 写真のアップロード処理 (ユーザーがアップロードした写真はこちらで処理される)
         photos = request.files.getlist('photos')
         for photo in photos:
             if photo and allowed_file(photo.filename):
+                # ファイルサイズチェック（1枚あたり10MB制限）
+                if photo.content_length and photo.content_length > current_app.config.get('SINGLE_FILE_SIZE_LIMIT', 10 * 1024 * 1024):
+                    flash(f'写真「{photo.filename}」のサイズが大きすぎます（1枚あたり10MB以下）。', 'danger')
+                    continue
+                
+                # ファイルを読み込んでサイズチェック（content_lengthが利用できない場合）
+                photo.seek(0, 2)  # ファイルの最後に移動
+                file_size = photo.tell()
+                photo.seek(0)  # ファイルの先頭に戻す
+                
+                if file_size > current_app.config.get('SINGLE_FILE_SIZE_LIMIT', 10 * 1024 * 1024):
+                    file_size_mb = file_size / (1024 * 1024)
+                    flash(f'写真「{photo.filename}」のサイズが大きすぎます（{file_size_mb:.1f}MB）。1枚あたり10MB以下の画像をお選びください。', 'danger')
+                    continue
                 # S3が有効かチェック
                 if current_app.config.get('USE_S3', False):
                     # S3にアップロード (spot_photoフォルダに保存)
@@ -332,85 +265,26 @@ def edit_spot(spot_id):
         spot.google_place_id = new_place_id
         spot.formatted_address = request.form.get('formatted_address', '')
         spot.types = request.form.get('types', '')
-        google_photo_reference = request.form.get('google_photo_reference', '')  # 写真参照情報を取得
         
-        # 写真参照情報を更新
-        if google_photo_reference:
-            spot.google_photo_reference = google_photo_reference
-            
         # サマリーロケーションを更新
         spot.summary_location = request.form.get('summary_location', '')
         
-        # Google Places IDが変更された場合、新しい写真参照情報を取得
+        # 評価データを更新
+        rating = request.form.get('rating', '')
+        if rating:
+            old_rating = spot.rating
+            spot.rating = float(rating)
+            # 新規評価の場合はreview_countを1に、既存評価の更新の場合はそのまま
+            if old_rating is None:
+                spot.review_count = 1
+        else:
+            spot.rating = None
+            spot.review_count = 0
+        
+        # Google Places IDが変更された場合、関連する古いGoogle提供の写真を削除する
         if new_place_id and new_place_id != old_place_id:
-            # ユーザーがアップロードした写真があるかチェック
-            user_has_photos = False
-            
-            # 既存の写真をチェック
-            existing_user_photos = Photo.query.filter_by(spot_id=spot.id, is_google_photo=False).count()
-            if existing_user_photos > 0:
-                user_has_photos = True
-            
-            # 新しくアップロードされる写真をチェック
-            if not user_has_photos:
-                photos = request.files.getlist('photos')
-                for photo in photos:
-                    if photo and photo.filename and allowed_file(photo.filename):
-                        user_has_photos = True
-                        break
-            
-            # ユーザーがアップロードした写真がない場合のみGoogle Places APIから写真を取得
-            if not user_has_photos:
-                try:
-                    # 既存のGoogle写真を削除
-                    Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
-                    
-                    # Google Places APIを呼び出す
-                    url = f"https://places.googleapis.com/v1/places/{new_place_id}"
-                    headers = {
-                        'Content-Type': 'application/json',
-                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                        'X-Goog-FieldMask': 'photos.name'  # すべての写真の参照情報を取得
-                    }
-                    
-                    api_response = requests.get(url, headers=headers)
-                    
-                    if api_response.status_code == 200:
-                        data = api_response.json()
-                        
-                        if 'photos' in data and len(data['photos']) > 0:
-                            # 写真参照情報の配列
-                            photo_references = [photo.get('name', '') for photo in data['photos'] if photo.get('name', '')]
-                            
-                            # 既存の写真参照情報を取得
-                            existing_references = [p.google_photo_reference for p in Photo.query.filter_by(spot_id=spot.id).all()]
-                            
-                            # 最初の写真参照情報をスポットに設定
-                            if len(photo_references) > 0:
-                                # フォームから送信された写真参照情報がない場合は、APIから取得した最初の写真を使用
-                                if not google_photo_reference:
-                                    spot.google_photo_reference = photo_references[0]
-                            
-                            # すべての写真を保存（最大5枚）
-                            for i, photo_reference in enumerate(photo_references[:5]):
-                                # 既に保存した写真参照情報と重複しないようにする
-                                if photo_reference not in existing_references:
-                                    # Google Photo ReferenceからCDN URLを取得
-                                    cdn_url = get_cdn_url_from_reference(photo_reference)
-                                    
-                                    # 写真参照情報をデータベースに保存
-                                    photo = Photo(
-                                        spot_id=spot.id,
-                                        photo_url=cdn_url,  # CDN URLを保存
-                                        google_photo_reference=photo_reference,
-                                        is_google_photo=True
-                                    )
-                                    db.session.add(photo)
-                except Exception as e:
-                    print(f"Google Places API写真取得エラー: {str(e)}")
-            else:
-                # ユーザーの写真がある場合、Google画像を削除
-                Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
+            # 既存のGoogle提供の写真を削除
+            Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
         
         # 削除する写真の処理
         if 'delete_photos' in request.form:
@@ -428,6 +302,20 @@ def edit_spot(spot_id):
         photos = request.files.getlist('photos')
         for photo in photos:
             if photo and allowed_file(photo.filename):
+                # ファイルサイズチェック（1枚あたり10MB制限）
+                if photo.content_length and photo.content_length > current_app.config.get('SINGLE_FILE_SIZE_LIMIT', 10 * 1024 * 1024):
+                    flash(f'写真「{photo.filename}」のサイズが大きすぎます（1枚あたり10MB以下）。', 'danger')
+                    continue
+                
+                # ファイルを読み込んでサイズチェック（content_lengthが利用できない場合）
+                photo.seek(0, 2)  # ファイルの最後に移動
+                file_size = photo.tell()
+                photo.seek(0)  # ファイルの先頭に戻す
+                
+                if file_size > current_app.config.get('SINGLE_FILE_SIZE_LIMIT', 10 * 1024 * 1024):
+                    file_size_mb = file_size / (1024 * 1024)
+                    flash(f'写真「{photo.filename}」のサイズが大きすぎます（{file_size_mb:.1f}MB）。1枚あたり10MB以下の画像をお選びください。', 'danger')
+                    continue
                 # S3が有効かチェック
                 if current_app.config.get('USE_S3', False):
                     # S3にアップロード (spot_photoフォルダに保存)
@@ -511,8 +399,8 @@ def edit_spot(spot_id):
         flash('スポット情報を更新しました。', 'success')
         return redirect(url_for('profile.mypage'))
     
-    # 写真情報を取得
-    photos = Photo.query.filter_by(spot_id=spot_id).all()
+    # ユーザーがアップロードした写真のみを取得（Google写真は除外）
+    photos = Photo.query.filter_by(spot_id=spot_id, is_google_photo=False).all()
 
     # 楽天アフィリエイトリンクを明示的に取得
     rakuten_link = AffiliateLink.query.filter_by(
@@ -603,22 +491,4 @@ def delete_spot(spot_id):
         db.session.rollback()
         flash(f'スポットの削除中にエラーが発生しました: {str(e)}', 'danger')
     
-    return redirect(url_for('profile.mypage'))
-
-@bp.route('/<spot_id>/<username>')
-def spot_detail(spot_id, username):
-    """スポット詳細ページ（公開）"""
-    user = User.query.filter_by(username=username).first_or_404()
-    spot = Spot.query.filter_by(id=spot_id, user_id=user.id, is_active=True).first_or_404()
-    # スポットに関連する写真を取得
-    photos = Photo.query.filter_by(spot_id=spot_id).all()
-    return render_template('public/spot_detail_modal.html', spot=spot, user=user, photos=photos)
-
-@bp.route('/spot/<spot_id>')
-def spot_detail_simple(spot_id):
-    """スポット詳細ページ（シンプルURL）"""
-    spot = Spot.query.filter_by(id=spot_id, is_active=True).first_or_404()
-    user = User.query.filter_by(id=spot.user_id).first_or_404()
-    # スポットに関連する写真を取得
-    photos = Photo.query.filter_by(spot_id=spot_id).all()
-    return render_template('public/spot_detail_modal.html', spot=spot, user=user, photos=photos) 
+    return redirect(url_for('profile.mypage')) 

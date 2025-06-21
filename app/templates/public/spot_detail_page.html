@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    
+    <!-- 動的メタタグ設定 -->
+    <meta name="description" content="{{ spot.description or (spot.name + 'の詳細情報') }}">
+    <title>{{ spot.name }} | {{ user.username }} | maplink</title>
+    
+    <!-- OGP設定 -->
+    <meta property="og:title" content="{{ spot.name }} | {{ user.username }}">
+    <meta property="og:description" content="{{ spot.description or (spot.name + ' - ' + (spot.location or '')) }}">
+    {% if photos and photos|length > 0 %}
+    <meta property="og:image" content="{{ photos[0] }}">
+    {% else %}
+    <meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    {% endif %}
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card設定 -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ spot.name }} | {{ user.username }}">
+    <meta name="twitter:description" content="{{ spot.description or (spot.name + ' - ' + (spot.location or '')) }}">
+    {% if photos and photos|length > 0 %}
+    <meta name="twitter:image" content="{{ photos[0] }}">
+    {% else %}
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    {% endif %}
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    
+    <!-- 必要なライブラリを個別読み込み -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+    
+    <!-- marked.js の読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    
+    <!-- FOUC防止：インラインスタイルで即座に非表示 -->
+    <style>
+        .no-fouc { display: none; }
+    </style>
+    <script>
+        document.documentElement.className = 'no-fouc';
+    </script>
+    
+    <style type="text/tailwindcss">
+        :root {
+          --primary-color: #2563EB;
+          --secondary-color: #F3F4F6;
+          --accent-color: #F59E0B;
+          --text-primary: #111827;
+          --text-secondary: #4B5563;
+          --background-color: #FFFFFF;
+          --card-background: #F9FAFB;
+          --border-color: #E5E7EB;
+          --hover-bg-color: #EFF6FF;
+        }
+        
+        body {
+          font-family: 'Noto Sans JP', sans-serif;
+          margin: 0;
+          padding: 0;
+          background: #F8F9FA;
+        }
+        
+        /* 通常のページ表示 */
+        .spot-detail-page {
+            min-height: 100vh;
+            width: 100%;
+            background: #F8F9FA;
+        }
+        
+        .spot-detail-container {
+            width: 100%;
+            max-width: 28rem;
+            min-height: 100vh;
+            margin: 0 auto;
+            background: var(--background-color);
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .spot-detail-container.animate-in {
+            transform: translateY(0);
+        }
+        
+        .spot-detail-container.animate-out {
+            transform: translateY(100%);
+        }
+        
+        /* ヘッダー固定 */
+        .spot-header {
+            position: relative;
+            z-index: 10;
+            background: var(--background-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        /* スクロール可能エリア */
+        .spot-content {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--background-color);
+        }
+        
+        /* 地図のスタイル */
+        #spot-map {
+            width: 100%;
+            height: 250px;
+            border-radius: 0.75rem;
+        }
+        
+        /* 戻るボタンアニメーション */
+        .back-button {
+            transition: transform 0.2s ease;
+        }
+        
+        .back-button:hover {
+            transform: scale(1.1);
+        }
+        
+        /* 各セクションのスタイル */
+        .section {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+        }
+        
+        /* 写真ギャラリー */
+        .photo-gallery {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding: 0.5rem 0;
+        }
+        
+        .photo-gallery img {
+            width: 200px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            flex-shrink: 0;
+        }
+        
+        /* クイックプロンプトボタン */
+        .quick-prompt-btn {
+            background-color: #f0f4f8;
+            color: #1e3a8a;
+            border: 1px solid #d1d5db;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .quick-prompt-btn:hover {
+            background-color: #e2e8f0;
+            color: #1c3473;
+        }
+        
+        /* チャットメッセージ */
+        .message {
+            padding: 0.75rem 1rem;
+            max-width: 85%;
+            border-radius: 1.25rem;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        .message.user {
+            background-color: var(--primary-color);
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+            align-self: flex-end;
+        }
+        .message.system {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-bottom-left-radius: 0.25rem;
+            align-self: flex-start;
+        }
+        
+        .shadow-top {
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Bio表示用のスタイル（プロフィールページから追加） */
+        .bio-collapsed {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+        .bio-expanded {
+            line-height: 1.4;
+        }
+        .bio-toggle-btn {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- モーダル風ページ -->
+    <div class="spot-detail-page">
+        <div class="spot-detail-container">
+            <!-- ヘッダー（固定） -->
+            <header class="spot-header p-4 flex justify-between items-center">
+                <h1 class="text-lg font-bold text-[var(--text-primary)] truncate flex-1">{{ spot.name }}</h1>
+                <button onclick="goBack()" class="back-button text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-2">
+                    <span class="material-icons">close</span>
+                </button>
+            </header>
+            
+            <!-- スクロール可能コンテンツ -->
+            <div class="spot-content">
+                <!-- 地図セクション -->
+                {% if spot.latitude and spot.longitude %}
+                <section class="section">
+                    <div id="spot-map"></div>
+                </section>
+                {% endif %}
+                
+                <!-- 基本情報セクション -->
+                <section class="section">
+                    <div>
+                        <h2 class="text-xl font-bold text-[var(--text-primary)] mb-2">{{ spot.name }}</h2>
+                        <p class="text-sm text-[var(--text-secondary)] mb-2">
+                            <span class="material-icons-outlined text-sm align-middle mr-1">location_on</span>
+                            {{ spot.summary_location or spot.location }}
+                        </p>
+                        {% if spot.category %}
+                        <p class="text-sm text-[var(--text-secondary)] mb-2">
+                            <span class="material-icons-outlined text-sm align-middle mr-1">category</span>
+                            {{ spot.category }}
+                        </p>
+                        {% endif %}
+                        
+                        <!-- 評価表示 -->
+                        <div class="flex items-center text-sm text-[var(--text-secondary)]">
+                            <span class="material-icons-outlined text-sm align-middle mr-1 text-[var(--text-secondary)]">edit</span>
+                            {% if spot.rating %}
+                                <div class="flex items-center">
+                                    {% set full_stars = (spot.rating | int) %}
+                                    {% set has_half_star = (spot.rating - full_stars) >= 0.5 %}
+                                    {% set empty_stars = 5 - full_stars - (1 if has_half_star else 0) %}
+                                    
+                                    {% for i in range(full_stars) %}
+                                        <span class="material-icons text-yellow-400 text-sm">star</span>
+                                    {% endfor %}
+                                    
+                                    {% if has_half_star %}
+                                        <span class="material-icons text-yellow-400 text-sm">star_half</span>
+                                    {% endif %}
+                                    
+                                    {% for i in range(empty_stars) %}
+                                        <span class="material-icons text-gray-300 text-sm">star_border</span>
+                                    {% endfor %}
+                                    
+                                    <span class="ml-1">{{ "%.1f"|format(spot.rating) }}</span>
+                                </div>
+                            {% else %}
+                                <span>-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if spot.description %}
+                    <div class="mt-4">
+                        <h3 class="font-semibold text-[var(--text-primary)] mb-2">詳細</h3>
+                        <p class="text-sm text-[var(--text-secondary)] leading-relaxed">{{ spot.description }}</p>
+                    </div>
+                    {% endif %}
+                </section>
+                
+                <!-- 写真ギャラリー -->
+                {% if photos and photos|length > 0 %}
+                <section class="section">
+                    <h3 class="font-semibold text-[var(--text-primary)] mb-3">写真</h3>
+                    <div class="photo-gallery">
+                        {% for photo_url in photos %}
+                        <img src="{{ photo_url }}" 
+                             alt="{{ spot.name }}" 
+                             onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'" />
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+                
+                <!-- もっと見るセクション -->
+                <section class="section">
+                    <h3 class="font-semibold text-[var(--text-primary)] mb-3">もっと見る</h3>
+                    
+                    <!-- アフィリエイトリンク (存在する場合のみ表示) -->
+                    {% if spot.affiliate_links %}
+                        {% for link in spot.affiliate_links %}
+                            {% if link.is_active %}
+                                <div class="flex gap-4 items-center py-3 border-b border-[var(--border-color)] last:border-b-0">
+                                    {% if link.icon_key %}
+                                        <img
+                                            src="{{ url_for('static', filename='icons/affiliates/' ~ link.icon_key ~ '.svg') }}"
+                                            alt="{{ link.platform }} logo"
+                                            class="object-contain shrink-0 w-10 h-10 rounded-lg"
+                                            onerror="this.src='/static/images/default_profile.png'"
+                                        />
+                                    {% else %}
+                                        <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                            <span class="material-icons text-gray-500">link</span>
+                                        </div>
+                                    {% endif %}
+                                    <div class="flex flex-col justify-center flex-1">
+                                        <h4 class="text-base font-medium text-[var(--text-primary)]">
+                                            {{ link.title or link.platform|title }}
+                                        </h4>
+                                        <p class="text-sm text-[var(--text-secondary)]">
+                                            {{ link.description or '詳細を見る' }}
+                                        </p>
+                                    </div>
+                                    <a href="{{ link.url }}" 
+                                       target="_blank" 
+                                       class="flex justify-center items-center px-4 py-2 rounded-lg 
+                                            {% if link.platform == 'rakuten' %}bg-[#00B900]{% else %}bg-[var(--primary-color)]{% endif %} text-white">
+                                        {% if link.platform == 'rakuten' %}予約{% else %}開く{% endif %}
+                                    </a>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Google Maps Link -->
+                    <div class="flex gap-4 items-center py-3">
+                        <img
+                            src="{{ url_for('static', filename='icons/maps/google-maps.svg') }}"
+                            alt="Google Maps logo"
+                            class="object-contain shrink-0 w-10 h-10 rounded-lg"
+                            onerror="this.src='/static/images/default_profile.png'"
+                        />
+                        <div class="flex flex-col justify-center flex-1">
+                            <h4 class="text-base font-medium text-[var(--text-primary)]">
+                                Google Maps
+                            </h4>
+                            <p class="text-sm text-[var(--text-secondary)]">
+                                ルート検索・詳細情報を見る
+                            </p>
+                        </div>
+                        <a href="https://www.google.com/maps/search/?api=1&query={{ spot.name|urlencode }}&query_place_id={{ spot.google_place_id or '' }}" 
+                           target="_blank" 
+                           class="flex justify-center items-center px-4 py-2 rounded-lg bg-[var(--primary-color)] text-white">
+                            開く
+                        </a>
+                    </div>
+                </section>
+                
+                <!-- オーナー情報 -->
+                <section class="section">
+                    <h3 class="font-semibold text-[var(--text-primary)] mb-3">投稿者</h3>
+                    <div class="flex items-start gap-3">
+                        <img alt="ユーザーアイコン" class="w-10 h-10 rounded-full flex-shrink-0 mt-1" 
+                             src="{{ url_for('static', filename='images/default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"/>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-[var(--text-primary)]">{{ user.username }}</p>
+                            {% if user.bio %}
+                            <div class="bio-container">
+                                <p id="owner-bio-text" class="text-sm text-[var(--text-secondary)] bio-collapsed">{{ user.bio }}</p>
+                                <button id="owner-bio-toggle" class="text-sm text-[var(--primary-color)] hover:underline mt-1 bio-toggle-btn" style="display: none;">もっとみる</button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+                
+
+                
+                <!-- 下部余白（フッターのための余白を大幅に拡大） -->
+                <div class="h-32"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- フッター（プロフィールページと同じパターン） -->
+    <footer class="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-[var(--background-color)] border-t border-[var(--border-color)] p-3 shadow-top">
+        <div class="w-full">
+            <div id="agent-quick-prompts" class="mb-2.5 flex space-x-2 overflow-x-auto scrollbar-hide">
+                <button class="px-3 py-1.5 rounded-full border border-[var(--primary-color)] text-[var(--primary-color)] text-xs font-medium hover:bg-[var(--hover-bg-color)] whitespace-nowrap transition-colors duration-150" data-prompt="このスポットについて教えて">詳細を聞く</button>
+                <button class="px-3 py-1.5 rounded-full border border-[var(--primary-color)] text-[var(--primary-color)] text-xs font-medium hover:bg-[var(--hover-bg-color)] whitespace-nowrap transition-colors duration-150" data-prompt="近くのおすすめスポットは？">周辺スポット</button>
+                <button class="px-3 py-1.5 rounded-full border border-[var(--primary-color)] text-[var(--primary-color)] text-xs font-medium hover:bg-[var(--hover-bg-color)] whitespace-nowrap transition-colors duration-150" data-prompt="アクセス方法を教えて">アクセス方法</button>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input id="footer-user-input" class="flex-1 py-2.5 px-3.5 border border-gray-300 rounded-full focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] bg-white" placeholder="質問してみましょう" type="text"/>
+                <button id="footer-send-message" class="w-10 h-10 bg-[var(--primary-color)] text-white rounded-full hover:bg-blue-700 transition-colors duration-150 flex items-center justify-center flex-shrink-0">
+                    <span class="material-icons text-lg text-white">arrow_upward</span>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- AI Assistant Modal Overlay -->
+    <div id="ai-assistant-modal-overlay" class="fixed inset-0 bg-black bg-opacity-40 z-[1020] hidden"></div>
+
+    <!-- AI Assistant Modal -->
+    <div id="ai-assistant-modal" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-[85vh] bg-[var(--background-color)] rounded-t-2xl shadow-2xl z-[1030] transform translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+        <!-- Modal Header -->
+        <header class="flex-shrink-0 flex justify-between items-center p-4 border-b border-[var(--border-color)]">
+            <h2 class="text-lg font-bold text-[var(--text-primary)]">コンシェルジュ</h2>
+            <button class="modal-close text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </header>
+        
+        <!-- AI Assistant Content -->
+        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
+            <!-- Chat messages will be appended here -->
+        </div>
+
+        <!-- Input Area -->
+        <div class="flex-shrink-0 p-4 border-t border-[var(--border-color)] bg-white">
+            <div id="modal-agent-quick-prompts" class="w-full overflow-x-auto mb-3">
+                <div class="flex gap-2 whitespace-nowrap pb-2 scrollbar-hide">
+                    <button class="quick-prompt-btn flex-shrink-0" data-prompt="このスポットについて教えて">詳細を聞く</button>
+                    <button class="quick-prompt-btn flex-shrink-0" data-prompt="近くのおすすめスポットは？">周辺スポット</button>
+                    <button class="quick-prompt-btn flex-shrink-0" data-prompt="アクセス方法を教えて">アクセス方法</button>
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="flex gap-2 items-center">
+                <input 
+                    type="text" 
+                    id="modal-user-input" 
+                    class="flex-1 border border-gray-300 rounded-full px-4 py-2 bg-gray-100 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent transition"
+                    placeholder="質問してみましょう"
+                >
+                <button 
+                    id="modal-send-message"
+                    class="bg-[var(--primary-color)] text-white rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors"
+                >
+                    <span class="material-icons text-lg text-white">arrow_upward</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 必要なJavaScriptライブラリ -->
+    <!-- 新しいエージェントシステムのCSS & JS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/agent-chat.css') }}">
+    <script src="{{ url_for('static', filename='js/agent-chat.js') }}"></script>
+    
+    <script>
+        // 戻る機能（FOUC防止を適用した閉じるアニメーション）
+        function goBack() {
+            const container = document.querySelector('.spot-detail-container');
+            
+            // 1. スライドアウトアニメーション開始
+            container.classList.add('animate-out');
+            
+            // 2. アニメーション完了後にページ全体を非表示
+            setTimeout(() => {
+                // ページ全体を非表示にしてからページ遷移
+                document.documentElement.classList.add('no-fouc');
+                
+                // 少し遅延してページ遷移（視覚的な完了感）
+                setTimeout(() => {
+                    // リファラーをチェックして適切な戻り先を決定
+                    const referrer = document.referrer;
+                    const currentDomain = window.location.origin;
+                    
+                    if (referrer && referrer.startsWith(currentDomain)) {
+                        // 同一ドメインからの遷移の場合は履歴を使用
+                        if (window.history.length > 1) {
+                            window.history.back();
+                            return;
+                        }
+                        
+                        // リファラーがmapページの場合
+                        if (referrer.includes('/map')) {
+                            const mapUrl = referrer;
+                            window.location.href = mapUrl;
+                            return;
+                        }
+                        
+                        // リファラーがプロフィールページの場合
+                        if (referrer.match(/\/[^\/]+\/?$/)) {
+                            window.location.href = referrer;
+                            return;
+                        }
+                    }
+                    
+                    // デフォルトはプロフィールページにリダイレクト
+                    window.location.href = '/{{ user.display_name or user.username }}';
+                }, 50);
+            }, 350); // アニメーション時間より少し早く
+        }
+        
+        // ESCキーで戻る（同じ閉じる処理を使用）
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                goBack();
+            }
+        });
+        
+        // FOUC防止の実装
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Spot detail page loaded');
+            
+            const container = document.querySelector('.spot-detail-container');
+            
+            // FOUC防止：ページ表示とアニメーション開始
+            document.documentElement.classList.remove('no-fouc');
+            
+            // 次のフレームでスライドインアニメーション
+            requestAnimationFrame(() => {
+                container.classList.add('animate-in');
+            });
+            
+            // 地図の初期化
+            {% if spot.latitude and spot.longitude %}
+            initializeMap();
+            {% endif %}
+            
+            // bio表示制御の初期化
+            initializeBioToggle();
+            
+            // AIアシスタントの初期化
+            initializeAIAssistant();
+        });
+
+        // Bio表示制御の初期化（プロフィールページから移植）
+        function initializeBioToggle() {
+            const bioText = document.getElementById('owner-bio-text');
+            const bioToggle = document.getElementById('owner-bio-toggle');
+            
+            if (!bioText || !bioToggle) return;
+            
+            const checkBioOverflow = () => {
+                bioText.classList.add('bio-collapsed');
+                
+                const lineHeight = parseFloat(window.getComputedStyle(bioText).lineHeight);
+                const maxHeight = lineHeight * 2;
+                
+                if (bioText.scrollHeight > maxHeight) {
+                    bioToggle.style.display = 'inline-block';
+                    bioToggle.textContent = 'もっとみる';
+                    bioToggle.onclick = () => {
+                        if (bioText.classList.contains('bio-collapsed')) {
+                            bioText.classList.remove('bio-collapsed');
+                            bioText.classList.add('bio-expanded');
+                            bioToggle.textContent = '閉じる';
+                        } else {
+                            bioText.classList.remove('bio-expanded');
+                            bioText.classList.add('bio-collapsed');
+                            bioToggle.textContent = 'もっとみる';
+                        }
+                    };
+                } else {
+                    bioToggle.style.display = 'none';
+                }
+            };
+            
+            checkBioOverflow();
+        }
+        
+        // 地図初期化関数
+        {% if spot.latitude and spot.longitude %}
+        function initializeMap() {
+            const lat = {{ spot.latitude }};
+            const lng = {{ spot.longitude }};
+            const spotName = '{{ spot.name|replace("'", "\\'") }}';
+            
+            const map = L.map('spot-map').setView([lat, lng], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup(spotName)
+                .openPopup();
+            
+            // 地図のサイズ更新
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
+        }
+        {% endif %}
+        
+        // AIアシスタント初期化（新しいシステム）
+        function initializeAIAssistant() {
+            console.log('🔄 Initializing new agent system for spot detail...');
+            
+            if (typeof AgentChat === 'undefined') {
+                console.error('❌ AgentChat is not defined');
+                return;
+            }
+            
+            try {
+                // スポット詳細ページ用エージェントチャットを初期化
+                const agentChat = new AgentChat('chat-messages', {
+                    contextType: 'spot_detail',
+                    influencerId: parseInt('{{ user.id }}'),
+                    spotId: parseInt('{{ spot.id }}'),
+                    apiVersion: 'v3'
+                });
+                
+                console.log('✅ AgentChat initialized for spot detail page');
+            } catch (error) {
+                console.error('❌ Error initializing AgentChat:', error);
+            }
+        }
+    </script>
+</body>
+</html> 

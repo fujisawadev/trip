@@ -524,5 +524,6 @@ header.scrolled {
 }
 
 .footer-section a:hover {
-  color: #3b82f6;
+  color: var(--primary-color);
+  text-decoration: none;
 } 

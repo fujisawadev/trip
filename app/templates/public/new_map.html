@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8YNG8DGYKZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-8YNG8DGYKZ');
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <meta name="description" content="{{ user.username }}のおすすめスポット">
+    <title>{{ user.username }} | maplink</title>
+    
+    <!-- OGP設定 -->
+    <meta property="og:title" content="{{ user.username }} | maplink">
+    <meta property="og:description" content="{{ user.username }}のおすすめスポット">
+    <meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card設定 -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ user.username }} | maplink">
+    <meta name="twitter:description" content="{{ user.username }}のおすすめスポット">
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    
+    <!-- 必要なライブラリ -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet"/>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    
+    <style type="text/tailwindcss">
+        :root {
+          --primary-color: #2563EB;
+          --secondary-color: #F3F4F6;
+          --accent-color: #F59E0B;
+          --text-primary: #111827;
+          --text-secondary: #4B5563;
+          --background-color: #FFFFFF;
+          --card-background: #F9FAFB;
+          --border-color: #E5E7EB;
+          --hover-bg-color: #EFF6FF;
+        }
+        
+        body {
+          font-family: 'Noto Sans JP', sans-serif;
+          margin: 0;
+          padding: 0;
+          background: var(--background-color);
+        }
+        
+        /* 地図コンテナ */
+        .map-container {
+            position: relative;
+            height: 100vh;
+            width: 100%;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        /* ナビゲーションヘッダー */
+        .nav-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: transparent;
+            padding: 1rem;
+        }
+        
+        .nav-content {
+            max-width: 480px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .back-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .back-button:hover {
+            background: var(--hover-bg-color);
+            color: var(--text-primary);
+        }
+        
+        /* フィルターエリア */
+        .filter-area {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            flex: 1;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .filter-area::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border-radius: 1.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--background-color);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .filter-button:hover {
+            background: var(--hover-bg-color);
+            color: var(--text-primary);
+        }
+        
+        .filter-button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* 地図フィルターボタン */
+        .map-filter-container {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+        
+        .map-filter-button {
+            padding: 0.75rem 1rem;
+            background: var(--background-color);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .map-filter-button:hover {
+            background: var(--hover-bg-color);
+        }
+        
+        .map-filter-button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* スポットカードエリア */
+        .spot-cards-container {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: transparent;
+            padding: 1rem;
+            width: 100%;
+            max-width: 480px;
+        }
+        
+        .spot-cards-scroll {
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .spot-cards-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .spot-card {
+            min-width: 200px;
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .spot-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .spot-card.active {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+        
+        .spot-card img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        
+        .spot-card-content {
+            padding: 0.75rem;
+        }
+        
+        .spot-card h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 0.25rem 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .spot-card p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .no-photo-placeholder {
+            width: 100%;
+            height: 120px;
+            background: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+        
+        /* カスタムマーカー */
+        .custom-marker {
+            background: transparent;
+            border: none;
+        }
+        
+        .marker-pin {
+            width: 30px;
+            height: 30px;
+            border-radius: 50% 50% 50% 0;
+            background: var(--primary-color);
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -15px 0 0 -15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .marker-pin::after {
+            content: '';
+            width: 22px;
+            height: 22px;
+            margin: 4px 0 0 4px;
+            background: white;
+            position: absolute;
+            border-radius: 50%;
+        }
+        
+        .marker-pin.highlighted {
+            width: 36px;
+            height: 36px;
+            background: #ef4444;
+            margin: -18px 0 0 -18px;
+            z-index: 9999;
+        }
+        
+        .marker-pin.highlighted::after {
+            width: 26px;
+            height: 26px;
+            margin: 5px 0 0 5px;
+        }
+        
+        /* レスポンシブ対応 */
+        @media (min-width: 768px) {
+            .nav-content {
+                max-width: 700px;
+            }
+            .spot-cards-container {
+                max-width: 700px;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .nav-content {
+                max-width: 900px;
+            }
+            .spot-cards-container {
+                max-width: 900px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 地図コンテナ -->
+    <div class="map-container">
+        <!-- 地図 -->
+        <div id="map"></div>
+        
+        <!-- ナビゲーションヘッダー -->
+        <header class="nav-header">
+            <div class="nav-content">
+                <!-- 戻るボタン -->
+                <a href="{{ '/' + (user.display_name or user.username) }}" class="back-button">
+                    <span class="material-icons text-lg">arrow_back</span>
+                </a>
+                
+                <!-- カテゴリフィルター -->
+                <div class="filter-area">
+                    <button class="filter-button active" data-category="all">すべて</button>
+                    {% set categories = [] %}
+                    {% for spot in spots %}
+                        {% if spot.category and spot.category not in categories %}
+                            {% set _ = categories.append(spot.category) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for category in categories %}
+                    <button class="filter-button" data-category="{{ category }}">{{ category }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+        </header>
+        
+        <!-- 地図フィルターボタン -->
+        <div class="map-filter-container">
+            <button id="map-filter-button" class="map-filter-button">
+                このエリアで絞り込む
+            </button>
+        </div>
+        
+        <!-- スポットカードエリア -->
+        <div class="spot-cards-container">
+            <div class="spot-cards-scroll" id="spot-cards-scroll">
+                <!-- スポットカードがここに動的に追加されます -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/map-utils.js"></script>
+    <script>
+        // グローバル変数
+        const map = initMap('map');
+        const spots = {{ spots|tojson|safe }};
+        const markers = [];
+        let mapFilterActive = false;
+        let currentCategory = 'all';
+        
+        // 地図の初期化完了後に実行
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('新しい地図ページ初期化開始');
+            initializeMap();
+            setupEventListeners();
+        });
+        
+        // 地図初期化
+        function initializeMap() {
+            if (spots.length === 0) {
+                console.log('スポットが存在しません');
+                return;
+            }
+            
+            // 最適な地図位置を設定
+            setOptimalMapView(spots);
+            
+            // スポットを表示
+            displaySpots(spots);
+        }
+        
+        // 最適な地図位置を計算・設定
+        function setOptimalMapView(targetSpots) {
+            const validSpots = targetSpots.filter(spot => spot.latitude && spot.longitude);
+            
+            if (validSpots.length === 0) {
+                console.log('有効な座標を持つスポットがありません');
+                return;
+            }
+            
+            if (validSpots.length === 1) {
+                // スポットが1つの場合
+                const spot = validSpots[0];
+                map.setView([spot.latitude, spot.longitude], 12);
+                console.log(`単一スポット中心: [${spot.latitude}, ${spot.longitude}]`);
+                return;
+            }
+            
+            // 複数スポットの場合はクラスタリング
+            const clusters = clusterSpots(validSpots, 2.0); // 2度以内を同じクラスター
+            
+            // 最大クラスターを見つける
+            let maxCluster = clusters[0];
+            clusters.forEach(cluster => {
+                if (cluster.length > maxCluster.length) {
+                    maxCluster = cluster;
+                }
+            });
+            
+            // 最大クラスターの中心を計算
+            const centerLat = maxCluster.reduce((sum, spot) => sum + spot.latitude, 0) / maxCluster.length;
+            const centerLng = maxCluster.reduce((sum, spot) => sum + spot.longitude, 0) / maxCluster.length;
+            
+            map.setView([centerLat, centerLng], 8);
+            console.log(`最大クラスター中心: [${centerLat}, ${centerLng}], サイズ: ${maxCluster.length}`);
+        }
+        
+        // 簡易クラスタリング
+        function clusterSpots(spotList, maxDistance) {
+            const clusters = [];
+            const processed = new Set();
+            
+            spotList.forEach(spot => {
+                if (processed.has(spot.id)) return;
+                
+                const cluster = [spot];
+                processed.add(spot.id);
+                
+                spotList.forEach(otherSpot => {
+                    if (processed.has(otherSpot.id)) return;
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(spot.latitude - otherSpot.latitude, 2) + 
+                        Math.pow(spot.longitude - otherSpot.longitude, 2)
+                    );
+                    
+                    if (distance <= maxDistance) {
+                        cluster.push(otherSpot);
+                        processed.add(otherSpot.id);
+                    }
+                });
+                
+                clusters.push(cluster);
+            });
+            
+            return clusters;
+        }
+        
+        // スポットを地図に表示
+        function displaySpots(spotsToShow) {
+            console.log(`スポット表示: ${spotsToShow.length}件`);
+            
+            // 既存マーカーを削除
+            markers.forEach(marker => marker.remove());
+            markers.length = 0;
+            
+            // スポットカードをクリア
+            const container = document.getElementById('spot-cards-scroll');
+            container.innerHTML = '';
+            
+            // スポットを表示
+            spotsToShow.forEach(spot => {
+                // マーカーを追加（座標がある場合のみ）
+                if (spot.latitude && spot.longitude) {
+                    addMarker(spot);
+                }
+                
+                // カードを追加
+                addSpotCard(spot);
+            });
+            
+            // カードイベントを設定
+            setupCardEvents();
+            
+            console.log(`マーカー: ${markers.length}個, カード: ${spotsToShow.length}個`);
+        }
+        
+        // マーカーを追加
+        function addMarker(spot) {
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div class="marker-pin" data-spot-id="${spot.id}"></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30]
+            });
+            
+            const marker = L.marker([spot.latitude, spot.longitude], {
+                icon: icon,
+                spotId: spot.id
+            });
+            
+            marker.addTo(map);
+            markers.push(marker);
+            
+            // マーカークリックイベント
+            marker.on('click', () => {
+                highlightSpot(spot.id);
+                navigateToSpotDetail(spot);
+            });
+        }
+        
+        // スポットカードを追加
+        function addSpotCard(spot) {
+            const container = document.getElementById('spot-cards-scroll');
+            const hasPhoto = spot.photos && spot.photos.length > 0;
+            
+            // 星評価のHTMLを生成
+            let ratingHtml = '';
+            if (spot.rating) {
+                const fullStars = Math.floor(spot.rating);
+                const hasHalfStar = (spot.rating - fullStars) >= 0.5;
+                const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+                
+                ratingHtml = '<div style="display: flex; align-items: center; margin-top: 0.25rem;">';
+                
+                // 満点の星
+                for (let i = 0; i < fullStars; i++) {
+                    ratingHtml += '<span class="material-icons" style="color: #FBBF24; font-size: 0.875rem;">star</span>';
+                }
+                
+                // 半分の星
+                if (hasHalfStar) {
+                    ratingHtml += '<span class="material-icons" style="color: #FBBF24; font-size: 0.875rem;">star_half</span>';
+                }
+                
+                // 空の星
+                for (let i = 0; i < emptyStars; i++) {
+                    ratingHtml += '<span class="material-icons" style="color: #D1D5DB; font-size: 0.875rem;">star_border</span>';
+                }
+                
+                ratingHtml += `<span style="font-size: 0.75rem; color: var(--text-secondary); margin-left: 0.25rem;">${parseFloat(spot.rating).toFixed(1)}</span></div>`;
+            } else {
+                ratingHtml = '<div style="display: flex; align-items: center; margin-top: 0.25rem;"><span style="font-size: 0.75rem; color: var(--text-secondary);">-</span></div>';
+            }
+            
+            const cardHtml = `
+                <div class="spot-card" data-spot-id="${spot.id}">
+                    ${hasPhoto ? 
+                        `<img src="${spot.photos[0].photo_url}" alt="${spot.name}">` : 
+                        `<div class="no-photo-placeholder">写真なし</div>`
+                    }
+                    <div class="spot-card-content">
+                        <h3>${spot.name}</h3>
+                        <p>${spot.location || ''}</p>
+                        ${ratingHtml}
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', cardHtml);
+        }
+        
+        // スポットを強調表示する関数（スクロール無効版）
+        function highlightSpot(spotId, centerMap = false) {
+            // すべてのカードから強調表示を削除
+            document.querySelectorAll('.spot-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // 該当するカードを強調表示
+            const targetCard = document.querySelector(`.spot-card[data-spot-id="${spotId}"]`);
+            if (targetCard) {
+                targetCard.classList.add('active');
+            }
+            
+            // すべてのマーカーをデフォルトに戻す
+            markers.forEach(marker => {
+                if (marker.options.spotId === spotId) {
+                    // 強調表示用のアイコンに変更
+                    const highlightedIcon = L.divIcon({
+                        className: 'custom-marker highlighted',
+                        html: `<div class="marker-pin highlighted" data-spot-id="${spotId}"></div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 36]
+                    });
+                    marker.setIcon(highlightedIcon);
+                    
+                    // マップの中心をマーカーの位置に移動（オプション）
+                    if (centerMap && marker.getLatLng()) {
+                        map.panTo(marker.getLatLng());
+                    }
+                } else {
+                    // 他のマーカーはデフォルトに戻す
+                    const defaultIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div class="marker-pin" data-spot-id="${marker.options.spotId}"></div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 30]
+                    });
+                    marker.setIcon(defaultIcon);
+                }
+            });
+        }
+        
+
+        
+        // スポット詳細ページに遷移
+        function navigateToSpotDetail(spot) {
+            const displayName = '{{ user.display_name or user.username }}';
+            const url = `/${displayName}/${spot.id}`;
+            console.log('スポット詳細ページに遷移:', url);
+            window.location.href = url;
+        }
+        
+        // イベントリスナーを設定
+        function setupEventListeners() {
+            // カテゴリフィルター
+            document.querySelectorAll('.filter-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    handleCategoryFilter(button.dataset.category);
+                });
+            });
+            
+            // 地図フィルター
+            document.getElementById('map-filter-button').addEventListener('click', () => {
+                handleMapFilter();
+            });
+        }
+        
+        // カードイベントを設定（元の地図ページと同じ実装）
+        function setupCardEvents() {
+            const cards = document.querySelectorAll('.spot-card');
+            
+            cards.forEach(card => {
+                // カードのクリックでスポット詳細に遷移
+                card.addEventListener('click', () => {
+                    const spotId = parseInt(card.dataset.spotId);
+                    const spot = spots.find(s => s.id === spotId);
+                    if (spot) {
+                        navigateToSpotDetail(spot);
+                    }
+                });
+            });
+            
+            // スクロール時にフォーカスを更新
+            const spotCardsScroll = document.getElementById('spot-cards-scroll');
+            
+            // スクロール時にフォーカスを更新する処理
+            spotCardsScroll.addEventListener('scroll', debounce(() => {
+                updateFocusOnScroll();
+            }, 100));
+            
+            // 初期表示時にフォーカスを設定
+            setTimeout(() => {
+                updateFocusOnScroll();
+            }, 500);
+        }
+        
+        // スクロール位置に基づいて中央付近のカードにフォーカスを当てる
+        function updateFocusOnScroll() {
+            const spotCardsScroll = document.getElementById('spot-cards-scroll');
+            const cards = spotCardsScroll.querySelectorAll('.spot-card');
+            
+            if (cards.length === 0) return;
+            
+            // スクロールコンテナの表示領域の中央のX座標を計算
+            const containerRect = spotCardsScroll.getBoundingClientRect();
+            const containerCenterX = containerRect.left + containerRect.width / 2;
+            
+            // 中央に最も近いカードを見つける
+            let closestCard = null;
+            let minDistance = Infinity;
+            
+            cards.forEach(card => {
+                const cardRect = card.getBoundingClientRect();
+                const cardCenterX = cardRect.left + cardRect.width / 2;
+                const distance = Math.abs(cardCenterX - containerCenterX);
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestCard = card;
+                }
+            });
+            
+            // 最も中央に近いカードにフォーカスを当てる
+            if (closestCard) {
+                const spotId = parseInt(closestCard.dataset.spotId);
+                highlightSpot(spotId, false); // 地図は移動しない
+            }
+        }
+        
+        // デバウンス関数（スクロールイベントの連続発火を防ぐ）
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                const context = this;
+                const args = arguments;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    func.apply(context, args);
+                }, wait);
+            };
+        }
+        
+        // カテゴリフィルター処理
+        function handleCategoryFilter(category) {
+            console.log('カテゴリフィルター:', category);
+            
+            // ボタンの状態更新
+            document.querySelectorAll('.filter-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-category="${category}"]`).classList.add('active');
+            
+            currentCategory = category;
+            
+            // フィルタリング実行
+            applyFilters();
+            
+            // "すべて"選択時は地図位置をリセット
+            if (category === 'all' && !mapFilterActive) {
+                console.log('"すべて"選択 - 地図位置リセット');
+                setOptimalMapView(spots);
+            }
+        }
+        
+        // 地図フィルター処理
+        function handleMapFilter() {
+            mapFilterActive = !mapFilterActive;
+            
+            const button = document.getElementById('map-filter-button');
+            if (mapFilterActive) {
+                button.textContent = 'エリアフィルター解除';
+                button.classList.add('active');
+            } else {
+                button.textContent = 'このエリアで絞り込む';
+                button.classList.remove('active');
+                
+                // エリアフィルター解除時は地図位置をリセット
+                console.log('エリアフィルター解除 - 地図位置リセット');
+                setOptimalMapView(getFilteredSpots());
+            }
+            
+            applyFilters();
+        }
+        
+        // フィルターを適用
+        function applyFilters() {
+            const filteredSpots = getFilteredSpots();
+            displaySpots(filteredSpots);
+        }
+        
+        // フィルター済みスポットを取得
+        function getFilteredSpots() {
+            let filtered = currentCategory === 'all' 
+                ? spots 
+                : spots.filter(spot => spot.category === currentCategory);
+            
+            // 地図フィルターが有効な場合
+            if (mapFilterActive) {
+                const bounds = map.getBounds();
+                filtered = filtered.filter(spot => {
+                    if (!spot.latitude || !spot.longitude) return false;
+                    return bounds.contains([spot.latitude, spot.longitude]);
+                });
+            }
+            
+            return filtered;
+        }
+    </script>
+</body>
+</html> 

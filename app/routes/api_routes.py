@@ -34,7 +34,8 @@ def get_spot(spot_id):
     spot = Spot.query.options(
         joinedload(Spot.photos),
         joinedload(Spot.affiliate_links),
-        joinedload(Spot.social_posts)
+        joinedload(Spot.social_posts),
+        joinedload(Spot.user)
     ).get_or_404(spot_id)
     
     # 非公開のスポットの場合は404を返す
@@ -56,10 +57,14 @@ def get_spot(spot_id):
         'id': spot.id,
         'name': spot.name,
         'description': spot.description,
+        'summary_location': spot.summary_location,
         'location': spot.location,
         'category': spot.category,
         'latitude': spot.latitude,
         'longitude': spot.longitude,
+        'rating': spot.rating,
+        'review_count': spot.review_count,
+        'user_display_name': spot.user.display_name if spot.user else None,
         'google_maps_url': google_maps_url,
         'photos': [
             {
@@ -1082,14 +1087,13 @@ def save_instagram_spots():
                 google_place_id=spot_data.get('place_id'),
                 formatted_address=spot_data.get('formatted_address', ''),
                 summary_location=spot_data.get('summary_location', ''),
-                google_photo_reference=spot_data.get('photo_reference', ''),
                 thumbnail_url=spot_data.get('thumbnail_url', ''),
                 is_active=False  # 非公開状態で保存
             )
             
             print(f"スポットモデル作成: {spot.name}, user_id={spot.user_id}")
             print(f"  - formatted_address: {spot.formatted_address}")
-            print(f"  - google_photo_reference: {spot.google_photo_reference}")
+            print(f"  - google_place_id: {spot.google_place_id}")
             print(f"  - summary_location: {spot.summary_location}")
             
             # Google Placesのtypesから日本語カテゴリを生成
@@ -1272,56 +1276,15 @@ def save_instagram_spots():
                 'formatted_address': spot.formatted_address,
                 'types': spot.types,
                 'summary_location': spot.summary_location,
-                'google_photo_reference': spot.google_photo_reference
+                'google_place_id': spot.google_place_id
             })
             db.session.add(spot)
             db.session.flush()  # IDを取得するためのフラッシュ
             print(f"スポットID: {spot.id}")
             
-            # Google Place IDがあれば、写真を取得・保存
-            if spot_data.get('place_id'):
-                try:
-                    print(f"写真を取得: place_id={spot_data.get('place_id')}")
-                    
-                    # Google Places APIを呼び出して写真情報を取得
-                    url = f"https://places.googleapis.com/v1/places/{spot_data.get('place_id')}"
-                    headers = {
-                        'Content-Type': 'application/json',
-                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                        'X-Goog-FieldMask': 'photos'  # すべての写真の情報を取得
-                    }
-                    
-                    api_response = requests.get(url, headers=headers)
-                    
-                    if api_response.status_code == 200:
-                        place_data = api_response.json()
-                        photos = place_data.get('photos', [])
-                        
-                        if photos and len(photos) > 0:
-                            # 最大5枚の写真を保存
-                            for i, photo in enumerate(photos[:5]):
-                                photo_name = photo.get('name')
-                                if photo_name:
-                                    # 写真URLを生成
-                                    photo_url = f"https://places.googleapis.com/v1/{photo_name}/media?key={GOOGLE_MAPS_API_KEY}&maxHeightPx=800&maxWidthPx=800"
-                                    
-                                    # 写真情報を保存
-                                    photo = Photo(
-                                        spot_id=spot.id,
-                                        photo_url=photo_url,
-                                        google_photo_reference=photo_name,
-                                        is_google_photo=True,
-                                        is_primary=(i == 0)  # 最初の写真をプライマリに設定
-                                    )
-                                    db.session.add(photo)
-                                    print(f"写真を追加: photo_name={photo_name}")
-                    else:
-                        print(f"写真情報の取得に失敗: status_code={api_response.status_code}")
-                        print(f"エラーレスポンス: {api_response.text}")
-                        
-                except Exception as photo_error:
-                    print(f"写真の取得・保存エラー: {str(photo_error)}")
-                    # 写真の取得に失敗しても処理を続行
+            # Google Place IDは保存済み - 写真は表示時に動的取得
+            print(f"Google Place ID保存完了: {spot.google_place_id}")
+            print("写真は表示時にGoogle Photos Serviceで動的取得されます")
             
             # 楽天トラベルアフィリエイトリンクの自動生成
             if current_user.rakuten_affiliate_id and spot.name:

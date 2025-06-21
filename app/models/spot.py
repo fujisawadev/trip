@@ -23,9 +23,12 @@ class Spot(db.Model):
     formatted_address = db.Column(db.Text, nullable=True)
     types = db.Column(db.Text, nullable=True)  # JSON形式で保存
     thumbnail_url = db.Column(db.Text, nullable=True)
-    google_photo_reference = db.Column(db.Text, nullable=True)  # Google写真参照情報
     summary_location = db.Column(db.Text, nullable=True)  # サマリーロケーション（国、都道府県、市区町村）
     google_maps_url = db.Column(db.Text, nullable=True)  # Google Mapsへの直接リンク
+    
+    # レビュー関連のフィールド
+    rating = db.Column(db.Float, nullable=True)  # 評価の平均点（1.0-5.0）
+    review_count = db.Column(db.Integer, default=0, nullable=False)  # レビュー数
     
     # リレーションシップ
     photos = db.relationship('Photo', backref='spot', lazy=True, cascade='all, delete-orphan')
@@ -33,3 +36,28 @@ class Spot(db.Model):
     
     def __repr__(self):
         return f'<Spot {self.name}>'
+
+    def to_dict(self):
+        """Spotオブジェクトを辞書に変換する"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'name': self.name,
+            'description': self.description,
+            'location': self.location,
+            'category': self.category,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'google_place_id': self.google_place_id,
+            'formatted_address': self.formatted_address,
+            'types': self.types,
+            'thumbnail_url': self.thumbnail_url,
+            'summary_location': self.summary_location,
+            'google_maps_url': self.google_maps_url,
+            'rating': self.rating,
+            'review_count': self.review_count,
+            'photos': [photo.to_dict() for photo in self.photos]
+        }

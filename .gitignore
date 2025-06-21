@@ -128,3 +128,5 @@ app/static/uploads/
 *.db.backup
 *.sqlite
 *.sqlite3
+
+logs/

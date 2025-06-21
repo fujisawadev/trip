@@ -5,6 +5,10 @@ from sqlalchemy.orm import joinedload
 import requests
 import os
 import json
+from flask_login import current_user
+
+# 新しいサービスをインポート
+from app.services.google_photos import get_google_photos_by_place_id
 
 public_bp = Blueprint('public', __name__)
 
@@ -66,7 +70,7 @@ def profile(user_id):
     """公開プロフィールページを表示する（ユーザー名ベースのURLにリダイレクト）"""
     user = User.query.get_or_404(user_id)
     # ユーザー名ベースのURLにリダイレクト
-    return redirect(url_for('profile.user_profile', username=user.username))
+    return redirect(url_for('public.username_profile', username=user.username))
 
 # 新しいユーザー名ベースのルートを追加
 @public_bp.route('/<username>')
@@ -75,49 +79,21 @@ def username_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
     
     # ユーザーが作成したスポットを取得
-    spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
+    spots = Spot.query.filter_by(user_id=user.id, is_active=True).order_by(Spot.created_at.desc()).all()
     
+    # スポットをJSONシリアライズ可能な形式に変換
+    spots_data = []
+    for spot in spots:
+        spots_data.append(spot.to_dict())
+
     # ソーシャルアカウント情報を取得
     social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
     
-    return render_template('public/profile.html', 
+    return render_template('public/new_profile.html', 
                           user=user, 
-                          spots=spots,
+                          spots=spots_data,
                           social_accounts=social_accounts,
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
-
-@public_bp.route('/spot/<int:spot_id>')
-def spot_detail(spot_id):
-    """スポット詳細ページを表示する"""
-    # スポットとそれに関連する写真を一度に取得
-    spot = Spot.query.options(joinedload(Spot.user)).get_or_404(spot_id)
-    
-    # 非公開のスポットの場合は404を返す
-    if not spot.is_active:
-        abort(404)
-    
-    # スポットに関連する写真を取得
-    photos = Photo.query.filter_by(spot_id=spot_id).all()
-    
-    # リクエストヘッダーからモーダル表示かどうかを判定
-    is_modal = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    
-    # スポットの所有者情報を確実に取得
-    user = spot.user
-    if not user:
-        user = User.query.get(spot.user_id)
-    
-    if is_modal:
-        return render_template('public/spot_detail_modal.html', 
-                             spot=spot,
-                             photos=photos,
-                             user=user)
-    else:
-        # 非モーダル表示でもモーダル用テンプレートを使用
-        return render_template('public/spot_detail_modal.html', 
-                             spot=spot,
-                             photos=photos,
-                             user=user)
 
 @public_bp.route('/test_koshien_photo')
 def test_koshien_photo():
@@ -269,10 +245,13 @@ def photo_proxy(photo_reference):
     # すべての方法が失敗した場合、404エラーを返す（デフォルト画像へのリダイレクトを削除）
     return jsonify({'error': '画像の取得に失敗しました'}), 404 
 
-@public_bp.route('/<username>/map')
-def username_map(username):
-    """ユーザーのマップページを表示"""
-    user = User.query.filter_by(username=username).first_or_404()
+@public_bp.route('/<displayname>/map')
+def displayname_map(displayname):
+    """ユーザーの新しいマップページを表示"""
+    # ユーザーをディスプレイ名またはユーザー名で取得
+    user = User.query.filter(
+        (User.display_name == displayname) | (User.username == displayname)
+    ).first_or_404()
     
     # アクティブなスポットを取得
     spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
@@ -288,7 +267,7 @@ def username_map(username):
             'longitude': spot.longitude,
             'category': spot.category,
             'description': spot.description,
-            'user_id': spot.user_id,  # ユーザーIDを追加
+            'user_id': spot.user_id,
             'photos': [{'photo_url': photo.photo_url} for photo in spot.photos] if spot.photos else []
         }
         spots_data.append(spot_dict)
@@ -296,11 +275,11 @@ def username_map(username):
     # ソーシャルアカウント情報を取得
     social_accounts = SocialAccount.query.filter_by(user_id=user.id).all()
     
-    return render_template('public/map.html',
+    return render_template('public/new_map.html',
                          user=user,
                          spots=spots_data,
                          social_accounts=social_accounts,
-                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY}) 
+                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 
 @public_bp.route('/api/spots/<int:spot_id>')
 def spot_api(spot_id):
@@ -365,4 +344,34 @@ def privacy_policy():
 @public_bp.route('/commerce-law')
 def commerce_law():
     """特定商取引法に基づく表記ページを表示する"""
-    return render_template('public/commerce_law.html') 
+    return render_template('public/commerce_law.html')
+
+@public_bp.route('/<displayname>/<int:spot_id>')
+def user_spot_detail(displayname, spot_id):
+    """ユーザーの公開プロフィールからスポット詳細ページを表示"""
+    user = User.query.filter(
+        (User.display_name == displayname) | (User.username == displayname)
+    ).first_or_404()
+    
+    spot = Spot.query.filter_by(id=spot_id, user_id=user.id).first_or_404()
+    
+    # 非公開スポットへのアクセス制御
+    if not spot.is_active and (not current_user.is_authenticated or current_user.id != spot.user_id):
+        abort(404)
+        
+    # ユーザーがアップロードした写真のみをDBから取得
+    user_photos = Photo.query.filter_by(spot_id=spot.id, is_google_photo=False).order_by(Photo.created_at.asc()).all()
+    user_photo_urls = [p.photo_url for p in user_photos]
+
+    # Google PhotosをPlace ID経由で取得
+    google_photo_urls = []
+    if spot.google_place_id:
+        google_photo_urls = get_google_photos_by_place_id(spot.google_place_id)
+
+    # ユーザー写真とGoogle写真を結合
+    all_photos = user_photo_urls + google_photo_urls
+    
+    return render_template('public/spot_detail_page.html', 
+                         spot=spot, 
+                         user=user, 
+                         photos=all_photos) 

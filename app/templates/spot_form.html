@@ -179,7 +179,6 @@
           <input type="hidden" id="formatted_address" name="formatted_address" value="{% if is_edit %}{{ spot.formatted_address or '' }}{% endif %}">
           <input type="hidden" id="types" name="types" value="{% if is_edit %}{{ spot.types or '' }}{% endif %}">
           <input type="hidden" id="thumbnail_url" name="thumbnail_url" value="{% if is_edit %}{{ spot.thumbnail_url or '' }}{% endif %}">
-          <input type="hidden" id="google_photo_reference" name="google_photo_reference" value="{% if is_edit %}{{ spot.google_photo_reference or '' }}{% endif %}">
           <input type="hidden" id="summary_location" name="summary_location" value="{% if is_edit %}{{ spot.summary_location or '' }}{% endif %}">
           
           <!-- Spot Name -->
@@ -252,12 +251,45 @@
             >{% if is_edit %}{{ spot.description }}{% endif %}</textarea>
           </div>
 
-          <!-- Current Photos -->
-          {% if is_edit and spot.photos and spot.photos|length > 0 %}
+          <!-- Rating -->
+          <div class="flex flex-col gap-2 w-full">
+            <label class="text-sm font-bold text-neutral-900">評価</label>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1" id="star-rating">
+                <span class="star-container relative cursor-pointer" data-star="1">
+                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
+                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
+                </span>
+                <span class="star-container relative cursor-pointer" data-star="2">
+                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
+                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
+                </span>
+                <span class="star-container relative cursor-pointer" data-star="3">
+                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
+                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
+                </span>
+                <span class="star-container relative cursor-pointer" data-star="4">
+                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
+                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
+                </span>
+                <span class="star-container relative cursor-pointer" data-star="5">
+                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
+                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
+                </span>
+              </div>
+              <span id="rating-text" class="text-sm text-slate-500">評価を選択してください</span>
+            </div>
+            <input type="hidden" id="rating" name="rating" value="{% if is_edit and spot.rating %}{{ spot.rating }}{% endif %}">
+            <p class="text-xs text-slate-500">星をクリックして0.5刻みで評価してください</p>
+          </div>
+
+          <!-- Current Photos (ユーザーがアップロードした写真のみ) -->
+          {% if is_edit and photos and photos|length > 0 %}
           <div class="flex flex-col gap-2 w-full">
             <label class="text-sm font-bold text-neutral-900">現在の写真</label>
+            <p class="text-xs text-slate-500 mb-2">あなたがアップロードした写真です。削除したい写真の×ボタンをクリックしてください。</p>
             <div class="flex flex-wrap gap-2 w-full">
-              {% for photo in spot.photos %}
+              {% for photo in photos %}
                 <div class="preview-item">
                   <img
                     src="{{ photo.photo_url }}"
@@ -306,6 +338,9 @@
                     </svg>
                     <p class="text-sm text-slate-500">
                       写真をドラッグ＆ドロップまたは<span class="text-blue-500">ファイルを選択</span>
+                    </p>
+                    <p class="text-xs text-slate-400 mt-1">
+                      ※ 1枚あたり10MB以下のJPG、PNG、GIF形式
                     </p>
                   </div>
                 </div>
@@ -455,8 +490,9 @@
             <label
               class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[31px] w-[51px] cursor-pointer toggle-bg transition-colors duration-200 {% if not is_edit or (is_edit and spot.is_active) %}bg-blue-500{% endif %}"
               role="switch"
+              id="is-active-toggle-bg"
             >
-              <input type="checkbox" name="is_active" class="toggle-switch sr-only" {% if not is_edit or (is_edit and spot.is_active) %}checked{% endif %} />
+              <input type="checkbox" name="is_active" id="is_active" class="toggle-switch sr-only" {% if not is_edit or (is_edit and spot.is_active) %}checked{% endif %} />
               <span
                 class="toggle-slider flex bg-white rounded-2xl h-[27px] min-h-[27px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[27px] transition-all duration-200"
               ></span>
@@ -582,29 +618,29 @@
 
       // トグルスイッチの挙動を設定
       document.addEventListener('DOMContentLoaded', function() {
-        // 通常のトグルスイッチ
-        const toggleSwitch = document.querySelector('.toggle-switch');
-        const toggleBg = document.querySelector('.toggle-bg');
+        // メインの表示設定トグルスイッチ
+        const isActiveToggleSwitch = document.getElementById('is_active');
+        const isActiveToggleBg = document.getElementById('is-active-toggle-bg');
         
         // 初期状態の設定
-        if (toggleSwitch && toggleBg) {
+        if (isActiveToggleSwitch && isActiveToggleBg) {
           // 初期表示時にチェック状態に合わせて背景色を設定
-          if (toggleSwitch.checked) {
-            toggleBg.classList.remove('bg-slate-200');
-            toggleBg.classList.add('bg-blue-500');
+          if (isActiveToggleSwitch.checked) {
+            isActiveToggleBg.classList.remove('bg-slate-200');
+            isActiveToggleBg.classList.add('bg-blue-500');
           } else {
-            toggleBg.classList.remove('bg-blue-500');
-            toggleBg.classList.add('bg-slate-200');
+            isActiveToggleBg.classList.remove('bg-blue-500');
+            isActiveToggleBg.classList.add('bg-slate-200');
           }
           
           // クリックイベントのハンドラ
-          toggleSwitch.addEventListener('change', function() {
+          isActiveToggleSwitch.addEventListener('change', function() {
             if (this.checked) {
-              toggleBg.classList.remove('bg-slate-200');
-              toggleBg.classList.add('bg-blue-500');
+              isActiveToggleBg.classList.remove('bg-slate-200');
+              isActiveToggleBg.classList.add('bg-blue-500');
             } else {
-              toggleBg.classList.remove('bg-blue-500');
-              toggleBg.classList.add('bg-slate-200');
+              isActiveToggleBg.classList.remove('bg-blue-500');
+              isActiveToggleBg.classList.add('bg-slate-200');
             }
           });
         }
@@ -667,10 +703,26 @@
       
       function handleFiles() {
         const files = fileInput.files;
+        const maxSizePerFile = 10 * 1024 * 1024; // 10MB
+        let hasError = false;
         
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          if (!file.type.startsWith('image/')) continue;
+          
+          // ファイル形式チェック
+          if (!file.type.startsWith('image/')) {
+            maplinkToast.error(`${file.name} は画像ファイルではありません。JPG、PNG、GIF形式をお選びください。`);
+            hasError = true;
+            continue;
+          }
+          
+          // ファイルサイズチェック
+          if (file.size > maxSizePerFile) {
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+            maplinkToast.error(`${file.name} のサイズが大きすぎます（${fileSizeMB}MB）。1枚あたり10MB以下の画像をお選びください。`);
+            hasError = true;
+            continue;
+          }
           
           const reader = new FileReader();
           
@@ -697,6 +749,14 @@
           };
           
           reader.readAsDataURL(file);
+        }
+        
+        // エラーがあった場合はファイル入力をクリア
+        if (hasError) {
+          // 正常なファイルがある場合はそれだけを残す処理は複雑なので、
+          // エラーメッセージで対応し、ユーザーに再選択を促す
+          fileInput.value = '';
+          previewContainer.innerHTML = '';
         }
       }
       
@@ -1010,11 +1070,6 @@
                   thumbnailUrlInput.value = data.thumbnail_url;
                 }
                 
-                // 写真参照情報があれば設定
-                if (data.photo_reference) {
-                  document.getElementById('google_photo_reference').value = data.photo_reference;
-                }
-                
                 // 地図を更新
                 if (globalMap && data.latitude && data.longitude) {
                   console.log('更新前の地図状態:', globalMap);
@@ -1175,6 +1230,132 @@
             document.body.classList.remove('modal-open');
           }
         });
+      });
+
+      // 星評価機能の実装（0.5刻み対応）
+      document.addEventListener('DOMContentLoaded', function() {
+        const starContainers = document.querySelectorAll('.star-container');
+        const ratingInput = document.getElementById('rating');
+        const ratingText = document.getElementById('rating-text');
+        
+        // 編集時の既存評価を表示
+        const currentRating = ratingInput.value;
+        if (currentRating) {
+          updateStarDisplay(parseFloat(currentRating));
+        }
+        
+        // 星クリック時の処理
+        starContainers.forEach(container => {
+          container.addEventListener('click', function(e) {
+            const starNumber = parseInt(this.dataset.star);
+            const rect = this.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const starWidth = rect.width;
+            
+            // クリック位置が左半分か右半分かで0.5刻みを判定
+            let rating;
+            if (clickX < starWidth / 2) {
+              // 左半分クリック = 0.5
+              rating = starNumber - 0.5;
+            } else {
+              // 右半分クリック = 1.0
+              rating = starNumber;
+            }
+            
+            ratingInput.value = rating;
+            updateStarDisplay(rating);
+          });
+          
+          // ホバー効果
+          container.addEventListener('mousemove', function(e) {
+            const starNumber = parseInt(this.dataset.star);
+            const rect = this.getBoundingClientRect();
+            const hoverX = e.clientX - rect.left;
+            const starWidth = rect.width;
+            
+            let hoverRating;
+            if (hoverX < starWidth / 2) {
+              hoverRating = starNumber - 0.5;
+            } else {
+              hoverRating = starNumber;
+            }
+            
+            highlightStars(hoverRating);
+          });
+        });
+        
+        // 星評価エリアからマウスが離れた時の処理
+        document.getElementById('star-rating').addEventListener('mouseleave', function() {
+          const currentRating = ratingInput.value;
+          if (currentRating) {
+            updateStarDisplay(parseFloat(currentRating));
+          } else {
+            resetStars();
+          }
+        });
+        
+        function updateStarDisplay(rating) {
+          starContainers.forEach((container, index) => {
+            const starNumber = index + 1;
+            const starFull = container.querySelector('.star-full');
+            const starHalf = container.querySelector('.star-half');
+            
+            if (rating >= starNumber) {
+              // 満点の星
+              starFull.classList.remove('text-gray-300');
+              starFull.classList.add('text-yellow-400');
+              starHalf.style.width = '0%';
+            } else if (rating >= starNumber - 0.5) {
+              // 半分の星
+              starFull.classList.remove('text-yellow-400');
+              starFull.classList.add('text-gray-300');
+              starHalf.style.width = '50%';
+            } else {
+              // 空の星
+              starFull.classList.remove('text-yellow-400');
+              starFull.classList.add('text-gray-300');
+              starHalf.style.width = '0%';
+            }
+          });
+          
+          ratingText.textContent = `${rating}`;
+        }
+        
+        function highlightStars(rating) {
+          starContainers.forEach((container, index) => {
+            const starNumber = index + 1;
+            const starFull = container.querySelector('.star-full');
+            const starHalf = container.querySelector('.star-half');
+            
+            if (rating >= starNumber) {
+              // 満点の星
+              starFull.classList.remove('text-gray-300');
+              starFull.classList.add('text-yellow-400');
+              starHalf.style.width = '0%';
+            } else if (rating >= starNumber - 0.5) {
+              // 半分の星
+              starFull.classList.remove('text-yellow-400');
+              starFull.classList.add('text-gray-300');
+              starHalf.style.width = '50%';
+            } else {
+              // 空の星
+              starFull.classList.remove('text-yellow-400');
+              starFull.classList.add('text-gray-300');
+              starHalf.style.width = '0%';
+            }
+          });
+        }
+        
+        function resetStars() {
+          starContainers.forEach(container => {
+            const starFull = container.querySelector('.star-full');
+            const starHalf = container.querySelector('.star-half');
+            starFull.classList.remove('text-yellow-400');
+            starFull.classList.add('text-gray-300');
+            starHalf.style.width = '0%';
+          });
+          ratingText.textContent = '評価を選択してください';
+        }
       });
     </script>
   </body>

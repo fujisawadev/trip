@@ -37,8 +37,8 @@ def create_app(config_class=None):
             url_parts[2] = url_parts[2].replace('www.my-map.link', 'my-map.link', 1)
             return redirect('https' + url_parts[1] + url_parts[2], code=301)
     
-    # CSRF保護の設定 - 完全に無効化（開発環境向け）
-    flask_app.config['WTF_CSRF_ENABLED'] = False  # CSRF保護を完全に無効化
+    # CSRF保護の設定 - テスト用に一時的に無効化
+    flask_app.config['WTF_CSRF_ENABLED'] = False  # CSRF保護を無効化
     
     # ロギングの設定を強化（特にHeroku環境向け）
     import logging
@@ -76,15 +76,14 @@ def create_app(config_class=None):
     login_manager.login_message_category = 'info'
     
     # CSRFプロテクションの初期化（APIエンドポイントを除外）
-    # CSRF保護を完全に無効化するため、初期化は行わない
-    # csrf.init_app(flask_app)
-    # flask_app.csrf = csrf
-    
-    # CSRFプロテクションを初期化して、フォームで利用できるようにする
     csrf.init_app(flask_app)
+    flask_app.csrf = csrf
     
     # メールの初期化
     mail.init_app(flask_app)
+    
+    # Google Maps APIキーの設定
+    flask_app.config['GOOGLE_MAPS_API_KEY'] = os.environ.get('GOOGLE_MAPS_API_KEY')
     
     # Instagram API設定
     flask_app.config['INSTAGRAM_CLIENT_ID'] = os.environ.get('INSTAGRAM_CLIENT_ID')
@@ -92,7 +91,7 @@ def create_app(config_class=None):
     flask_app.config['INSTAGRAM_REDIRECT_URI'] = os.environ.get('INSTAGRAM_REDIRECT_URI')
     
     # Instagram Webhook設定
-    flask_app.config['INSTAGRAM_WEBHOOK_VERIFY_TOKEN'] = os.environ.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN')
+    flask_app.config['INSTAGRAM_WEBHOOK_VERIFY_TOKEN'] = os.environ.get('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'instagram_webhook_verify_token')
     flask_app.config['INSTAGRAM_APP_SECRET'] = os.environ.get('INSTAGRAM_APP_SECRET')
     
     # ベースURL設定
@@ -110,6 +109,7 @@ def create_app(config_class=None):
     from app.routes.api_routes import api_bp  # 一般的なAPI
     from app.routes.api.autoreply import autoreply_bp  # 自動返信API
     from app.routes.api.webhook import webhook_bp, configure_webhook  # WebhookAPI
+    from app.routes.api.agents import agents_v3_bp  # 新しいエージェントAPI
     
     # 基本ブループリントを登録
     flask_app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -123,15 +123,50 @@ def create_app(config_class=None):
     flask_app.register_blueprint(api_bp)  # 一般的なAPI
     flask_app.register_blueprint(autoreply_bp)  # 自動返信API
     flask_app.register_blueprint(webhook_bp)  # WebhookAPI
+    flask_app.register_blueprint(agents_v3_bp, url_prefix='/api/v3/agents')  # v3ブループリントを登録
     
     # webhook用のCSRF設定を適用
     configure_webhook(flask_app)
+    
+    # エージェントAPIのCSRF保護除外設定（webhook.pyと同じ方法）
+    def configure_agents_csrf(app):
+        """エージェントAPIのCSRF保護を設定"""
+        try:
+            print(f"Trying to configure agents: app={app}, type={type(app)}")
+            print(f"App has extensions: {hasattr(app, 'extensions')}")
+            if hasattr(app, 'extensions'):
+                print(f"Available extensions: {app.extensions.keys()}")
+            
+            csrf_obj = getattr(app, 'csrf', None)
+            if csrf_obj:
+                print(f"CSRF object: {csrf_obj}, type={type(csrf_obj)}")
+                csrf_obj.exempt(agents_v3_bp)
+                app.logger.info("Agents v3 blueprint is now CSRF exempt")
+            else:
+                app.logger.warning("CSRF object not found on app")
+        except Exception as e:
+            app.logger.error(f"Error configuring agents CSRF: {str(e)}")
+    
+    configure_agents_csrf(flask_app)
     
     # エラーハンドラーの登録
     @flask_app.errorhandler(404)
     def page_not_found(e):
         """404エラーページ"""
         return render_template('public/404.html'), 404
+    
+    @flask_app.errorhandler(413)
+    def request_entity_too_large(e):
+        """413エラーページ（ファイルサイズ制限）"""
+        from flask import flash, redirect, url_for, request
+        
+        # リクエストが来たエンドポイントを特定
+        if request.endpoint and 'spot' in request.endpoint:
+            flash('画像サイズが大きすぎます。1枚あたり10MB以下の画像をお選びください。', 'danger')
+            return redirect(url_for('spot.add_spot'))
+        else:
+            flash('アップロードするファイルのサイズが大きすぎます。ファイルサイズを小さくしてお試しください。', 'danger')
+            return redirect(url_for('profile.mypage'))
     
     @flask_app.errorhandler(500)
     def internal_server_error(e):
