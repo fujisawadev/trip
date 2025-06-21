@@ -11,9 +11,19 @@ def get_redis_client():
     if not redis_url:
         print("エラー: REDIS_URLが設定されていません。")
         return None
-    # Heroku Redisは自己署名証明書を使用するため、SSL検証を無効にする必要がある
-    # decode_components=True は、URLのユーザー名やパスワードを正しくデコードするために必要
-    return redis.from_url(redis_url, ssl_cert_reqs=None, decode_components=True)
+    
+    # HerokuのRedis URLは 'rediss://' で始まるSSL接続
+    if redis_url.startswith('rediss://'):
+        # redis-py 5.xでは、decode_componentsはURLのクエリパラメータとして渡す
+        if 'decode_components' not in redis_url:
+            separator = '&' if '?' in redis_url else '?'
+            redis_url += f"{separator}decode_components=true"
+        
+        # SSL接続の場合のみ、証明書検証を無効にする
+        return redis.from_url(redis_url, ssl_cert_reqs=None)
+    else:
+        # ローカル環境など、非SSL接続の場合
+        return redis.from_url(redis_url)
 
 def get_google_photos_by_place_id(place_id: str, max_photos: int = 5) -> list[str]:
     """
