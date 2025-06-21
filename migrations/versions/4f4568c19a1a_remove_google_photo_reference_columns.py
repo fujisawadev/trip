@@ -1,7 +1,7 @@
 """Remove google_photo_reference columns
 
 Revision ID: 4f4568c19a1a
-Revises: 6176834b995d
+Revises: 53a2478728c8
 Create Date: 2025-06-14 20:27:55.216346
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '4f4568c19a1a'
-down_revision = '6176834b995d'
+down_revision = '53a2478728c8'
 branch_labels = None
 depends_on = None
 
