@@ -3,6 +3,7 @@ import os
 import logging
 import html
 from urllib.parse import urlencode
+import difflib
 
 logger = logging.getLogger(__name__)
 
@@ -117,10 +118,14 @@ def similar_text(str1, str2, min_similarity=0.5):
     words1 = set(s1.split())
     words2 = set(s2.split())
     
-    # 単語が少なすぎる場合は判定しない
+    # 単語が少なすぎる場合は、文字ベースの類似度判定にフォールバック
     if len(words1) < 2 or len(words2) < 2:
-        print(f"類似度判定: 単語数が少なすぎます - words1={words1}, words2={words2}")
-        return False
+        print(f"類似度判定: 単語数が少ないため文字ベースで比較します - s1='{s1}', s2='{s2}'")
+        # SequenceMatcherで文字列全体の類似度を計算
+        seq_matcher = difflib.SequenceMatcher(None, s1, s2)
+        char_similarity = seq_matcher.ratio()
+        print(f"類似度判定: 文字ベースの類似度={char_similarity}, 閾値=0.6")
+        return char_similarity >= 0.6
     
     # 共通する単語の割合
     common_words = words1.intersection(words2)
