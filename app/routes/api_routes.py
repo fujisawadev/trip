@@ -5,17 +5,17 @@ import logging
 from flask import jsonify, request, abort, Blueprint
 from app.models import Spot, Photo, AffiliateLink, SocialPost, ImportHistory, ImportProgress
 from sqlalchemy.orm import joinedload
-from flask_login import current_user
+from flask_login import current_user, login_required
 from sqlalchemy import distinct
 from app import db
 import re
 from datetime import datetime
 from app.utils.instagram_helpers import extract_cursor_from_url
-# 楽天APIのユーティリティ関数をインポート
-from app.utils.rakuten_api import search_hotel, similar_text, generate_rakuten_affiliate_url
+from app.services.google_photos import get_google_photos_by_place_id
+from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url
 
 # API用のブループリントを直接作成
-api_bp = Blueprint('api', __name__, url_prefix='/api')
+api_bp = Blueprint('api_routes', __name__, url_prefix='/api')
 
 # Google Places API Key
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
@@ -1306,38 +1306,35 @@ def save_instagram_spots():
                                     hotel_name = basic_info.get('hotelName', '')
                                     print(f"ホテル名: {hotel_name}")
                                     
-                                    # ホテル名が一致または類似していれば、アフィリエイトリンクを作成
-                                    similarity = similar_text(spot.name, hotel_name, min_similarity=0.5)
-                                    print(f"類似度チェック: '{spot.name}' と '{hotel_name}' の類似度: {similarity}")
+                                    # 類似度チェックを撤廃し、最初に見つかったホテルを正とする
+                                    print(f"類似度チェックをスキップし、最初のホテルを採用: {hotel_name}")
                                     
-                                    if similarity:
-                                        print(f"類似と判定: {hotel_name}")
+                                    # URLがある場合のみ処理
+                                    if basic_info.get('hotelInformationUrl'):
+                                        hotel_url = basic_info.get('hotelInformationUrl')
+                                        print(f"ホテルURL: {hotel_url}")
                                         
-                                        # URLがある場合のみ処理
-                                        if basic_info.get('hotelInformationUrl'):
-                                            hotel_url = basic_info.get('hotelInformationUrl')
-                                            print(f"ホテルURL: {hotel_url}")
-                                            # アフィリエイトURLを生成
-                                            affiliate_url = generate_rakuten_affiliate_url(
-                                                hotel_url,
-                                                current_user.rakuten_affiliate_id
-                                            )
-                                            print(f"アフィリエイトURL生成: {affiliate_url}")
-                                            
-                                            # 新規リンク作成
-                                            affiliate_link = AffiliateLink(
-                                                spot_id=spot.id,
-                                                platform='rakuten',
-                                                url=affiliate_url,
-                                                title='楽天トラベル',
-                                                description='楽天トラベルで予約 (PRを含む)',
-                                                icon_key='rakuten-travel',
-                                                is_active=True
-                                            )
-                                            db.session.add(affiliate_link)
-                                            
-                                            print(f"楽天トラベルアフィリエイトリンクを自動生成: スポット名={spot.name}")
-                                            break  # 最初の一致したホテルのみ使用
+                                        # アフィリエイトURLを生成
+                                        affiliate_url = generate_rakuten_affiliate_url(
+                                            hotel_url,
+                                            current_user.rakuten_affiliate_id
+                                        )
+                                        print(f"アフィリエイトURL生成: {affiliate_url}")
+                                        
+                                        # 新規リンク作成
+                                        affiliate_link = AffiliateLink(
+                                            spot_id=spot.id,
+                                            platform='rakuten',
+                                            url=affiliate_url,
+                                            title='楽天トラベル',
+                                            description='楽天トラベルで予約 (PRを含む)',
+                                            icon_key='rakuten-travel',
+                                            is_active=True
+                                        )
+                                        db.session.add(affiliate_link)
+                                        
+                                        print(f"楽天トラベルアフィリエイトリンクを自動生成: スポット名={spot.name}")
+                                        break  # 最初の一致したホテルのみ使用
                 except Exception as e:
                     print(f"楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
         
