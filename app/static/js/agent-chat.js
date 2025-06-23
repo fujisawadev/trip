@@ -75,7 +75,7 @@ class AgentChat {
     openModal() {
         if (this.modal && this.modalOverlay) {
             this.modalOverlay.classList.remove('hidden');
-            this.modal.classList.remove('translate-y-full');
+            this.modal.classList.add('show');
             document.body.style.overflow = 'hidden';
             
             // 初回開いた時にデフォルトメッセージを表示
@@ -85,7 +85,7 @@ class AgentChat {
     
     closeModal() {
         if (this.modal && this.modalOverlay) {
-            this.modal.classList.add('translate-y-full');
+            this.modal.classList.remove('show');
             setTimeout(() => {
                 this.modalOverlay.classList.add('hidden');
                 document.body.style.overflow = '';
@@ -154,7 +154,7 @@ class AgentChat {
         }
         
         if (modalContainer) {
-            modalContainer.innerHTML = `<div class="flex gap-2 whitespace-nowrap pb-2 scrollbar-hide">${promptsHtml}</div>`;
+            modalContainer.innerHTML = `<div class="agent-quick-prompts-container">${promptsHtml}</div>`;
             // モーダルクイックプロンプトのイベント設定
             modalContainer.querySelectorAll('.quick-prompt-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -252,14 +252,14 @@ class AgentChat {
             
             if (data.success && data.response) {
                 this.messageHistory.push({ type: 'assistant', content: data.response, timestamp: new Date().toISOString() });
-                await this.addMessage('system', data.response);
+                await this.addMessage('assistant', data.response);
             } else {
-                await this.addMessage('system', data.error || '予期せぬエラーが発生しました。', { isError: true });
+                await this.addMessage('assistant', data.error || '予期せぬエラーが発生しました。', { isError: true });
             }
         } catch (error) {
             console.error('[AgentChat] Send message error:', error);
             this.hideLoadingMessage();
-            await this.addMessage('system', '通信中にエラーが発生しました。', { isError: true });
+            await this.addMessage('assistant', '通信中にエラーが発生しました。', { isError: true });
         } finally {
             this.isLoading = false;
             this.updateLoadingState(false);
@@ -283,8 +283,8 @@ class AgentChat {
 
         // メッセージ内容のフォーマットと設定
         try {
-            if (type === 'system' && !options.isError) {
-                console.log('[AgentChat] Formatting system message...');
+            if (type === 'assistant' && !options.isError) {
+                console.log('[AgentChat] Formatting assistant message...');
                 const formattedContent = await this.formatMessage(content);
                 console.log('[AgentChat] Successfully formatted message. HTML:', formattedContent);
                 messageElement.innerHTML = formattedContent;

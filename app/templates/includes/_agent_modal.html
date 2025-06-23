@@ -1,0 +1,43 @@
+<!-- AI Assistant Modal Overlay -->
+<div id="ai-assistant-modal-overlay" class="agent-modal-overlay hidden"></div>
+
+<!-- AI Assistant Modal -->
+<div id="ai-assistant-modal" class="agent-modal">
+    <!-- Modal Header -->
+    <header class="agent-modal-header">
+        <h2 class="agent-modal-title">コンシェルジュ</h2>
+        <button class="modal-close agent-modal-close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </header>
+    
+    <!-- AI Assistant Content -->
+    <div id="chat-messages" class="agent-chat-content">
+        <!-- Chat messages will be appended here -->
+    </div>
+
+    <!-- Input Area -->
+    <div class="agent-input-area">
+        <div id="modal-agent-quick-prompts" class="agent-quick-prompts">
+            <!-- Quick prompts will be loaded dynamically -->
+        </div>
+
+        <!-- Chat Input -->
+        <div class="agent-chat-input">
+            <input 
+                type="text" 
+                id="modal-user-input" 
+                class="agent-input-field"
+                placeholder="質問してみましょう"
+            >
+            <button 
+                id="modal-send-message"
+                class="agent-send-button"
+            >
+                <span class="material-icons">arrow_upward</span>
+            </button>
+        </div>
+    </div>
+</div> 

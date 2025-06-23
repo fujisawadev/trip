@@ -433,53 +433,8 @@
         </div>
     </footer>
 
-    <!-- AI Assistant Modal Overlay -->
-    <div id="ai-assistant-modal-overlay" class="fixed inset-0 bg-black bg-opacity-40 z-[1020] hidden"></div>
-
     <!-- AI Assistant Modal -->
-    <div id="ai-assistant-modal" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-[85vh] bg-[var(--background-color)] rounded-t-2xl shadow-2xl z-[1030] transform translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
-        <!-- Modal Header -->
-        <header class="flex-shrink-0 flex justify-between items-center p-4 border-b border-[var(--border-color)]">
-            <h2 class="text-lg font-bold text-[var(--text-primary)]">コンシェルジュ</h2>
-            <button class="modal-close text-gray-500 hover:text-gray-800">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </header>
-        
-        <!-- AI Assistant Content -->
-        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
-            <!-- Chat messages will be appended here -->
-        </div>
-
-        <!-- Input Area -->
-        <div class="flex-shrink-0 p-4 border-t border-[var(--border-color)] bg-white">
-            <div id="modal-agent-quick-prompts" class="w-full overflow-x-auto mb-3">
-                <div class="flex gap-2 whitespace-nowrap pb-2 scrollbar-hide">
-                    <button class="quick-prompt-btn flex-shrink-0" data-prompt="このスポットについて教えて">詳細を聞く</button>
-                    <button class="quick-prompt-btn flex-shrink-0" data-prompt="近くのおすすめスポットは？">周辺スポット</button>
-                    <button class="quick-prompt-btn flex-shrink-0" data-prompt="アクセス方法を教えて">アクセス方法</button>
-                </div>
-            </div>
-
-            <!-- Chat Input -->
-            <div class="flex gap-2 items-center">
-                <input 
-                    type="text" 
-                    id="modal-user-input" 
-                    class="flex-1 border border-gray-300 rounded-full px-4 py-2 bg-gray-100 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent transition"
-                    placeholder="質問してみましょう"
-                >
-                <button 
-                    id="modal-send-message"
-                    class="bg-[var(--primary-color)] text-white rounded-full w-10 h-10 flex-shrink-0 flex items-center justify-center hover:bg-blue-700 transition-colors"
-                >
-                    <span class="material-icons text-lg text-white">arrow_upward</span>
-                </button>
-            </div>
-        </div>
-    </div>
+    {% include 'includes/_agent_modal.html' %}
 
     <!-- 必要なJavaScriptライブラリ -->
     <!-- 新しいエージェントシステムのCSS & JS -->
