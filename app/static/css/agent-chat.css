@@ -33,7 +33,7 @@
     transform: translateX(-50%) translateY(100%); /* センタリング + 初期状態は非表示 */
     width: calc(100% - 2rem); /* 左右に1remずつ余白を確保 */
     max-width: 26rem; /* 448px - 2rem = 416px（余白考慮） */
-    height: 85vh;
+    height: calc(var(--vh, 1vh) * 85); /* JSで計算したビューポートの85%の高さを使用 */
     background-color: var(--surface-color, white);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.1);

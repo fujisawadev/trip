@@ -38,9 +38,19 @@ class AgentChat {
     }
     
     init() {
+        this.setViewportHeight();
+        window.addEventListener('resize', () => this.setViewportHeight(), { passive: true });
+
         this.loadQuickPrompts();
         this.bindEvents();
         this.setupModalTriggers();
+    }
+    
+    setViewportHeight() {
+        // iPhoneのブラウザでアドレスバーが表示・非表示されても高さが変わらないように
+        // window.innerHeightからビューポートの高さを取得し、CSSのカスタムプロパティとして設定
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
     }
     
     setupModalTriggers() {
