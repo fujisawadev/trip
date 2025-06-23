@@ -75,7 +75,8 @@ class AgentChat {
     openModal() {
         if (this.modal && this.modalOverlay) {
             this.modalOverlay.classList.remove('hidden');
-            this.modal.classList.add('show');
+            // Tailwindのtransformクラスを直接操作
+            this.modal.classList.remove('translate-y-full');
             document.body.style.overflow = 'hidden';
             
             // 初回開いた時にデフォルトメッセージを表示
@@ -85,7 +86,8 @@ class AgentChat {
     
     closeModal() {
         if (this.modal && this.modalOverlay) {
-            this.modal.classList.remove('show');
+            // Tailwindのtransformクラスを直接操作
+            this.modal.classList.add('translate-y-full');
             setTimeout(() => {
                 this.modalOverlay.classList.add('hidden');
                 document.body.style.overflow = '';
