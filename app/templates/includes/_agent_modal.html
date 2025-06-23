@@ -1,12 +1,12 @@
 <!-- AI Assistant Modal Overlay -->
-<div id="ai-assistant-modal-overlay" class="fixed inset-0 bg-black bg-opacity-40 z-[1025] hidden"></div>
+<div id="ai-assistant-modal-overlay" class="agent-modal-overlay hidden"></div>
 
-<!-- AI Assistant Modal - 成功パターンのTailwindクラスを採用 -->
-<div id="ai-assistant-modal" class="fixed inset-x-0 bottom-0 w-full max-w-md mx-auto h-[85vh] bg-white rounded-t-2xl shadow-2xl z-[1030] transform translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+<!-- AI Assistant Modal -->
+<div id="ai-assistant-modal" class="agent-modal">
     <!-- Modal Header -->
-    <header class="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200">
-        <h2 class="text-lg font-bold text-gray-800">コンシェルジュ</h2>
-        <button class="modal-close p-1 text-gray-500 hover:text-gray-700">
+    <header class="agent-modal-header">
+        <h2 class="agent-modal-title">コンシェルジュ</h2>
+        <button class="modal-close agent-modal-close">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -14,29 +14,29 @@
     </header>
     
     <!-- AI Assistant Content -->
-    <div id="chat-messages" class="flex-grow overflow-y-auto p-4 space-y-3">
+    <div id="chat-messages" class="agent-chat-content">
         <!-- Chat messages will be appended here -->
     </div>
 
     <!-- Input Area -->
-    <div class="flex-shrink-0 border-t border-gray-200 p-4">
-        <div id="modal-agent-quick-prompts" class="mb-3 overflow-x-auto">
+    <div class="agent-input-area">
+        <div id="modal-agent-quick-prompts" class="agent-quick-prompts">
             <!-- Quick prompts will be loaded dynamically -->
         </div>
 
         <!-- Chat Input -->
-        <div class="flex items-center space-x-2">
+        <div class="agent-chat-input">
             <input 
                 type="text" 
                 id="modal-user-input" 
-                class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                class="agent-input-field"
                 placeholder="質問してみましょう"
             >
             <button 
                 id="modal-send-message"
-                class="w-10 h-10 bg-blue-600 text-white rounded-full hover:bg-blue-700 flex items-center justify-center flex-shrink-0"
+                class="agent-send-button"
             >
-                <span class="material-icons text-lg">arrow_upward</span>
+                <span class="material-icons">arrow_upward</span>
             </button>
         </div>
     </div>
