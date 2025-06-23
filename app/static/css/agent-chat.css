@@ -29,27 +29,34 @@
 }
 
 .agent-modal {
+    /* 既存ページの成功パターンを完全採用 */
     position: fixed;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%) translateY(100%);
-    width: 100%;
-    max-width: 448px;
+    left: 0;                        /* inset-x-0 の left */
+    right: 0;                       /* inset-x-0 の right */
+    width: 100%;                    /* w-full */
+    max-width: 448px;               /* max-w-md (28rem = 448px) */
+    margin: 0 auto;                 /* mx-auto */
     height: 85vh;
     background-color: var(--surface-color, white);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
     z-index: 1030;
+    transform: translateY(100%);    /* 初期位置のみtransform使用 */
     visibility: hidden;
     opacity: 0;
     transition: transform 0.3s ease-in-out, visibility 0.3s ease-in-out, opacity 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
     padding: 1rem;
+    
+    /* デバッグ用 - 確実な横幅制御 */
+    min-width: 0;                   /* flexboxの最小幅リセット */
+    overflow: hidden;               /* はみ出し防止 */
 }
 
 .agent-modal.show {
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
     visibility: visible;
     opacity: 1;
 }
@@ -97,7 +104,7 @@
     flex-shrink: 0;
     border-top: 1px solid var(--border-color, #e5e7eb);
     background-color: var(--surface-color, white);
-    padding-top: 1rem;
+    padding: 1rem 0.5rem 0 0.5rem;
     width: 100%;
     box-sizing: border-box;
 }
@@ -120,6 +127,7 @@
     gap: 0.5rem;
     align-items: center;
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
 }
 
@@ -146,6 +154,7 @@
     border-radius: 50%;
     width: 2.5rem;
     height: 2.5rem;
+    min-width: 2.5rem;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -163,12 +172,15 @@
     color: white;
 }
 
-/* レスポンシブ対応 */
+/* レスポンシブ対応 - 既存ページと完全統一 */
 @media (max-width: 768px) {
     .agent-modal {
-        width: calc(100% - 1rem);   /* 変更: 少し余白を持たせる */
-        max-width: 448px;           /* 追加: 最大幅は維持 */
-        margin: 0;
+        /* 既存ページと同じ: 横幅制限を維持 */
+        width: 100%;                /* w-full */
+        max-width: 448px;           /* max-w-md を強制維持 */
+        margin: 0 auto;             /* mx-auto を強制維持 */
+        left: 0;                    /* inset-x-0 */
+        right: 0;                   /* inset-x-0 */
         padding: 0.75rem;
     }
     
