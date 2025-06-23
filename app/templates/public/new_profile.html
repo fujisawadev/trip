@@ -38,14 +38,6 @@
     <!-- marked.js の読み込み -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
-    <!-- Leaflet CSS & JS - スポット詳細モーダル用 -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-          crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-            crossorigin=""></script>
-    
     <style type="text/tailwindcss">
         :root {
           --primary-color: #2563EB;
@@ -300,29 +292,6 @@
     <!-- AI Assistant Modal -->
     {% include 'includes/_agent_modal.html' %}
 
-    <!-- Spot Detail Modal Overlay -->
-    <div id="spot-modal-overlay" class="fixed inset-0 bg-black bg-opacity-40 z-[1000] hidden"></div>
-
-    <!-- スポット詳細モーダル -->
-    <div id="spot-modal" class="fixed inset-x-0 bottom-0 w-full max-w-md mx-auto h-[90vh] bg-[var(--surface-color)] rounded-t-2xl shadow-2xl z-[1000] transform translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
-        <!-- Modal Header (Fixed) -->
-        <header id="spot-modal-header" class="absolute top-0 left-0 right-0 h-14 px-4 flex justify-end items-center bg-[var(--background-color)] rounded-t-2xl z-20">
-            <div class="modal-close cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </div>
-        </header>
-
-        <!-- Scrollable Content -->
-        <div id="modal-content-container" class="relative z-10 overflow-y-auto flex-grow pt-14">
-            <!-- モーダルコンテンツがここに動的に読み込まれます -->
-            <div class="flex justify-center items-center p-10">
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-            </div>
-        </div>
-    </div>
-
     <!-- シェアモーダル -->
     <div id="share-modal" class="modal">
         <div class="modal-content">
@@ -428,8 +397,6 @@
                 }
             }
         }
-        
-        // スポット詳細は新しいページに遷移するため、モーダル関連処理は不要
         
         // スポットカードクリック時の処理
         const spotCards = document.querySelectorAll('.spot-card-container');
