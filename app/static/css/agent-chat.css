@@ -31,8 +31,8 @@
     bottom: 0;
     left: 50%;
     transform: translateX(-50%) translateY(100%); /* センタリング + 初期状態は非表示 */
-    width: 100%;
-    max-width: 28rem; /* 448px = max-w-md（プロジェクト標準） */
+    width: calc(100% - 2rem); /* 左右に1remずつ余白を確保 */
+    max-width: 26rem; /* 448px - 2rem = 416px（余白考慮） */
     height: 85vh;
     background-color: var(--surface-color, white);
     border-radius: 16px 16px 0 0;
@@ -44,6 +44,7 @@
     display: flex;
     flex-direction: column;
     padding: 1rem; /* 統一的な内側余白 */
+    box-sizing: border-box; /* パディングを幅に含める */
 }
 
 .agent-modal.show {

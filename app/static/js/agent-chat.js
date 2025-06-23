@@ -75,9 +75,10 @@ class AgentChat {
     openModal() {
         if (this.modal && this.modalOverlay) {
             this.modalOverlay.classList.remove('hidden');
-            // Tailwindのtransformクラスを直接操作
-            this.modal.classList.remove('translate-y-full');
-            document.body.style.overflow = 'hidden';
+            this.modal.classList.add('show');
+            
+            // iOS対応: ビューポート拡大問題を防ぐ
+            this.preventBodyScroll();
             
             // 初回開いた時にデフォルトメッセージを表示
             this.showDefaultMessageIfEmpty();
@@ -86,11 +87,12 @@ class AgentChat {
     
     closeModal() {
         if (this.modal && this.modalOverlay) {
-            // Tailwindのtransformクラスを直接操作
-            this.modal.classList.add('translate-y-full');
+            this.modal.classList.remove('show');
             setTimeout(() => {
                 this.modalOverlay.classList.add('hidden');
-                document.body.style.overflow = '';
+                
+                // iOS対応: スクロール制御を復元
+                this.restoreBodyScroll();
             }, 300);
         }
     }
@@ -445,6 +447,33 @@ class AgentChat {
     
     getHistory() {
         return this.messageHistory;
+    }
+    
+    // iOS対応: ビューポート拡大を防ぐスクロール制御
+    preventBodyScroll() {
+        // 現在のスクロール位置を保存
+        this.scrollPosition = window.pageYOffset;
+        
+        // iOSでビューポートが拡大しないようにする方法
+        const body = document.body;
+        body.style.position = 'fixed';
+        body.style.top = `-${this.scrollPosition}px`;
+        body.style.width = '100%';
+        body.style.overflowY = 'scroll'; // スクロールバー幅を維持
+    }
+    
+    restoreBodyScroll() {
+        const body = document.body;
+        body.style.position = '';
+        body.style.top = '';
+        body.style.width = '';
+        body.style.overflowY = '';
+        
+        // 保存したスクロール位置に復元
+        if (this.scrollPosition !== undefined) {
+            window.scrollTo(0, this.scrollPosition);
+            this.scrollPosition = undefined;
+        }
     }
 }
 
