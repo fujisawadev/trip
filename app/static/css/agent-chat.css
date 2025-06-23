@@ -31,22 +31,25 @@
     bottom: 0;
     left: 0;
     right: 0;
-    max-width: 448px; /* プロダクト標準の md サイズ */
+    width: 100%;
+    max-width: 448px;
     margin: 0 auto;
     height: 85vh;
     background-color: var(--surface-color, white);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
     z-index: 1030;
-    transform: translateY(100%); /* 初期状態は非表示 */
-    transition: transform 0.3s ease-in-out;
+    transform: translateY(100%);
+    visibility: hidden;
+    transition: transform 0.3s ease-in-out, visibility 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
-    padding: 1rem; /* 統一的な内側余白 */
+    padding: 1rem;
 }
 
 .agent-modal.show {
-    transform: translateY(0); /* 表示状態 */
+    transform: translateY(0);
+    visibility: visible;
 }
 
 .agent-modal-header {
@@ -93,6 +96,8 @@
     border-top: 1px solid var(--border-color, #e5e7eb);
     background-color: var(--surface-color, white);
     padding-top: 1rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .agent-quick-prompts {
@@ -112,6 +117,8 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .agent-input-field {
@@ -157,7 +164,6 @@
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     .agent-modal {
-        max-width: 100%;
         margin: 0;
         padding: 0.75rem; /* モバイルでは少し小さく */
     }
