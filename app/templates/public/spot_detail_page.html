@@ -417,7 +417,7 @@
     </div>
 
     <!-- フッター（プロフィールページと同じパターン） -->
-    <footer class="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-[var(--background-color)] border-t border-[var(--border-color)] p-3 shadow-top">
+    <footer class="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-[var(--background-color)] border-t border-[var(--border-color)] px-2 py-3 shadow-top">
         <div class="w-full">
             <div id="agent-quick-prompts" class="mb-2.5 flex space-x-2 overflow-x-auto scrollbar-hide">
                 <button class="px-3 py-1.5 rounded-full border border-[var(--primary-color)] text-[var(--primary-color)] text-xs font-medium hover:bg-[var(--hover-bg-color)] whitespace-nowrap transition-colors duration-150" data-prompt="このスポットについて教えて">詳細を聞く</button>
@@ -425,7 +425,7 @@
                 <button class="px-3 py-1.5 rounded-full border border-[var(--primary-color)] text-[var(--primary-color)] text-xs font-medium hover:bg-[var(--hover-bg-color)] whitespace-nowrap transition-colors duration-150" data-prompt="アクセス方法を教えて">アクセス方法</button>
             </div>
             <div class="flex items-center space-x-2">
-                <input id="footer-user-input" class="flex-1 py-2.5 px-3.5 border border-gray-300 rounded-full focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] bg-white" placeholder="質問してみましょう" type="text"/>
+                <input id="footer-user-input" class="flex-1 min-w-0 py-2.5 px-3.5 border border-gray-300 rounded-full focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none text-base text-[var(--text-primary)] placeholder-[var(--text-secondary)] bg-white" placeholder="質問してみましょう" type="text"/>
                 <button id="footer-send-message" class="w-10 h-10 bg-[var(--primary-color)] text-white rounded-full hover:bg-blue-700 transition-colors duration-150 flex items-center justify-center flex-shrink-0">
                     <span class="material-icons text-lg text-white">arrow_upward</span>
                 </button>

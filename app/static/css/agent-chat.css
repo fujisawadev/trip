@@ -31,26 +31,26 @@
     bottom: 0;
     left: 50%;
     transform: translateX(-50%) translateY(100%); /* センタリング + 初期状態は非表示 */
-    width: calc(100% - 2rem); /* 左右に1remずつ余白を確保 */
-    max-width: 26rem; /* 448px - 2rem = 416px（余白考慮） */
-    height: calc(var(--vh, 1vh) * 85); /* JSで計算したビューポートの85%の高さを使用 */
+    width: 100%;
+    max-width: 26rem;
+    height: calc(var(--vh, 1vh) * 85);
     background-color: var(--surface-color, white);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
     z-index: 1030;
-    visibility: hidden; /* FOUC防止：初期状態で完全非表示 */
-    opacity: 0; /* FOUC防止：透明度も0に */
+    visibility: hidden;
+    opacity: 0;
     transition: transform 0.3s ease-in-out, visibility 0.3s ease-in-out, opacity 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
-    padding: 1rem; /* 統一的な内側余白 */
-    box-sizing: border-box; /* パディングを幅に含める */
+    padding: 1rem;
+    box-sizing: border-box;
 }
 
 .agent-modal.show {
     transform: translateX(-50%) translateY(0); /* 表示状態（センタリング維持） */
-    visibility: visible; /* 表示状態で可視化 */
-    opacity: 1; /* 表示状態で不透明 */
+    visibility: visible;
+    opacity: 1;
 }
 
 .agent-modal-header {
@@ -127,6 +127,7 @@
     border: 1px solid #d1d5db;
     border-radius: 9999px;
     padding: 0.5rem 1rem;
+    font-size: 16px; /* iOSの自動ズームを防ぐための重要な設定 */
     background-color: #f9fafb;
     transition: all 0.2s ease;
     outline: none;
@@ -337,7 +338,7 @@
     border: 1px solid #ced4da;
     border-radius: 20px;
     padding: 10px 16px;
-    font-size: 14px;
+    font-size: 16px; /* iOSの自動ズームを防ぐ */
     line-height: 1.4;
     outline: none;
     transition: border-color 0.2s ease;

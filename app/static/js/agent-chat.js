@@ -54,20 +54,34 @@ class AgentChat {
     }
     
     setupModalTriggers() {
-        // フッターの入力フィールドとボタンにイベントを設定
-        if (this.footerInput) {
-            this.footerInput.addEventListener('focus', () => this.openModal());
-            // フッターでのEnterキー処理を無効化（フォーカス時にモーダルが開くので不要）
+        // フッターの入力フィールドと送信ボタンにイベントを設定
+        if (this.footerInput && this.footerSendButton) {
+            // フッターの入力欄をフォーカスしたらモーダルを開く
+            this.footerInput.addEventListener('focus', () => {
+                this.openModal();
+            });
+
+            // Enterキーで送信ボタンをクリックする
             this.footerInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    // Enterキーでは何もしない（フォーカス時に既にモーダルが開いている）
+                    this.footerSendButton.click();
                 }
             });
-        }
-        
-        if (this.footerSendButton) {
-            this.footerSendButton.addEventListener('click', () => this.openModal());
+
+            // 送信ボタンクリックでモーダルを開き、メッセージを送信する
+            this.footerSendButton.addEventListener('click', () => {
+                this.openModal();
+                const message = this.footerInput.value.trim();
+
+                if (message) {
+                    // モーダルが開くアニメーションを待ってからメッセージを送信
+                    setTimeout(() => {
+                        this.sendMessage(message);
+                        this.footerInput.value = ''; // フッターの入力はクリア
+                    }, 100);
+                }
+            });
         }
         
         // モーダルを閉じるイベント
@@ -90,6 +104,11 @@ class AgentChat {
                 this.modalOverlay.classList.remove('hidden');
                 this.modal.classList.add('show');
                 
+                // ブラウザの描画バグを回避するため、JSで直接スタイルを強制適用
+                this.modal.style.transform = 'translateX(-50%) translateY(0)';
+                this.modal.style.visibility = 'visible';
+                this.modal.style.opacity = '1';
+                
                 if (spotDetailContainer) {
                     spotDetailContainer.style.transform = 'none';
                 }
@@ -104,6 +123,11 @@ class AgentChat {
                 }
 
                 setTimeout(() => {
+                    // アニメーション完了後にインラインスタイルをリセット
+                    this.modal.style.transform = '';
+                    this.modal.style.visibility = '';
+                    this.modal.style.opacity = '';
+
                     this.modalOverlay.classList.add('hidden');
                     this.restoreBodyScroll();
                 }, 300);
@@ -471,31 +495,16 @@ class AgentChat {
         return this.messageHistory;
     }
     
-    // iOS対応: ビューポート拡大を防ぐスクロール制御
     preventBodyScroll() {
-        // 現在のスクロール位置を保存
-        this.scrollPosition = window.pageYOffset;
-        
-        // iOSでビューポートが拡大しないようにする方法
-        const body = document.body;
-        body.style.position = 'fixed';
-        body.style.top = `-${this.scrollPosition}px`;
-        body.style.width = '100%';
-        body.style.overflowY = 'scroll'; // スクロールバー幅を維持
+        // ページのスクロールを禁止する（より安全な方法）
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
     }
     
     restoreBodyScroll() {
-        const body = document.body;
-        body.style.position = '';
-        body.style.top = '';
-        body.style.width = '';
-        body.style.overflowY = '';
-        
-        // 保存したスクロール位置に復元
-        if (this.scrollPosition !== undefined) {
-            window.scrollTo(0, this.scrollPosition);
-            this.scrollPosition = undefined;
-        }
+        // ページのスクロールを元に戻す
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
     }
 }
 
