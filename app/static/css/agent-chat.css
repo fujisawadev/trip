@@ -1,7 +1,7 @@
 /* 新しいエージェントチャット機能のスタイル */
 
 .agent-chat {
-    max-width: 800px;
+    max-width: 448px;
     margin: 0 auto;
     background: #ffffff;
     border-radius: 12px;

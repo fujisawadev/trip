@@ -305,7 +305,18 @@ class AgentChat {
         console.log('[AgentChat] formatMessage started with content:', content);
 
         // テキストをMarkdownとしてパース
-        const htmlContent = marked.parse(content);
+        let htmlContent = marked.parse(content);
+        
+        // 相対パスを絶対パスのリンクに変換
+        // 例: /username/spot_id -> <a href="/username/spot_id">/username/spot_id</a>
+        // ただし、//で始まるプロトコル相対URLは除外
+        htmlContent = htmlContent.replace(/(\s|>|^)(\/[a-zA-Z0-9_.\-\/]+)/g, (match, prefix, path) => {
+            // すでにリンクの一部である場合は変換しない
+            if (prefix.toLowerCase().endsWith('href="')) {
+                return match;
+            }
+            return `${prefix}<a href="${path}">${path}</a>`;
+        });
         
         console.log('[AgentChat] Finished message formatting. Final HTML:', htmlContent);
         return htmlContent;
