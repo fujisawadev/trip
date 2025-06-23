@@ -72,29 +72,41 @@ class AgentChat {
         // クイックプロンプトのイベントは動的に設定（renderQuickPrompts内で）
     }
     
-    openModal() {
+    _toggleModal(show) {
         if (this.modal && this.modalOverlay) {
-            this.modalOverlay.classList.remove('hidden');
-            this.modal.classList.add('show');
-            
-            // iOS対応: ビューポート拡大問題を防ぐ
-            this.preventBodyScroll();
-            
-            // 初回開いた時にデフォルトメッセージを表示
-            this.showDefaultMessageIfEmpty();
+            const spotDetailContainer = document.querySelector('.spot-detail-container');
+
+            if (show) {
+                this.modalOverlay.classList.remove('hidden');
+                this.modal.classList.add('show');
+                
+                if (spotDetailContainer) {
+                    spotDetailContainer.style.transform = 'none';
+                }
+                
+                this.preventBodyScroll();
+                this.showDefaultMessageIfEmpty();
+            } else {
+                this.modal.classList.remove('show');
+                
+                if (spotDetailContainer) {
+                    spotDetailContainer.style.transform = ''; // 元のスタイルに戻す
+                }
+
+                setTimeout(() => {
+                    this.modalOverlay.classList.add('hidden');
+                    this.restoreBodyScroll();
+                }, 300);
+            }
         }
     }
     
+    openModal() {
+        this._toggleModal(true);
+    }
+    
     closeModal() {
-        if (this.modal && this.modalOverlay) {
-            this.modal.classList.remove('show');
-            setTimeout(() => {
-                this.modalOverlay.classList.add('hidden');
-                
-                // iOS対応: スクロール制御を復元
-                this.restoreBodyScroll();
-            }, 300);
-        }
+        this._toggleModal(false);
     }
     
     async loadQuickPrompts() {
