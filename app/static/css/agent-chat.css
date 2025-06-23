@@ -103,6 +103,7 @@
     width: 100%;
     overflow-x: auto;
     margin-bottom: 0.75rem;
+    display: grid; /* Flexboxの子要素が親を押し広げる問題の対策 */
 }
 
 .agent-quick-prompts-container {
