@@ -371,8 +371,8 @@
                     <div class="flex items-center gap-3 mb-4">
                         <img alt="ユーザーアイコン" class="w-10 h-10 rounded-full flex-shrink-0" 
                              src="{{ url_for('static', filename='images/default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"/>
-                        <div>
-                            <p class="font-medium text-[var(--text-primary)]">{{ user.username }}</p>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-[var(--text-primary)] truncate">{{ user.username }}</p>
                         </div>
                     </div>
 
