@@ -425,7 +425,15 @@
                 <!-- Affiliate Links -->
                 <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl"
                      x-data="{
-                       otherLinks: {{ custom_links|tojson if is_edit else '[]' }},
+                       otherLinks: (() => {
+                         try {
+                           console.log('Loading custom_links:', {{ custom_links|tojson|safe if is_edit else '[]' }});
+                           return {{ custom_links|tojson|safe if is_edit else '[]' }};
+                         } catch (error) {
+                           console.error('Error loading custom_links:', error);
+                           return [];
+                         }
+                       })(),
                        addLink() {
                          this.otherLinks.push({ id: null, title: '', url: '' });
                        },
@@ -605,7 +613,14 @@
       // グローバルエラーハンドリング
       window.addEventListener('error', function(event) {
         console.error('Global error caught:', event.error);
-        alert('ページの読み込み中にエラーが発生しました。ページをリロードしてください。');
+        console.error('Error details:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error
+        });
+        alert('ページの読み込み中にエラーが発生しました。詳細はコンソールを確認してください。\nエラー: ' + event.message);
       });
 
       document.addEventListener('DOMContentLoaded', function() {
