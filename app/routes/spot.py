@@ -165,7 +165,7 @@ def add_spot():
             formatted_address=formatted_address,
             types=types,
             summary_location=summary_location,
-            rating=float(rating) if rating else None,
+            rating=float(rating) if rating else 0.0,
             review_count=1 if rating else 0,
             is_active=is_active
         )
@@ -318,7 +318,7 @@ def edit_spot(spot_id):
         
         # 評価データを更新
         rating = request.form.get('rating', '')
-        spot.rating = float(rating) if rating else None
+        spot.rating = float(rating) if rating else 0.0
         
         # Google Places IDが変更された場合、関連する古いGoogle提供の写真を削除する
         if new_place_id and new_place_id != old_place_id:

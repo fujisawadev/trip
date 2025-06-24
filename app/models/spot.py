@@ -27,7 +27,7 @@ class Spot(db.Model):
     google_maps_url = db.Column(db.Text, nullable=True)  # Google Mapsへの直接リンク
     
     # レビュー関連のフィールド
-    rating = db.Column(db.Float, nullable=True)  # 評価の平均点（1.0-5.0）
+    rating = db.Column(db.Float, nullable=False, default=0.0)  # 評価の平均点（1.0-5.0）
     review_count = db.Column(db.Integer, default=0, nullable=False)  # レビュー数
     
     # リレーションシップ
