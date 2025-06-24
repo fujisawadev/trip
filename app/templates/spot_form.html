@@ -422,15 +422,20 @@
                   {% endfor %}
                 </div>
                 
+                <!-- Custom Links Data (隠し要素) -->
+                <script type="application/json" id="custom-links-data">
+{{ custom_links|tojson|safe if is_edit else '[]' }}
+                </script>
+                
                 <!-- Affiliate Links -->
                 <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl"
                      x-data="{
                        otherLinks: (() => {
                          try {
-                           console.log('Loading custom_links:', {{ custom_links|tojson|safe if is_edit else '[]' }});
-                           return {{ custom_links|tojson|safe if is_edit else '[]' }};
+                           const dataElement = document.getElementById('custom-links-data');
+                           return dataElement ? JSON.parse(dataElement.textContent) : [];
                          } catch (error) {
-                           console.error('Error loading custom_links:', error);
+                           console.error('Custom links data parse error:', error);
                            return [];
                          }
                        })(),
@@ -613,14 +618,7 @@
       // グローバルエラーハンドリング
       window.addEventListener('error', function(event) {
         console.error('Global error caught:', event.error);
-        console.error('Error details:', {
-          message: event.message,
-          filename: event.filename,
-          lineno: event.lineno,
-          colno: event.colno,
-          error: event.error
-        });
-        alert('ページの読み込み中にエラーが発生しました。詳細はコンソールを確認してください。\nエラー: ' + event.message);
+        alert('ページの読み込み中にエラーが発生しました。ページをリロードしてください。');
       });
 
       document.addEventListener('DOMContentLoaded', function() {
