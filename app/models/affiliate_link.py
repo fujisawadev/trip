@@ -20,4 +20,20 @@ class AffiliateLink(db.Model):
     spot = db.relationship('Spot', backref='affiliate_links', lazy=True)
     
     def __repr__(self):
-        return f'<AffiliateLink {self.platform} for Spot {self.spot_id}>' 
+        return f'<AffiliateLink {self.platform} for Spot {self.spot_id}>'
+    
+    def to_dict(self):
+        """AffiliateLink オブジェクトを辞書に変換する"""
+        return {
+            'id': self.id,
+            'spot_id': self.spot_id,
+            'platform': self.platform,
+            'url': self.url,
+            'title': self.title,
+            'description': self.description,
+            'logo_url': self.logo_url,
+            'icon_key': self.icon_key,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        } 

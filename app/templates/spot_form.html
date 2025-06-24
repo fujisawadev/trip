@@ -425,7 +425,7 @@
                 <!-- Affiliate Links -->
                 <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl"
                      x-data="{
-                       otherLinks: {{ spot.affiliate_links|selectattr('platform', 'equalto', 'custom')|list|tojson if is_edit else '[]' }},
+                       otherLinks: {{ custom_links|tojson if is_edit else '[]' }},
                        addLink() {
                          this.otherLinks.push({ id: null, title: '', url: '' });
                        },

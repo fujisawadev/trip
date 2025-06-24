@@ -280,7 +280,7 @@ def add_spot():
         flash('スポットを追加しました。', 'success')
         return redirect(url_for('profile.mypage'))
     
-    return render_template('spot_form.html', is_edit=False, rakuten_link=None)
+    return render_template('spot_form.html', is_edit=False, rakuten_link=None, custom_links=[])
 
 @bp.route('/edit-spot/<int:spot_id>', methods=['GET', 'POST'])
 @login_required
@@ -435,13 +435,16 @@ def edit_spot(spot_id):
     # 楽天アフィリエイトリンクを明示的に取得
     rakuten_link = next((link for link in spot.affiliate_links if link.platform == 'rakuten'), None)
 
+    # カスタムプラットフォームのアフィリエイトリンクを辞書形式で取得
+    custom_links = [link.to_dict() for link in spot.affiliate_links if link.platform == 'custom']
+
     # デバッグログの追加
     if rakuten_link:
         print(f"テンプレートに渡す楽天アフィリエイトリンク: ID={rakuten_link.id}, URL={rakuten_link.url}")
     else:
         print("テンプレートに渡す楽天アフィリエイトリンク: なし")
 
-    return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True, rakuten_link=rakuten_link)
+    return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True, rakuten_link=rakuten_link, custom_links=custom_links)
 
 @bp.route('/toggle-spot/<int:spot_id>')
 @login_required
