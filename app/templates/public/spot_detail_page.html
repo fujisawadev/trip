@@ -117,7 +117,7 @@
             position: relative;
             z-index: 10;
             background: var(--background-color);
-            border-bottom: 1px solid var(--border-color);
+            /* border-bottom は新しいクラスで管理 */
         }
         
         /* スクロール可能エリア */
@@ -156,17 +156,95 @@
         /* 写真ギャラリー */
         .photo-gallery {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.5rem; /* 写真間の隙間を追加 (8px) */
             overflow-x: auto;
-            padding: 0.5rem 0;
+            scrollbar-width: none; /* Firefox */
+            scroll-snap-type: x mandatory; /* 横方向のスナップスクロールを有効化 */
+        }
+        .photo-gallery::-webkit-scrollbar {
+            display: none; /* Safari and Chrome */
         }
         
         .photo-gallery img {
-            width: 200px;
-            height: 150px;
+            width: 100%; /* コンテナの幅いっぱいに表示 */
+            height: 100%;
             object-fit: cover;
-            border-radius: 0.5rem;
             flex-shrink: 0;
+            border-radius: 0.75rem; /* 角丸を適用 */
+            scroll-snap-align: start; /* 各画像の先頭でスナップ */
+        }
+        
+        /* --- カルーセルのドットインジケーター --- */
+        .photo-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+            transition: background-color 0.2s ease;
+        }
+        .dot.active {
+            background-color: var(--primary-color);
+        }
+        
+        /* レビュー表示用のスタイル */
+        .review-display {
+            display: flex;
+            flex-direction: column; /* 縦並びに変更 */
+            align-items: flex-start; /* 左揃えに変更 */
+            gap: 0.25rem; /* 4px */
+        }
+        .review-score {
+            font-size: 2.25rem; /* 36px */
+            line-height: 2.5rem; /* 40px */
+            font-weight: 700;
+        }
+        .review-stars .material-icons {
+            font-size: 1.25rem; /* 20px */
+        }
+
+        /* --- SNSリンクの新しいスタイル --- */
+        .sns-links-container {
+            display: flex;
+            gap: 1rem; /* 16px */
+        }
+        .sns-link {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 44px;
+            height: 44px;
+            transition: all 0.2s ease;
+        }
+        .sns-link-active:hover {
+            transform: scale(1.1);
+        }
+        .sns-link-active img {
+            width: 28px;
+            height: 28px;
+        }
+        .sns-link-inactive {
+            background-color: #F3F4F6; /* 薄いグレーの背景 */
+            border-radius: 50%;
+            cursor: default;
+        }
+        .sns-link-inactive img {
+            width: 24px;
+            height: 24px;
+            filter: grayscale(100%);
+            opacity: 0.6; /* 透明度を少し上げる */
+        }
+
+        /* 非アクティブなSNSリンク */
+        .sns-link-inactive {
+            filter: grayscale(100%);
+            opacity: 0.5;
+            pointer-events: none;
         }
         
         /* クイックプロンプトボタン */
@@ -237,100 +315,134 @@
             padding: 0;
             cursor: pointer;
         }
+
+        /* --- 新しいヘッダーのスタイル --- */
+        .spot-header.fixed-height {
+            height: 56px;
+            border-bottom: 1px solid var(--border-color);
+        }
     </style>
 </head>
 <body>
     <!-- モーダル風ページ -->
     <div class="spot-detail-page">
         <div class="spot-detail-container">
-            <!-- ヘッダー（固定） -->
-            <header class="spot-header p-4 flex justify-between items-center">
-                <h1 class="text-lg font-bold text-[var(--text-primary)] truncate flex-1">{{ spot.name }}</h1>
-                <button onclick="goBack()" class="back-button text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-2">
-                    <span class="material-icons">close</span>
+            <!-- ヘッダー（中央揃えを修正） -->
+            <header class="spot-header fixed-height px-4 flex justify-end items-center">
+                <button onclick="goBack()" class="back-button text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                    <span class="material-icons p-2">close</span>
                 </button>
             </header>
             
             <!-- スクロール可能コンテンツ -->
             <div class="spot-content">
-                <!-- 地図セクション -->
-                {% if spot.latitude and spot.longitude %}
-                <section class="section">
-                    <div id="spot-map"></div>
-                </section>
-                {% endif %}
-                
-                <!-- 基本情報セクション -->
-                <section class="section">
-                    <div>
-                        <h2 class="text-xl font-bold text-[var(--text-primary)] mb-2">{{ spot.name }}</h2>
-                        <p class="text-sm text-[var(--text-secondary)] mb-2">
-                            <span class="material-icons-outlined text-sm align-middle mr-1">location_on</span>
-                            {{ spot.summary_location or spot.location }}
-                        </p>
+                <!-- 写真・スポット名エリア (一体化) -->
+                <div class="p-4 border-b border-[var(--border-color)]">
+                    <!-- 写真ギャラリー（カルーセルUIに変更） -->
+                    {% if photos and photos|length > 0 %}
+                    <div class="photo-gallery-wrapper">
+                        <div class="photo-gallery h-[250px] rounded-xl">
+                            {% for photo_url in photos %}
+                            <img src="{{ photo_url }}" 
+                                 alt="{{ spot.name }}"
+                                 onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'" />
+                            {% endfor %}
+                        </div>
+                        <div class="photo-dots"></div>
+                    </div>
+                    {% endif %}
+
+                    <!-- スポット名セクション（余白調整） -->
+                    <div class="pt-4">
+                        <h2 class="text-lg font-bold text-[var(--text-primary)]">{{ spot.name }}</h2>
                         {% if spot.category %}
-                        <p class="text-sm text-[var(--text-secondary)] mb-2">
+                        <p class="text-sm text-[var(--text-secondary)] mt-1">
                             <span class="material-icons-outlined text-sm align-middle mr-1">category</span>
                             {{ spot.category }}
                         </p>
                         {% endif %}
-                        
-                        <!-- 評価表示 -->
-                        <div class="flex items-center text-sm text-[var(--text-secondary)]">
-                            <span class="material-icons-outlined text-sm align-middle mr-1 text-[var(--text-secondary)]">edit</span>
-                            {% if spot.rating %}
-                                <div class="flex items-center">
-                                    {% set full_stars = (spot.rating | int) %}
-                                    {% set has_half_star = (spot.rating - full_stars) >= 0.5 %}
-                                    {% set empty_stars = 5 - full_stars - (1 if has_half_star else 0) %}
-                                    
-                                    {% for i in range(full_stars) %}
-                                        <span class="material-icons text-yellow-400 text-sm">star</span>
-                                    {% endfor %}
-                                    
-                                    {% if has_half_star %}
-                                        <span class="material-icons text-yellow-400 text-sm">star_half</span>
-                                    {% endif %}
-                                    
-                                    {% for i in range(empty_stars) %}
-                                        <span class="material-icons text-gray-300 text-sm">star_border</span>
-                                    {% endfor %}
-                                    
-                                    <span class="ml-1">{{ "%.1f"|format(spot.rating) }}</span>
-                                </div>
-                            {% else %}
-                                <span>-</span>
-                            {% endif %}
+                    </div>
+                </div>
+
+                <!-- ユーザーの口コミセクション -->
+                <section class="section">
+                    <h3 class="font-semibold text-[var(--text-primary)] mb-3">レビュー</h3>
+                    <!-- 投稿者情報 -->
+                    <div class="flex items-center gap-3 mb-4">
+                        <img alt="ユーザーアイコン" class="w-10 h-10 rounded-full flex-shrink-0" 
+                             src="{{ url_for('static', filename='images/default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"/>
+                        <div>
+                            <p class="font-medium text-[var(--text-primary)]">{{ user.username }}</p>
                         </div>
                     </div>
-                    
+
+                    <!-- 新しい評価デザイン -->
+                    <div class="review-display mb-4">
+                        {% if spot.rating %}
+                            <div class="review-score">{{ "%.1f"|format(spot.rating) }}</div>
+                            <div class="review-stars flex">
+                                {% set full_stars = (spot.rating | int) %}
+                                {% set has_half_star = (spot.rating - full_stars) >= 0.5 %}
+                                {% set empty_stars = 5 - full_stars - (1 if has_half_star else 0) %}
+                                
+                                {% for i in range(full_stars) %}
+                                    <span class="material-icons text-yellow-400">star</span>
+                                {% endfor %}
+                                
+                                {% if has_half_star %}
+                                    <span class="material-icons text-yellow-400">star_half</span>
+                                {% endif %}
+                                
+                                {% for i in range(empty_stars) %}
+                                    <span class="material-icons text-gray-300">star_border</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-sm text-[var(--text-secondary)]">評価なし</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- ディスクリプション -->
                     {% if spot.description %}
-                    <div class="mt-4">
-                        <h3 class="font-semibold text-[var(--text-primary)] mb-2">詳細</h3>
+                    <div class="mb-4">
                         <p class="text-sm text-[var(--text-secondary)] leading-relaxed">{{ spot.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- 新しいSNSのリンク -->
+                    {% if social_links %}
+                    <div class="mt-4">
+                        <h4 class="font-medium text-[var(--text-primary)] mb-2">SNS</h4>
+                        <div class="sns-links-container">
+                            {% for platform, url in social_links.items() %}
+                            <a href="{{ url if url else '#' }}" 
+                               target="_blank" rel="noopener noreferrer" 
+                               class="sns-link {{ 'sns-link-active' if url else 'sns-link-inactive' }}">
+                                <img src="{{ url_for('static', filename='icons/social/' + platform + '.svg') }}" alt="{{ platform|title }}">
+                            </a>
+                            {% endfor %}
+                        </div>
                     </div>
                     {% endif %}
                 </section>
                 
-                <!-- 写真ギャラリー -->
-                {% if photos and photos|length > 0 %}
+                <!-- スポットの場所セクション -->
                 <section class="section">
-                    <h3 class="font-semibold text-[var(--text-primary)] mb-3">写真</h3>
-                    <div class="photo-gallery">
-                        {% for photo_url in photos %}
-                        <img src="{{ photo_url }}" 
-                             alt="{{ spot.name }}" 
-                             onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'" />
-                        {% endfor %}
-                    </div>
+                    <h3 class="font-semibold text-[var(--text-primary)] mb-3">場所</h3>
+                    <p class="text-sm text-[var(--text-secondary)] mb-3">
+                        <span class="material-icons-outlined text-sm align-middle mr-1">location_on</span>
+                        {{ spot.summary_location or spot.location }}
+                    </p>
+                    {% if spot.latitude and spot.longitude %}
+                    <div id="spot-map"></div>
+                    {% endif %}
                 </section>
-                {% endif %}
-                
-                <!-- もっと見るセクション -->
+
+                <!-- その他のリンク（もっとみる） -->
                 <section class="section">
                     <h3 class="font-semibold text-[var(--text-primary)] mb-3">もっと見る</h3>
                     
-                    <!-- アフィリエイトリンク (存在する場合のみ表示) -->
+                    <!-- アフィリエイトリンク -->
                     {% if spot.affiliate_links %}
                         {% for link in spot.affiliate_links %}
                             {% if link.is_active %}
@@ -390,27 +502,7 @@
                     </div>
                 </section>
                 
-                <!-- オーナー情報 -->
-                <section class="section">
-                    <h3 class="font-semibold text-[var(--text-primary)] mb-3">投稿者</h3>
-                    <div class="flex items-start gap-3">
-                        <img alt="ユーザーアイコン" class="w-10 h-10 rounded-full flex-shrink-0 mt-1" 
-                             src="{{ url_for('static', filename='images/default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"/>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-medium text-[var(--text-primary)]">{{ user.username }}</p>
-                            {% if user.bio %}
-                            <div class="bio-container">
-                                <p id="owner-bio-text" class="text-sm text-[var(--text-secondary)] bio-collapsed">{{ user.bio }}</p>
-                                <button id="owner-bio-toggle" class="text-sm text-[var(--primary-color)] hover:underline mt-1 bio-toggle-btn" style="display: none;">もっとみる</button>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </section>
-                
-
-                
-                <!-- 下部余白（フッターのための余白を大幅に拡大） -->
+                <!-- 下部余白 -->
                 <div class="h-32"></div>
             </div>
         </div>
@@ -516,6 +608,9 @@
             // bio表示制御の初期化
             initializeBioToggle();
             
+            // 写真カルーセルの初期化
+            initializePhotoCarousel();
+
             // AIアシスタントの初期化
             initializeAIAssistant();
         });
@@ -579,6 +674,50 @@
             }, 100);
         }
         {% endif %}
+        
+        // 写真カルーセル初期化関数
+        function initializePhotoCarousel() {
+            const wrapper = document.querySelector('.photo-gallery-wrapper');
+            if (!wrapper) return;
+
+            const gallery = wrapper.querySelector('.photo-gallery');
+            const dotsContainer = wrapper.querySelector('.photo-dots');
+            const photos = gallery.querySelectorAll('img');
+
+            if (photos.length < 2) {
+                if(dotsContainer) dotsContainer.style.display = 'none';
+                return;
+            }
+
+            // ドットを生成
+            dotsContainer.innerHTML = ''; // 既存のドットをクリア
+            photos.forEach((_, index) => {
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+                if (index === 0) dot.classList.add('active');
+                dotsContainer.appendChild(dot);
+            });
+
+            const dots = dotsContainer.querySelectorAll('.dot');
+
+            // スクロールイベントのハンドラ (gapを考慮)
+            const handleScroll = () => {
+                const photoWidth = gallery.offsetWidth;
+                const gap = parseFloat(window.getComputedStyle(gallery).gap) || 0;
+                const currentIndex = Math.round(gallery.scrollLeft / (photoWidth + gap));
+
+                dots.forEach((dot, index) => {
+                    dot.classList.toggle('active', index === currentIndex);
+                });
+            };
+
+            // パフォーマンスのためのデバウンス処理
+            let scrollTimeout;
+            gallery.addEventListener('scroll', () => {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(handleScroll, 50);
+            });
+        }
         
         // AIアシスタント初期化（新しいシステム）
         function initializeAIAssistant() {

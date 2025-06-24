@@ -17,6 +17,7 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -93,6 +94,34 @@
       }
       .toggle-switch:checked ~ .toggle-bg {
         background-color: #3b82f6;
+      }
+
+      /* Accordion Styles */
+      .accordion-header {
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #f9fafb; /* gray-50 */
+        padding: 1rem;
+        border-radius: 0.75rem;
+        transition: background-color 0.2s;
+      }
+      .accordion-header:hover {
+        background-color: #f3f4f6; /* gray-100 */
+      }
+      .accordion-icon {
+        transition: transform 0.3s ease;
+      }
+      .accordion-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+        background-color: #f9fafb; /* gray-50 */
+        border-radius: 0 0 0.75rem 0.75rem;
+      }
+      .accordion-content.open {
+        padding: 1rem;
       }
     </style>
   </head>
@@ -180,6 +209,7 @@
           <input type="hidden" id="types" name="types" value="{% if is_edit %}{{ spot.types or '' }}{% endif %}">
           <input type="hidden" id="thumbnail_url" name="thumbnail_url" value="{% if is_edit %}{{ spot.thumbnail_url or '' }}{% endif %}">
           <input type="hidden" id="summary_location" name="summary_location" value="{% if is_edit %}{{ spot.summary_location or '' }}{% endif %}">
+          <input type="hidden" id="rating" name="rating" value="{% if is_edit %}{{ spot.rating or '' }}{% endif %}">
           
           <!-- Spot Name -->
           <div class="flex flex-col gap-2 w-full">
@@ -239,6 +269,52 @@
             <p class="text-xs text-slate-500">新しいカテゴリーを入力するか、過去のカテゴリーから選択してください</p>
           </div>
 
+          <!-- Rating -->
+          <div class="flex flex-col gap-2 w-full">
+            <label class="text-sm font-bold text-neutral-900">評価</label>
+            <div class="rating-stars flex items-center gap-1"
+                 x-data="{
+                   rating: {{ '0' if not is_edit else spot.rating or '0' }},
+                   hoverRating: 0,
+                   setRating(star, event) {
+                     const target = event.currentTarget;
+                     const isHalf = (event.offsetX / target.clientWidth) < 0.5;
+                     this.rating = isHalf ? star - 0.5 : star;
+                   },
+                   setHoverRating(star, event) {
+                     if (event) {
+                       const target = event.currentTarget;
+                       const isHalf = (event.offsetX / target.clientWidth) < 0.5;
+                       this.hoverRating = isHalf ? star - 0.5 : star;
+                     } else {
+                       this.hoverRating = 0;
+                     }
+                   },
+                   getStarFill(star) {
+                     const R = this.hoverRating || this.rating;
+                     if (R >= star) return '100%';
+                     if (R > star - 1) return `${(R - (star - 1)) * 100}%`;
+                     return '0%';
+                   }
+                 }"
+                 @mouseleave="setHoverRating(0, null)">
+              <input type="hidden" id="rating" name="rating" x-model="rating">
+              <template x-for="star in 5" :key="star">
+                <div class="relative inline-block cursor-pointer text-3xl text-gray-300"
+                     @mousemove="setHoverRating(star, $event)"
+                     @click="setRating(star, $event)">
+                  <!-- background star (always gray) -->
+                  <span>★</span>
+                  <!-- foreground star (amber, clipped) -->
+                  <div class="absolute top-0 left-0 h-full overflow-hidden text-amber-400" :style="{ width: getStarFill(star) }">
+                    <span>★</span>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <p class="text-xs text-slate-500">星をクリックして評価を設定してください</p>
+          </div>
+
           <!-- Spot Description -->
           <div class="flex flex-col gap-2 w-full">
             <label for="description" class="text-sm font-bold text-neutral-900">説明</label>
@@ -248,63 +324,10 @@
               rows="4"
               placeholder="スポットの説明を入力"
               class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >{% if is_edit %}{{ spot.description }}{% endif %}</textarea>
+            >{{ spot.description if is_edit else '' }}</textarea>
           </div>
 
-          <!-- Rating -->
-          <div class="flex flex-col gap-2 w-full">
-            <label class="text-sm font-bold text-neutral-900">評価</label>
-            <div class="flex items-center gap-2">
-              <div class="flex items-center gap-1" id="star-rating">
-                <span class="star-container relative cursor-pointer" data-star="1">
-                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
-                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
-                </span>
-                <span class="star-container relative cursor-pointer" data-star="2">
-                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
-                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
-                </span>
-                <span class="star-container relative cursor-pointer" data-star="3">
-                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
-                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
-                </span>
-                <span class="star-container relative cursor-pointer" data-star="4">
-                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
-                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
-                </span>
-                <span class="star-container relative cursor-pointer" data-star="5">
-                  <span class="star-full text-2xl text-gray-300 transition-colors">★</span>
-                  <span class="star-half absolute top-0 left-0 text-2xl text-yellow-400 transition-colors overflow-hidden" style="width: 0%;">★</span>
-                </span>
-              </div>
-              <span id="rating-text" class="text-sm text-slate-500">評価を選択してください</span>
-            </div>
-            <input type="hidden" id="rating" name="rating" value="{% if is_edit and spot.rating %}{{ spot.rating }}{% endif %}">
-            <p class="text-xs text-slate-500">星をクリックして0.5刻みで評価してください</p>
-          </div>
-
-          <!-- Current Photos (ユーザーがアップロードした写真のみ) -->
-          {% if is_edit and photos and photos|length > 0 %}
-          <div class="flex flex-col gap-2 w-full">
-            <label class="text-sm font-bold text-neutral-900">現在の写真</label>
-            <p class="text-xs text-slate-500 mb-2">あなたがアップロードした写真です。削除したい写真の×ボタンをクリックしてください。</p>
-            <div class="flex flex-wrap gap-2 w-full">
-              {% for photo in photos %}
-                <div class="preview-item">
-                  <img
-                    src="{{ photo.photo_url }}"
-                    alt="スポット写真"
-                    class="w-full h-full object-cover rounded-lg"
-                  />
-                  <div class="remove-btn" data-photo-id="{{ photo.id }}">×</div>
-                  <input type="hidden" name="existing_photos" value="{{ photo.id }}">
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-          {% endif %}
-
-          <!-- Spot Photos -->
+          <!-- Photos -->
           <div class="flex flex-col gap-2 w-full">
             <label class="text-sm font-bold text-neutral-900">{% if is_edit %}新しい写真を追加{% else %}写真{% endif %}</label>
             <div class="flex flex-col gap-3 w-full">
@@ -346,143 +369,121 @@
                 </div>
               </div>
               <div
-                id="preview-container"
-                class="flex flex-wrap gap-2 w-full"
+                id="photo-preview-container"
+                class="grid grid-cols-3 gap-4"
               ></div>
             </div>
           </div>
-
-          <!-- アフィリエイトリンク設定 -->
-          <div class="flex flex-col gap-2 w-full">
-            <div class="flex justify-between items-center">
-              <label class="text-sm font-bold text-neutral-900">予約・アフィリエイトリンク</label>
-              {% if current_user.rakuten_affiliate_id and not is_edit %}
-                <span class="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded-full">自動設定が有効</span>
-              {% endif %}
+          
+          <!-- Optional Settings Accordion -->
+          <div class="flex flex-col gap-2 w-full" x-data="{ open: false }">
+            <!-- Accordion Header -->
+            <div @click="open = !open" class="flex items-center justify-between w-full cursor-pointer">
+              <label class="text-sm font-bold text-neutral-900">オプション設定</label>
+              <span class="transform transition-transform duration-200" :class="{'rotate-180': open}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              </span>
             </div>
             
-            {% if is_edit %}
-              <!-- 編集時は既存のアフィリエイトリンクを表示 -->
-              <!-- コントローラから直接渡されるrakuten_linkを使用 -->
-              
-              <div class="flex flex-col gap-4 p-4 bg-white rounded-xl border border-slate-200">
-                <div class="flex items-center gap-2">
-                  <img src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}" 
-                       alt="楽天トラベル" 
-                       class="w-6 h-6"
-                       onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'">
-                  <span class="font-medium">楽天トラベル</span>
-                </div>
-                
-                <div class="flex flex-col gap-2">
-                  <label for="rakuten_url" class="text-xs text-slate-500">URL</label>
-                  <input
-                    type="url"
-                    id="rakuten_url"
-                    name="rakuten_url"
-                    value="{{ rakuten_link.url if rakuten_link else '' }}"
-                    placeholder="https://..."
-                    class="px-3 py-2 text-sm bg-slate-100 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div class="flex items-center py-2">
-                  <div class="flex flex-col flex-1">
-                    <label for="rakuten_active" class="text-xs text-slate-500">表示設定</label>
-                    <p class="text-xs text-slate-500 mt-1">このリンクをスポット詳細に表示する</p>
-                  </div>
-                  <label
-                    class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[28px] w-[48px] cursor-pointer toggle-bg transition-colors duration-200 {% if rakuten_link and rakuten_link.is_active %}bg-blue-500{% endif %}"
-                    role="switch"
-                  >
-                    <input type="checkbox" name="rakuten_active" id="rakuten_active" class="toggle-switch sr-only" {% if rakuten_link and rakuten_link.is_active %}checked{% endif %} />
-                    <span
-                      class="toggle-slider flex bg-white rounded-2xl h-[24px] min-h-[24px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[24px] transition-all duration-200"
-                    ></span>
-                  </label>
-                </div>
-                
-                {% if current_user.rakuten_affiliate_id %}
-                <p class="text-xs text-slate-500 mt-2">
-                  <a href="{{ url_for('profile.affiliate_settings') }}" target="_blank" class="text-blue-600 hover:underline">アフィリエイト設定</a>からアフィリエイトIDを設定・管理できます。
-                </p>
-                {% else %}
-                <p class="text-xs text-slate-500 mt-2">
-                  <a href="{{ url_for('profile.affiliate_settings') }}" target="_blank" class="text-blue-600 hover:underline">アフィリエイト設定</a>からIDを設定すると、自動でリンクが生成されます。
-                </p>
-                {% endif %}
-              </div>
-            {% else %}
-              <!-- 新規登録時 -->
-              {% if current_user.rakuten_affiliate_id %}
-                <div class="flex flex-col p-4 bg-white rounded-xl border border-slate-200">
-                  <div class="flex items-center gap-2 mb-3">
-                    <img src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}" 
-                         alt="楽天トラベル" 
-                         class="w-6 h-6"
-                         onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'">
-                    <span class="font-medium">楽天トラベル</span>
-                  </div>
+            <!-- Accordion Content -->
+            <div x-show="open" x-transition class="w-full">
+              <div class="flex flex-col gap-4 pt-4">
+                <!-- SNS Links -->
+                <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl">
+                  <h3 class="text-sm font-bold text-neutral-900">SNS投稿の関連付け</h3>
+                  {% set social_platforms = {
+                    'instagram': 'Instagramの投稿URL',
+                    'tiktok': 'TikTokの投稿URL',
+                    'twitter': 'Twitterの投稿URL',
+                    'youtube': 'YouTubeの動画URL'
+                  } %}
                   
-                  <p class="text-sm text-slate-600">
-                    スポット名に基づいて、楽天トラベルのアフィリエイトリンクが自動的に追加されます。
-                  </p>
-                  <p class="text-xs text-blue-500 mt-2">
-                    アフィリエイトID「{{ current_user.rakuten_affiliate_id }}」を使用します
-                  </p>
-                </div>
-              {% else %}
-                <div class="flex flex-col p-4 bg-white rounded-xl border border-slate-200">
-                  <div class="flex items-center gap-2 mb-3">
-                    <img src="{{ url_for('static', filename='icons/affiliates/rakuten-travel.svg') }}" 
-                         alt="楽天トラベル" 
-                         class="w-6 h-6"
-                         onerror="this.src='{{ url_for('static', filename='images/default_profile.png') }}'">
-                    <span class="font-medium">楽天トラベル</span>
-                  </div>
-                  
-                  <p class="text-sm text-slate-600 mb-2">
-                    アフィリエイトIDを設定すると、スポット名に基づいて自動的にリンクが追加されます。
-                  </p>
-                  
-                  <div class="flex flex-col gap-2">
-                    <label for="rakuten_url" class="text-xs text-slate-500">URL</label>
+                  {% set spot_social_links = {} %}
+                  {% if is_edit and spot.social_posts %}
+                    {% for post in spot.social_posts %}
+                      {% if post.platform in social_platforms %}
+                        {% set _ = spot_social_links.update({post.platform: post.post_url}) %}
+                      {% endif %}
+                    {% endfor %}
+                  {% endif %}
+
+                  {% for platform, placeholder in social_platforms.items() %}
+                  <div class="flex flex-col gap-1.5 w-full">
+                    <label for="{{ platform }}_url" class="text-sm font-medium text-neutral-600">{{ platform|title }}</label>
                     <input
                       type="url"
-                      id="rakuten_url"
-                      name="rakuten_url"
-                      value=""
-                      placeholder="https://..."
-                      class="px-3 py-2 text-sm bg-slate-100 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      id="{{ platform }}_url"
+                      name="{{ platform }}_url"
+                      value="{{ spot_social_links.get(platform, '') }}"
+                      placeholder="{{ placeholder }}"
+                      class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                  {% endfor %}
+                </div>
+                
+                <!-- Affiliate Links -->
+                <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl"
+                     x-data="{
+                       otherLinks: {{ spot.affiliate_links|selectattr('platform', 'equalto', 'custom')|list|tojson if is_edit else '[]' }},
+                       addLink() {
+                         this.otherLinks.push({ id: null, title: '', url: '' });
+                       },
+                       removeLink(index) {
+                         this.otherLinks.splice(index, 1);
+                       }
+                     }">
+                  <h3 class="text-sm font-bold text-neutral-900">予約・アフィリエイトリンク</h3>
                   
-                  <div class="flex items-center py-2 mt-2">
-                    <div class="flex flex-col flex-1">
-                      <label for="rakuten_active" class="text-xs text-slate-500">表示設定</label>
-                      <p class="text-xs text-slate-500 mt-1">このリンクをスポット詳細に表示する</p>
-                    </div>
-                    <label
-                      class="flex p-0.5 rounded-2xl bg-slate-200 min-h-[28px] w-[48px] cursor-pointer toggle-bg transition-colors duration-200"
-                      role="switch"
-                    >
-                      <input type="checkbox" name="rakuten_active" id="rakuten_active" class="toggle-switch sr-only" checked />
-                      <span
-                        class="toggle-slider flex bg-white rounded-2xl h-[24px] min-h-[24px] shadow-[0px_3px_8px_rgba(0,0,0,0.15)] w-[24px] transition-all duration-200"
-                      ></span>
-                    </label>
+                  <!-- Rakuten Link (Fixed) -->
+                  <div class="flex flex-col gap-1.5">
+                    <label for="rakuten_url" class="text-sm font-medium text-neutral-600">楽天トラベル URL</label>
+                    <input type="url" id="rakuten_url" name="rakuten_url" value="{{ rakuten_link.url if rakuten_link else '' }}" placeholder="楽天トラベルのURL" class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                   </div>
                   
-                  <p class="text-xs text-slate-500 mt-2">
-                    <a href="{{ url_for('profile.affiliate_settings') }}" target="_blank" class="text-blue-600 hover:underline">アフィリエイト設定</a>からIDを設定すると、自動でリンクが生成されます。
-                  </p>
+                  {% if current_user.rakuten_affiliate_id %}
+                    <p class="text-xs text-slate-500 mt-1">
+                      <a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイトID設定済み</a>: この項目が空の場合、スポット名に一致するホテルを自動で検索し、アフィリエイトリンクを生成します。
+                    </p>
+                  {% else %}
+                    <p class="text-xs text-slate-500 mt-1">
+                      楽天アフィリエイトIDをお持ちの場合は、<a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイト設定</a>から登録すると、URLが空の場合にリンクが自動生成されます。
+                    </p>
+                  {% endif %}
+
+                  <!-- Divider -->
+                  <hr class="border-t border-slate-200 my-2">
+
+                  <!-- Other Links Section -->
+                  <h4 class="text-sm font-bold text-neutral-900">その他のリンク</h4>
+                  <div class="flex flex-col gap-4">
+                    <template x-for="(link, index) in otherLinks" :key="index">
+                      <div class="flex flex-col gap-3 p-3 bg-white rounded-lg border border-slate-200">
+                        <input type="hidden" :name="'other_links[' + index + '][id]'" x-model="link.id">
+                        <div class="flex flex-col gap-1.5">
+                          <label :for="'other_link_title_' + index" class="text-sm font-medium text-neutral-600">サイト名</label>
+                          <input type="text" :id="'other_link_title_' + index" :name="'other_links[' + index + '][title]'" x-model="link.title" placeholder="例: 公式サイト" class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                          <label :for="'other_link_url_' + index" class="text-sm font-medium text-neutral-600">URL</label>
+                          <input type="url" :id="'other_link_url_' + index" :name="'other_links[' + index + '][url]'" x-model="link.url" placeholder="https://..." class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <button type="button" @click="removeLink(index)" class="text-sm text-red-500 hover:text-red-700 self-end">削除</button>
+                      </div>
+                    </template>
+                  </div>
+                  <button type="button" @click="addLink()" class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                    リンクを追加
+                  </button>
+
                 </div>
-              {% endif %}
-            {% endif %}
+              </div>
+            </div>
           </div>
 
-          <!-- Active Status -->
-          <div class="flex items-center py-3 mb-5 w-full">
+          <!-- is_active Toggle -->
+          <div class="flex items-center justify-between w-full">
             <div class="flex flex-col flex-1">
               <label for="is_active" class="text-sm font-medium text-slate-700">表示設定</label>
               <p class="text-xs text-slate-500 mt-1">このスポットをマイページに表示する</p>
@@ -599,6 +600,7 @@
       </div>
     </div>
 
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
       // グローバルエラーハンドリング
       window.addEventListener('error', function(event) {
@@ -606,186 +608,109 @@
         alert('ページの読み込み中にエラーが発生しました。ページをリロードしてください。');
       });
 
-      // 外部リソースの読み込みエラーを検知
-      window.addEventListener('load', function() {
-        const scripts = document.getElementsByTagName('script');
-        for (let i = 0; i < scripts.length; i++) {
-          if (!scripts[i].loaded && scripts[i].src) {
-            console.warn('Script may not have loaded properly:', scripts[i].src);
-          }
-        }
-      });
-
-      // トグルスイッチの挙動を設定
       document.addEventListener('DOMContentLoaded', function() {
-        // メインの表示設定トグルスイッチ
+        // グローバル変数として地図とマーカーを定義
+        let globalMap = null;
+        let globalMarker = null;
+
+        // トグルスイッチの挙動を設定
         const isActiveToggleSwitch = document.getElementById('is_active');
         const isActiveToggleBg = document.getElementById('is-active-toggle-bg');
-        
-        // 初期状態の設定
         if (isActiveToggleSwitch && isActiveToggleBg) {
-          // 初期表示時にチェック状態に合わせて背景色を設定
-          if (isActiveToggleSwitch.checked) {
-            isActiveToggleBg.classList.remove('bg-slate-200');
-            isActiveToggleBg.classList.add('bg-blue-500');
-          } else {
-            isActiveToggleBg.classList.remove('bg-blue-500');
-            isActiveToggleBg.classList.add('bg-slate-200');
-          }
-          
-          // クリックイベントのハンドラ
-          isActiveToggleSwitch.addEventListener('change', function() {
-            if (this.checked) {
+          const updateToggleState = () => {
+            if (isActiveToggleSwitch.checked) {
               isActiveToggleBg.classList.remove('bg-slate-200');
               isActiveToggleBg.classList.add('bg-blue-500');
             } else {
               isActiveToggleBg.classList.remove('bg-blue-500');
               isActiveToggleBg.classList.add('bg-slate-200');
             }
+          };
+          updateToggleState();
+          isActiveToggleSwitch.addEventListener('change', updateToggleState);
+        }
+
+        // File upload preview
+        const fileInput = document.getElementById('photos');
+        const previewContainer = document.getElementById('photo-preview-container');
+        const dropArea = document.getElementById('drop-area');
+        
+        if(fileInput && previewContainer && dropArea) {
+          const handleFiles = () => {
+            const files = fileInput.files;
+            const maxSizePerFile = 10 * 1024 * 1024; // 10MB
+            let hasError = false;
+            
+            previewContainer.innerHTML = ''; // Clear previous previews
+
+            for (let i = 0; i < files.length; i++) {
+              const file = files[i];
+              if (!file.type.startsWith('image/')) {
+                maplinkToast.error(`${file.name} は画像ファイルではありません。`);
+                hasError = true;
+                continue;
+              }
+              if (file.size > maxSizePerFile) {
+                maplinkToast.error(`${file.name} のサイズが大きすぎます（10MB以下）。`);
+                hasError = true;
+                continue;
+              }
+              
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = 'Preview';
+                const removeBtn = document.createElement('div');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '×';
+                removeBtn.onclick = () => {
+                  // This is a simplified removal. For a better UX, you'd manage a FileList object.
+                  previewItem.remove();
+                };
+                previewItem.appendChild(img);
+                previewItem.appendChild(removeBtn);
+                previewContainer.appendChild(previewItem);
+              };
+              reader.readAsDataURL(file);
+            }
+            if (hasError) {
+              fileInput.value = ''; 
+              previewContainer.innerHTML = '';
+            }
+          }
+
+          fileInput.addEventListener('change', handleFiles);
+          dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.classList.add('border-blue-500'); });
+          dropArea.addEventListener('dragleave', () => { dropArea.classList.remove('border-blue-500'); });
+          dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('border-blue-500');
+            if (e.dataTransfer.files.length) {
+              fileInput.files = e.dataTransfer.files;
+              handleFiles();
+            }
           });
         }
         
-        // 楽天トラベルのトグルスイッチ
-        const rakutenToggleSwitch = document.getElementById('rakuten_active');
-        if (rakutenToggleSwitch) {
-          const rakutenToggleBg = rakutenToggleSwitch.closest('.toggle-bg');
-          
-          // 初期状態の設定
-          if (rakutenToggleBg) {
-            if (rakutenToggleSwitch.checked) {
-              rakutenToggleBg.classList.remove('bg-slate-200');
-              rakutenToggleBg.classList.add('bg-blue-500');
-            } else {
-              rakutenToggleBg.classList.remove('bg-blue-500');
-              rakutenToggleBg.classList.add('bg-slate-200');
-            }
-            
-            // クリックイベントのハンドラ
-            rakutenToggleSwitch.addEventListener('change', function() {
-              if (this.checked) {
-                rakutenToggleBg.classList.remove('bg-slate-200');
-                rakutenToggleBg.classList.add('bg-blue-500');
-              } else {
-                rakutenToggleBg.classList.remove('bg-blue-500');
-                rakutenToggleBg.classList.add('bg-slate-200');
-              }
-            });
-          }
-        }
-      });
-
-      // File upload preview
-      const fileInput = document.getElementById('photos');
-      const previewContainer = document.getElementById('preview-container');
-      const dropArea = document.getElementById('drop-area');
-      
-      // Handle file selection
-      fileInput.addEventListener('change', handleFiles);
-      
-      // Drag and drop functionality
-      dropArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropArea.classList.add('border-blue-500');
-      });
-      
-      dropArea.addEventListener('dragleave', () => {
-        dropArea.classList.remove('border-blue-500');
-      });
-      
-      dropArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropArea.classList.remove('border-blue-500');
-        if (e.dataTransfer.files.length) {
-          fileInput.files = e.dataTransfer.files;
-          handleFiles();
-        }
-      });
-      
-      function handleFiles() {
-        const files = fileInput.files;
-        const maxSizePerFile = 10 * 1024 * 1024; // 10MB
-        let hasError = false;
-        
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          
-          // ファイル形式チェック
-          if (!file.type.startsWith('image/')) {
-            maplinkToast.error(`${file.name} は画像ファイルではありません。JPG、PNG、GIF形式をお選びください。`);
-            hasError = true;
-            continue;
-          }
-          
-          // ファイルサイズチェック
-          if (file.size > maxSizePerFile) {
-            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-            maplinkToast.error(`${file.name} のサイズが大きすぎます（${fileSizeMB}MB）。1枚あたり10MB以下の画像をお選びください。`);
-            hasError = true;
-            continue;
-          }
-          
-          const reader = new FileReader();
-          
-          reader.onload = function(e) {
-            const previewItem = document.createElement('div');
-            previewItem.className = 'preview-item';
-            
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.alt = 'Preview';
-            
-            const removeBtn = document.createElement('div');
-            removeBtn.className = 'remove-btn';
-            removeBtn.innerHTML = '×';
-            removeBtn.addEventListener('click', function() {
-              previewItem.remove();
-              // Note: This doesn't actually remove the file from the input
-              // In a real app, you'd need to handle this properly
-            });
-            
-            previewItem.appendChild(img);
-            previewItem.appendChild(removeBtn);
-            previewContainer.appendChild(previewItem);
-          };
-          
-          reader.readAsDataURL(file);
-        }
-        
-        // エラーがあった場合はファイル入力をクリア
-        if (hasError) {
-          // 正常なファイルがある場合はそれだけを残す処理は複雑なので、
-          // エラーメッセージで対応し、ユーザーに再選択を促す
-          fileInput.value = '';
-          previewContainer.innerHTML = '';
-        }
-      }
-      
-      // Remove existing photo functionality
-      document.querySelectorAll('.remove-btn[data-photo-id]').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const photoId = this.dataset.photoId;
-          const previewItem = this.closest('.preview-item');
-          
-          // Add a hidden input to mark this photo for deletion
-          const deleteInput = document.createElement('input');
-          deleteInput.type = 'hidden';
-          deleteInput.name = 'delete_photos';
-          deleteInput.value = photoId;
-          document.querySelector('form').appendChild(deleteInput);
-          
-          // Hide the preview item
-          previewItem.style.display = 'none';
+        // Remove existing photo functionality
+        document.querySelectorAll('.remove-btn[data-photo-id]').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const photoId = this.dataset.photoId;
+            const previewItem = this.closest('.preview-item');
+            const deleteInput = document.createElement('input');
+            deleteInput.type = 'hidden';
+            deleteInput.name = 'delete_photos';
+            deleteInput.value = photoId;
+            document.querySelector('form').appendChild(deleteInput);
+            previewItem.style.display = 'none';
+          });
         });
-      });
 
-      // グローバル変数として地図とマーカーを定義
-      let globalMap = null;
-      let globalMarker = null;
-      
-      document.addEventListener('DOMContentLoaded', function() {
-        console.log('=== 地図とオートコンプリートの初期化を開始 ===');
+        // 地図とオートコンプリートの初期化
         try {
-          // オートコンプリート関連の要素
           const spotNameInput = document.getElementById('spotName');
           const autocompleteResults = document.getElementById('autocomplete-results');
           const loadingIndicator = document.getElementById('loading-indicator');
@@ -796,77 +721,28 @@
           const formattedAddressInput = document.getElementById('formatted_address');
           const typesInput = document.getElementById('types');
           const thumbnailUrlInput = document.getElementById('thumbnail_url');
-          const searchButton = document.getElementById('search-location');
           
-          // 初期位置（東京）
-          let initialLat = 35.6812;
-          let initialLng = 139.7671;
-          let initialZoom = 13;
+          let initialLat = 35.6812, initialLng = 139.7671, initialZoom = 13;
           
-          // スポットデータをdata属性から取得
           const spotDataElement = document.getElementById('spot-data');
           const isEdit = spotDataElement.dataset.isEdit === 'true';
           const spotLat = spotDataElement.dataset.latitude ? parseFloat(spotDataElement.dataset.latitude) : null;
           const spotLng = spotDataElement.dataset.longitude ? parseFloat(spotDataElement.dataset.longitude) : null;
           
-          // 編集時は既存の位置情報を使用
           if (isEdit && spotLat && spotLng) {
             initialLat = spotLat;
             initialLng = spotLng;
             initialZoom = 15;
           }
           
-          console.log('Initializing map...');
-          
-          // 地図の初期化
           if (typeof initMap === 'function') {
-            try {
-              globalMap = initMap('location-map', {
-                center: [initialLat, initialLng],
-                zoom: initialZoom
-              });
-              console.log('Map initialized successfully');
-              
-              // ジオコーディングコントロールを追加
-              if (L && L.Control && L.Control.geocoder) {
-                L.Control.geocoder({
-                  defaultMarkGeocode: false
-                }).on('markgeocode', function(e) {
-                  const latlng = e.geocode.center;
-                  updateMarkerAndInputs(latlng.lat, latlng.lng, e.geocode.name);
-                  globalMap.fitBounds(e.geocode.bbox);
-                }).addTo(globalMap);
-              } else {
-                console.error('Leaflet Control Geocoder not loaded');
-              }
-              
-              // 編集時は既存の位置情報でマーカーを表示
-              if (latitudeInput.value && longitudeInput.value) {
-                globalMarker = addMarker(globalMap, parseFloat(latitudeInput.value), parseFloat(longitudeInput.value), {
-                  draggable: true
-                });
-                
-                // マーカードラッグ時の処理
-                globalMarker.on('dragend', function(e) {
-                  const latlng = e.target.getLatLng();
-                  updateInputs(latlng.lat, latlng.lng);
-                  
-                  // 逆ジオコーディングで住所を取得
-                  reverseGeocode(latlng.lat, latlng.lng).then(result => {
-                    if (result) {
-                      locationInput.value = result.address;
-                      document.getElementById('summary_location').value = result.summary_location;
-                    }
-                  });
-                });
-              }
-              
-              // 地図クリック時の処理
-              globalMap.on('click', function(e) {
-                const latlng = e.latlng;
-                updateMarkerAndInputs(latlng.lat, latlng.lng);
-                
-                // 逆ジオコーディングで住所を取得
+            globalMap = initMap('location-map', { center: [initialLat, initialLng], zoom: initialZoom });
+            
+            if (latitudeInput.value && longitudeInput.value) {
+              globalMarker = addMarker(globalMap, parseFloat(latitudeInput.value), parseFloat(longitudeInput.value), { draggable: true });
+              globalMarker.on('dragend', function(e) {
+                const latlng = e.target.getLatLng();
+                updateInputs(latlng.lat, latlng.lng);
                 reverseGeocode(latlng.lat, latlng.lng).then(result => {
                   if (result) {
                     locationInput.value = result.address;
@@ -874,228 +750,120 @@
                   }
                 });
               });
-              
-              // 検索ボタンクリック時の処理
-              searchButton.addEventListener('click', function() {
-                const address = locationInput.value;
-                if (address) {
-                  geocodeAddress(address).then(result => {
-                    if (result) {
-                      updateMarkerAndInputs(result.lat, result.lng, result.displayName);
-                      globalMap.setView([result.lat, result.lng], 15);
-                      
-                      // 逆ジオコーディングでサマリーロケーションを取得
-                      reverseGeocode(result.lat, result.lng).then(geoResult => {
-                        if (geoResult && geoResult.summary_location) {
-                          document.getElementById('summary_location').value = geoResult.summary_location;
-                        }
-                      });
-                    } else {
-                      alert('場所が見つかりませんでした。別の住所を試してください。');
-                    }
-                  });
+            }
+            
+            globalMap.on('click', function(e) {
+              const latlng = e.latlng;
+              updateMarkerAndInputs(latlng.lat, latlng.lng);
+              reverseGeocode(latlng.lat, latlng.lng).then(result => {
+                if (result) {
+                  locationInput.value = result.address;
+                  document.getElementById('summary_location').value = result.summary_location;
                 }
               });
-              
-            } catch (mapError) {
-              console.error('Failed to initialize map:', mapError);
-            }
+            });
           }
           
-          // 入力フィールドを更新する関数
           function updateInputs(lat, lng) {
             latitudeInput.value = lat;
             longitudeInput.value = lng;
           }
           
-          // マーカーと入力フィールドを更新する関数
           function updateMarkerAndInputs(lat, lng, address = null) {
-            console.log('マーカー更新関数が呼ばれました:', { lat, lng, address });
             updateInputs(lat, lng);
-            
-            if (address) {
-              locationInput.value = address;
-            }
-            
+            if (address) locationInput.value = address;
             if (globalMarker) {
-              console.log('既存のマーカーを更新します');
               globalMarker.setLatLng([lat, lng]);
             } else {
-              console.log('新しいマーカーを作成します');
-              try {
-                globalMarker = addMarker(globalMap, lat, lng, {
-                  draggable: true
+              globalMarker = addMarker(globalMap, lat, lng, { draggable: true });
+              globalMarker.on('dragend', function(e) {
+                const latlng = e.target.getLatLng();
+                updateInputs(latlng.lat, latlng.lng);
+                reverseGeocode(latlng.lat, latlng.lng).then(result => {
+                  if (result) {
+                    locationInput.value = result.address;
+                    document.getElementById('summary_location').value = result.summary_location;
+                  }
                 });
-                console.log('マーカー作成成功:', globalMarker);
-                
-                // マーカードラッグ時の処理
-                globalMarker.on('dragend', function(e) {
-                  const latlng = e.target.getLatLng();
-                  updateInputs(latlng.lat, latlng.lng);
-                  
-                  // 逆ジオコーディングで住所を取得
-                  reverseGeocode(latlng.lat, latlng.lng).then(result => {
-                    if (result) {
-                      locationInput.value = result.address;
-                      document.getElementById('summary_location').value = result.summary_location;
-                    }
-                  });
-                });
-              } catch (error) {
-                console.error('マーカー作成エラー:', error);
-              }
+              });
             }
           }
           
-          // オートコンプリートの設定
           let timeout = null;
-          
-          // 入力時の処理
           spotNameInput.addEventListener('input', function() {
             const query = this.value.trim();
-            
-            // ローディングインジケータを表示
             loadingIndicator.classList.remove('hidden');
-            
-            // デバウンス処理
             clearTimeout(timeout);
             timeout = setTimeout(() => {
-              if (query.length >= 3) {
+              if (query.length >= 2) {
                 fetch(`/api/places/autocomplete?query=${encodeURIComponent(query)}`)
                   .then(response => response.json())
                   .then(suggestions => {
-                    // ローディングインジケータを非表示
                     loadingIndicator.classList.add('hidden');
                     displaySuggestions(suggestions);
                   })
                   .catch(error => {
                     console.error('Error fetching suggestions:', error);
-                    // ローディングインジケータを非表示
                     loadingIndicator.classList.add('hidden');
                   });
               } else {
-                // ローディングインジケータを非表示
                 loadingIndicator.classList.add('hidden');
-                // 候補リストを非表示
                 autocompleteResults.classList.add('hidden');
               }
-            }, 500);
+            }, 300);
           });
           
-          // フォーカス時にも候補を表示
-          spotNameInput.addEventListener('focus', function() {
-            if (this.value.trim().length >= 3) {
-              fetch(`/api/places/autocomplete?query=${encodeURIComponent(this.value.trim())}`)
-                .then(response => response.json())
-                .then(suggestions => {
-                  displaySuggestions(suggestions);
-                })
-                .catch(error => {
-                  console.error('Error fetching suggestions:', error);
-                });
-            }
-          });
-          
-          // 候補表示関数
           function displaySuggestions(suggestions) {
             autocompleteResults.innerHTML = '';
-            
             if (suggestions.length === 0) {
               autocompleteResults.classList.add('hidden');
               return;
             }
-            
             suggestions.forEach(suggestion => {
               const item = document.createElement('div');
               item.className = 'autocomplete-item';
-              
-              // メインテキストとセカンダリテキストを表示
-              const mainText = document.createElement('div');
-              mainText.className = 'font-medium';
-              mainText.textContent = suggestion.description;
-              
-              const secondaryText = document.createElement('div');
-              secondaryText.className = 'text-sm text-gray-500';
-              secondaryText.textContent = suggestion.secondary_text || '';
-              
-              item.appendChild(mainText);
-              item.appendChild(secondaryText);
-              
+              item.innerHTML = `
+                <div class="font-medium">${suggestion.description}</div>
+                <div class="text-sm text-gray-500">${suggestion.secondary_text || ''}</div>
+              `;
               item.addEventListener('click', () => {
                 selectPlace(suggestion.place_id);
-                // クリックイベントの伝播を停止して確実に候補リストを閉じる
                 autocompleteResults.classList.add('hidden');
-                // フォーカスを移動
                 locationInput.focus();
               });
-              
               autocompleteResults.appendChild(item);
             });
-            
             autocompleteResults.classList.remove('hidden');
           }
           
-          // 候補選択関数
           function selectPlace(placeId) {
-            // ローディングインジケータを表示
             loadingIndicator.classList.remove('hidden');
-            
             fetch(`/api/places/details?place_id=${placeId}`)
               .then(response => response.json())
               .then(data => {
-                // ローディングインジケータを非表示
                 loadingIndicator.classList.add('hidden');
-                
-                // フォームに詳細情報を入力
                 spotNameInput.value = data.name;
                 locationInput.value = data.formatted_address;
                 latitudeInput.value = data.latitude;
                 longitudeInput.value = data.longitude;
                 googlePlaceIdInput.value = data.place_id;
                 formattedAddressInput.value = data.formatted_address;
+                if (data.summary_location) document.getElementById('summary_location').value = data.summary_location;
+                if (data.types && data.types.length > 0) typesInput.value = JSON.stringify(data.types);
+                if (data.thumbnail_url) thumbnailUrlInput.value = data.thumbnail_url;
                 
-                // サマリーロケーションを設定
-                if (data.summary_location) {
-                  document.getElementById('summary_location').value = data.summary_location;
-                }
-                
-                // カテゴリ情報があれば設定
-                if (data.types && data.types.length > 0) {
-                  // typesをJSON文字列として保存
-                  typesInput.value = JSON.stringify(data.types);
-                }
-                
-                // サムネイル画像URLがあれば設定
-                if (data.thumbnail_url) {
-                  thumbnailUrlInput.value = data.thumbnail_url;
-                }
-                
-                // 地図を更新
                 if (globalMap && data.latitude && data.longitude) {
-                  console.log('更新前の地図状態:', globalMap);
-                  console.log('マーカー更新処理を開始します:', data.latitude, data.longitude);
                   updateMarkerAndInputs(data.latitude, data.longitude);
                   globalMap.setView([data.latitude, data.longitude], 15);
-                  console.log('マーカー更新完了', data.latitude, data.longitude);
-                } else {
-                  console.error('地図更新ができません:', {
-                    mapExists: !!globalMap,
-                    lat: data.latitude,
-                    lng: data.longitude
-                  });
                 }
-                
-                // 候補リストを非表示
                 autocompleteResults.classList.add('hidden');
               })
               .catch(error => {
                 console.error('Error fetching place details:', error);
-                // ローディングインジケータを非表示
                 loadingIndicator.classList.add('hidden');
               });
           }
           
-          // クリックイベントのハンドリング（候補リスト以外をクリックしたら候補を非表示）
           document.addEventListener('click', function(e) {
             if (!autocompleteResults.contains(e.target) && e.target !== spotNameInput) {
               autocompleteResults.classList.add('hidden');
@@ -1105,256 +873,62 @@
         } catch (error) {
           console.error('Error initializing map and autocomplete:', error);
         }
-      });
 
-      // カテゴリの自動補完機能
-      document.addEventListener('DOMContentLoaded', function() {
-        const categoryInput = document.getElementById('category');
-        const categoryResults = document.getElementById('category-autocomplete-results');
-        const categoryLoadingIndicator = document.getElementById('category-loading-indicator');
-        let categories = [];
-        
-        // カテゴリ一覧を取得
-        console.log('Fetching categories...');
-        fetch('/api/user/categories')
-          .then(response => response.json())
-          .then(data => {
-            console.log('Received categories:', data);
-            categories = data;
-            
-            // フォーカス時に候補を表示するためのイベントリスナーを追加
-            categoryInput.addEventListener('focus', function() {
-              console.log('Input focused, current categories:', categories);
-              if (categories.length > 0) {
+        // カテゴリの自動補完機能
+        try {
+          const categoryInput = document.getElementById('category');
+          const categoryResults = document.getElementById('category-autocomplete-results');
+          
+          fetch('/api/user/categories')
+            .then(response => response.json())
+            .then(categories => {
+              const showCategorySuggestions = (query = '') => {
+                const filtered = categories.filter(c => c.toLowerCase().includes(query.toLowerCase()));
                 categoryResults.innerHTML = '';
-                
-                categories.forEach(category => {
-                  const item = document.createElement('div');
-                  item.className = 'autocomplete-item';
-                  item.textContent = category;
-                  
-                  item.addEventListener('click', () => {
-                    categoryInput.value = category;
-                    categoryResults.classList.add('hidden');
-                    // フォーカスを次の入力項目に移動
-                    document.getElementById('description').focus();
+                if (filtered.length > 0) {
+                  filtered.forEach(category => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.textContent = category;
+                    item.addEventListener('click', () => {
+                      categoryInput.value = category;
+                      categoryResults.classList.add('hidden');
+                      document.getElementById('description').focus();
+                    });
+                    categoryResults.appendChild(item);
                   });
-                  
-                  categoryResults.appendChild(item);
-                });
-                
-                categoryResults.classList.remove('hidden');
-              }
-            });
-            
-            // 入力時の処理
-            categoryInput.addEventListener('input', function() {
-              const query = this.value.toLowerCase().trim();
-              console.log('Input changed:', query);
-              
-              // 結果をクリア
-              categoryResults.innerHTML = '';
-              
-              if (query.length === 0) {
-                categoryResults.classList.add('hidden');
-                return;
-              }
-              
-              // 一致するカテゴリを検索
-              const matches = categories.filter(category => 
-                category.toLowerCase().includes(query)
-              );
-              console.log('Matching categories:', matches);
-              
-              if (matches.length === 0) {
-                categoryResults.classList.add('hidden');
-                return;
-              }
-              
-              // 結果を表示
-              matches.forEach(category => {
-                const item = document.createElement('div');
-                item.className = 'autocomplete-item';
-                item.textContent = category;
-                
-                item.addEventListener('click', () => {
-                  categoryInput.value = category;
+                  categoryResults.classList.remove('hidden');
+                } else {
                   categoryResults.classList.add('hidden');
-                  // フォーカスを次の入力項目に移動
-                  document.getElementById('description').focus();
-                });
-                
-                categoryResults.appendChild(item);
-              });
+                }
+              };
               
-              categoryResults.classList.remove('hidden');
-            });
-          })
-          .catch(error => {
-            console.error('Error fetching categories:', error);
-            categoryLoadingIndicator.classList.add('hidden');
-          });
-        
-        // クリックイベントのハンドリング（候補リスト以外をクリックしたら候補を非表示）
-        document.addEventListener('click', function(e) {
-          if (!categoryResults.contains(e.target) && e.target !== categoryInput) {
-            categoryResults.classList.add('hidden');
-          }
-        });
-      });
+              categoryInput.addEventListener('focus', () => showCategorySuggestions(categoryInput.value));
+              categoryInput.addEventListener('input', () => showCategorySuggestions(categoryInput.value));
+              
+              document.addEventListener('click', function(e) {
+                if (!categoryResults.contains(e.target) && e.target !== categoryInput) {
+                  categoryResults.classList.add('hidden');
+                }
+              });
+            })
+            .catch(error => console.error('Error fetching categories:', error));
+        } catch(error) {
+          console.error('Error setting up category autocomplete:', error);
+        }
 
-      // 削除機能の実装
-      document.addEventListener('DOMContentLoaded', function() {
+        // 削除機能の実装
         const deleteBtn = document.getElementById('delete-spot-btn');
         const modal = document.getElementById('delete-confirm-modal');
         const cancelBtn = document.getElementById('cancel-delete-btn');
-
-        if (deleteBtn) {
-          deleteBtn.addEventListener('click', function() {
-            modal.classList.remove('hidden');
-            document.body.classList.add('modal-open');
-          });
-        }
-
-        if (cancelBtn) {
-          cancelBtn.addEventListener('click', function() {
-            modal.classList.add('hidden');
-            document.body.classList.remove('modal-open');
-          });
-        }
-
-        // モーダルの外側をクリックしたときにモーダルを閉じる
-        modal.addEventListener('click', function(e) {
-          if (e.target === modal) {
-            modal.classList.add('hidden');
-            document.body.classList.remove('modal-open');
-          }
-        });
-      });
-
-      // 星評価機能の実装（0.5刻み対応）
-      document.addEventListener('DOMContentLoaded', function() {
-        const starContainers = document.querySelectorAll('.star-container');
-        const ratingInput = document.getElementById('rating');
-        const ratingText = document.getElementById('rating-text');
-        
-        // 編集時の既存評価を表示
-        const currentRating = ratingInput.value;
-        if (currentRating) {
-          updateStarDisplay(parseFloat(currentRating));
-        }
-        
-        // 星クリック時の処理
-        starContainers.forEach(container => {
-          container.addEventListener('click', function(e) {
-            const starNumber = parseInt(this.dataset.star);
-            const rect = this.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const starWidth = rect.width;
-            
-            // クリック位置が左半分か右半分かで0.5刻みを判定
-            let rating;
-            if (clickX < starWidth / 2) {
-              // 左半分クリック = 0.5
-              rating = starNumber - 0.5;
-            } else {
-              // 右半分クリック = 1.0
-              rating = starNumber;
-            }
-            
-            ratingInput.value = rating;
-            updateStarDisplay(rating);
-          });
-          
-          // ホバー効果
-          container.addEventListener('mousemove', function(e) {
-            const starNumber = parseInt(this.dataset.star);
-            const rect = this.getBoundingClientRect();
-            const hoverX = e.clientX - rect.left;
-            const starWidth = rect.width;
-            
-            let hoverRating;
-            if (hoverX < starWidth / 2) {
-              hoverRating = starNumber - 0.5;
-            } else {
-              hoverRating = starNumber;
-            }
-            
-            highlightStars(hoverRating);
-          });
-        });
-        
-        // 星評価エリアからマウスが離れた時の処理
-        document.getElementById('star-rating').addEventListener('mouseleave', function() {
-          const currentRating = ratingInput.value;
-          if (currentRating) {
-            updateStarDisplay(parseFloat(currentRating));
-          } else {
-            resetStars();
-          }
-        });
-        
-        function updateStarDisplay(rating) {
-          starContainers.forEach((container, index) => {
-            const starNumber = index + 1;
-            const starFull = container.querySelector('.star-full');
-            const starHalf = container.querySelector('.star-half');
-            
-            if (rating >= starNumber) {
-              // 満点の星
-              starFull.classList.remove('text-gray-300');
-              starFull.classList.add('text-yellow-400');
-              starHalf.style.width = '0%';
-            } else if (rating >= starNumber - 0.5) {
-              // 半分の星
-              starFull.classList.remove('text-yellow-400');
-              starFull.classList.add('text-gray-300');
-              starHalf.style.width = '50%';
-            } else {
-              // 空の星
-              starFull.classList.remove('text-yellow-400');
-              starFull.classList.add('text-gray-300');
-              starHalf.style.width = '0%';
+        if (deleteBtn && modal && cancelBtn) {
+          deleteBtn.addEventListener('click', () => { modal.classList.remove('hidden'); document.body.classList.add('modal-open'); });
+          cancelBtn.addEventListener('click', () => { modal.classList.add('hidden'); document.body.classList.remove('modal-open'); });
+          modal.addEventListener('click', (e) => { 
+            if (e.target === modal) {
+              modal.classList.add('hidden'); document.body.classList.remove('modal-open');
             }
           });
-          
-          ratingText.textContent = `${rating}`;
-        }
-        
-        function highlightStars(rating) {
-          starContainers.forEach((container, index) => {
-            const starNumber = index + 1;
-            const starFull = container.querySelector('.star-full');
-            const starHalf = container.querySelector('.star-half');
-            
-            if (rating >= starNumber) {
-              // 満点の星
-              starFull.classList.remove('text-gray-300');
-              starFull.classList.add('text-yellow-400');
-              starHalf.style.width = '0%';
-            } else if (rating >= starNumber - 0.5) {
-              // 半分の星
-              starFull.classList.remove('text-yellow-400');
-              starFull.classList.add('text-gray-300');
-              starHalf.style.width = '50%';
-            } else {
-              // 空の星
-              starFull.classList.remove('text-yellow-400');
-              starFull.classList.add('text-gray-300');
-              starHalf.style.width = '0%';
-            }
-          });
-        }
-        
-        function resetStars() {
-          starContainers.forEach(container => {
-            const starFull = container.querySelector('.star-full');
-            const starHalf = container.querySelector('.star-half');
-            starFull.classList.remove('text-yellow-400');
-            starFull.classList.add('text-gray-300');
-            starHalf.style.width = '0%';
-          });
-          ratingText.textContent = '評価を選択してください';
         }
       });
     </script>

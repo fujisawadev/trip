@@ -34,25 +34,8 @@ class QuickPromptGenerator:
         self.spot_prompts = [
             QuickPrompt("ここへの行き方を教えて", "access", "🚶", 1),
             QuickPrompt("営業時間・料金を知りたい", "info", "🎫", 2),
-            QuickPrompt("ベストな訪問時間は？", "timing", "⏰", 3),
-            QuickPrompt("周辺のおすすめスポットは？", "nearby", "📍", 4),
+            QuickPrompt("周辺のおすすめスポットは？", "nearby", "📍", 3),
         ]
-        
-        # カテゴリ別追加プロンプト
-        self.category_prompts = {
-            'food': [
-                QuickPrompt("おすすめメニューは？", "food", "😋", 5),
-                QuickPrompt("価格帯はどのくらい？", "food", "💴", 6),
-            ],
-            'nature': [
-                QuickPrompt("絶景ポイントはどこ？", "nature", "🌄", 5),
-                QuickPrompt("天気による影響は？", "nature", "☀️", 6),
-            ],
-            'culture': [
-                QuickPrompt("歴史や背景を教えて", "culture", "🏛️", 5),
-                QuickPrompt("体験できることは？", "culture", "🎭", 6),
-            ]
-        }
     
     def generate_for_profile(self, influencer_info: Dict, spots: List[Dict]) -> List[QuickPrompt]:
         """プロフィールページ用のクイックプロンプト生成（総合窓口）"""
@@ -69,41 +52,14 @@ class QuickPromptGenerator:
         try:
             prompts = self.spot_prompts.copy()
             
-            # スポットタイプに応じた専門プロンプトを追加
-            spot_type = self._detect_spot_type(spot_info)
-            
-            if spot_type in self.category_prompts:
-                # カテゴリ別プロンプトを1つ追加
-                category_prompt = self.category_prompts[spot_type][0]
-                prompts.append(category_prompt)
-            
             # 優先度順にソート
             prompts.sort(key=lambda x: x.priority)
             
-            return prompts[:5]  # 最大5個のプロンプト
+            return prompts  # 基本の3個のプロンプトのみ
             
         except Exception as e:
             logger.error(f"Spot prompt generation error: {e}")
             return self._get_fallback_prompts()
-    
-    def _detect_spot_type(self, spot_info: Dict) -> str:
-        """スポットタイプを検出"""
-        name = spot_info.get('name', '').lower()
-        description = spot_info.get('description', '').lower()
-        text = name + ' ' + description
-        
-        food_keywords = ['レストラン', 'カフェ', '食事', 'グルメ', '料理']
-        nature_keywords = ['公園', '山', '海', '川', '自然', '景色']
-        culture_keywords = ['神社', '寺', '博物館', '美術館', '歴史']
-        
-        if any(keyword in text for keyword in food_keywords):
-            return 'food'
-        elif any(keyword in text for keyword in nature_keywords):
-            return 'nature'
-        elif any(keyword in text for keyword in culture_keywords):
-            return 'culture'
-        else:
-            return 'general'
     
     def _get_fallback_prompts(self) -> List[QuickPrompt]:
         """エラー時のフォールバックプロンプト"""

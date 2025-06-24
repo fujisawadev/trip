@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, abort, jsonify, redirect, Response, url_for, request
-from app.models import User, Spot, Photo, SocialAccount
+from app.models import User, Spot, Photo, SocialAccount, SocialPost
 from app import db
 from sqlalchemy.orm import joinedload
 import requests
@@ -348,30 +348,34 @@ def commerce_law():
 
 @public_bp.route('/<displayname>/<int:spot_id>')
 def user_spot_detail(displayname, spot_id):
-    """ユーザーの公開プロフィールからスポット詳細ページを表示"""
-    user = User.query.filter(
-        (User.display_name == displayname) | (User.username == displayname)
-    ).first_or_404()
-    
-    spot = Spot.query.filter_by(id=spot_id, user_id=user.id).first_or_404()
-    
-    # 非公開スポットへのアクセス制御
-    if not spot.is_active and (not current_user.is_authenticated or current_user.id != spot.user_id):
-        abort(404)
-        
-    # ユーザーがアップロードした写真のみをDBから取得
-    user_photos = Photo.query.filter_by(spot_id=spot.id, is_google_photo=False).order_by(Photo.created_at.asc()).all()
+    """ユーザーの公開スポット詳細ページを表示"""
+    # ユーザーとスポットを取得（存在しない場合は404）
+    user = User.query.filter((User.username == displayname) | (User.display_name == displayname)).first_or_404()
+    spot = Spot.query.options(joinedload(Spot.affiliate_links)).filter_by(id=spot_id, user_id=user.id, is_active=True).first_or_404()
+
+    # ユーザーがアップロードした写真とGoogle Photosを結合
+    # 1. ユーザーがアップロードした写真を取得
+    user_photos = Photo.query.filter_by(spot_id=spot.id, is_google_photo=False).order_by(Photo.is_primary.desc(), Photo.created_at.asc()).all()
     user_photo_urls = [p.photo_url for p in user_photos]
 
-    # Google PhotosをPlace ID経由で取得
+    # 2. Google PhotosをPlace ID経由で取得
     google_photo_urls = []
     if spot.google_place_id:
-        google_photo_urls = get_google_photos_by_place_id(spot.google_place_id)
+        google_photo_urls = get_google_photos_by_place_id(spot.google_place_id, max_photos=10)
 
-    # ユーザー写真とGoogle写真を結合
+    # 3. 写真を結合（ユーザー写真が先頭）
     all_photos = user_photo_urls + google_photo_urls
     
+    # 関連するSNS投稿を取得し、プラットフォームごとのリンクを整理
+    social_posts = SocialPost.query.filter_by(spot_id=spot.id).all()
+    platforms = ['instagram', 'tiktok', 'twitter', 'youtube']
+    social_links = {platform: None for platform in platforms}
+    for post in social_posts:
+        if post.platform in social_links:
+            social_links[post.platform] = post.post_url
+    
     return render_template('public/spot_detail_page.html', 
-                         spot=spot, 
-                         user=user, 
-                         photos=all_photos) 
+                          user=user, 
+                          spot=spot, 
+                          photos=all_photos,
+                          social_links=social_links) 
