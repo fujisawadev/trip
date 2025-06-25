@@ -7,12 +7,6 @@ def index():
     """トップページ"""
     return render_template('public/landing.html')
 
-@bp.route('/debug-sentry')
-def trigger_error():
-    """Sentryのテスト用エラーを発生させる"""
-    division_by_zero = 1 / 0
-    return "This will never be reached."
-
 @bp.errorhandler(404)
 def page_not_found(e):
     """404エラーページ"""
