@@ -13,6 +13,9 @@ import openai
 import logging
 import time
 
+# ブロックするInstagram IDのリスト
+BLOCKED_INSTAGRAM_IDS = ['52002219496815']
+
 # ロガーの設定
 logger = logging.getLogger(__name__)
 
@@ -168,13 +171,15 @@ def is_request_valid(request, signature):
         return False
 
 def process_webhook_entry(entry):
-    """Webhookエントリーを処理する"""
+    """messagingイベントを含むwebhookエントリを処理する"""
     page_id = entry.get('id')
-    print(f"Webhookエントリー処理: id={page_id}, entry={json.dumps(entry, indent=2, ensure_ascii=False)}")
-    
-    # メッセージイベントを先に取得
     messaging_events = entry.get('messaging', [])
-    print(f"メッセージイベント検出: {len(messaging_events)}件")
+
+    # ▼▼▼ 修正点1: ブロックリストによるチェック ▼▼▼
+    if page_id in BLOCKED_INSTAGRAM_IDS:
+        logger.info(f"Ignoring webhook from blocked Instagram ID: {page_id}")
+        return  # ここで処理を完全に終了
+    # ▲▲▲ ここまで ▲▲▲
     
     # メッセージがない場合は早期リターン
     if not messaging_events:
@@ -245,31 +250,11 @@ def get_user_by_ids(page_id):
     user = User.query.filter_by(facebook_page_id=page_id).first()
     if user:
         return user
-        
-    print(f"facebook_page_id={page_id}に対応するユーザーも見つかりません。Instagram連携済みのユーザーを検索します。")
-    
-    # Instagram連携済みのユーザーを検索（最後の手段）
-    instagram_users = User.query.filter(User.instagram_token.isnot(None)).all()
-    
-    if instagram_users:
-        user_ids = [u.id for u in instagram_users]
-        usernames = [u.instagram_username for u in instagram_users]
-        print(f"Instagram連携済みユーザー: id={user_ids}, usernames={usernames}")
-        
-        # 最初のユーザーを使用
-        user = instagram_users[0]
-        print(f"ユーザーID{user.id}を使用します (instagram_username={user.instagram_username})")
-        
-        # Instagram IDを更新（まずはuser_idとして）
-        if not user.instagram_user_id:
-            user.instagram_user_id = page_id
-            print(f"ユーザーのinstagram_user_idを{page_id}に更新しました")
-            db.session.commit()
-            
-        return user
-    
-    print("Instagram連携済みのユーザーが見つかりません")
+
+    # ▼▼▼ 修正点2: 危険なフォールバック処理を削除 ▼▼▼
+    print(f"All attempts to find a user for page_id={page_id} failed. Aborting.")
     return None
+    # ▲▲▲ ここまで ▲▲▲
 
 def process_message_event(event, user):
     """メッセージイベントを処理する"""
