@@ -566,7 +566,7 @@ def revoke_meta_token(access_token, app_id=None):
 # Meta Webhookサブスクリプションを解除する
 def unsubscribe_webhook(app_id, app_secret, subscription_id=None):
     """
-    Meta Webhookサブスクリプションを解除する
+    Meta Webhookサブスクリプションを解除する（アプリレベル）
     
     Args:
         app_id (str): アプリID
@@ -626,35 +626,36 @@ def unsubscribe_webhook(app_id, app_secret, subscription_id=None):
         current_app.logger.exception(f"Error unsubscribing webhook: {str(e)}")
         return False
 
-# ページのWebhookフィールドサブスクリプションを解除する
-def unsubscribe_page_webhook(page_id, page_access_token):
+# Instagram Webhookサブスクリプションを解除する（ユーザーレベル）
+def unsubscribe_instagram_webhook(instagram_business_id, instagram_token):
     """
-    ページのWebhookフィールドサブスクリプションを解除する
+    Instagram Webhookサブスクリプションを解除する（ユーザーレベル）
     
     Args:
-        page_id (str): FacebookページID
-        page_access_token (str): ページアクセストークン
+        instagram_business_id (str): Instagram Business ID
+        instagram_token (str): Instagram アクセストークン
     
     Returns:
         bool: 成功したかどうか
     """
     try:
-        if not page_id or not page_access_token:
+        if not instagram_business_id or not instagram_token:
+            current_app.logger.warning("Instagram Business IDまたはアクセストークンが不足しています")
             return False
             
-        # ページのサブスクリプションを削除
-        webhook_url = f"https://graph.facebook.com/v22.0/{page_id}/subscribed_apps"
+        # ユーザーレベルのサブスクリプションを解除
+        user_subscription_url = f"https://graph.instagram.com/v22.0/{instagram_business_id}/subscribed_apps"
         params = {
-            'access_token': page_access_token
+            'access_token': instagram_token
         }
         
-        # アクセストークンを隠してログ記録
-        current_app.logger.info(f"Unsubscribing page webhook - Page ID: {page_id}, URL: {webhook_url}")
+        # ログ記録（アクセストークンは隠す）
+        current_app.logger.info(f"Unsubscribing Instagram webhook - Business ID: {instagram_business_id}, URL: {user_subscription_url}")
         
-        response = requests.delete(webhook_url, params=params)
+        response = requests.delete(user_subscription_url, params=params)
         
         # レスポンスをログに記録
-        current_app.logger.info(f"Page webhook unsubscription response - Status: {response.status_code}, Body: {response.text}")
+        current_app.logger.info(f"Instagram webhook unsubscription response - Status: {response.status_code}, Body: {response.text}")
         
         # 成功レスポンスは {"success": true} が返ってくる
         if response.status_code == 200:
@@ -662,11 +663,11 @@ def unsubscribe_page_webhook(page_id, page_access_token):
             return result.get('success', False)
         
         # エラーレスポンスの場合はログに記録
-        current_app.logger.error(f"Page webhook unsubscription failed: {response.text}")
+        current_app.logger.error(f"Instagram webhook unsubscription failed: {response.text}")
         return False
     
     except Exception as e:
-        current_app.logger.exception(f"Error unsubscribing page webhook: {str(e)}")
+        current_app.logger.exception(f"Error unsubscribing Instagram webhook: {str(e)}")
         return False
 
 @bp.route('/disconnect/instagram', methods=['POST'])
@@ -681,13 +682,9 @@ def disconnect_instagram():
         # if access_token:
         #     revoke_meta_token(access_token)
         
-        # Webhookサブスクリプションを解除
-        app_id = current_app.config.get('INSTAGRAM_CLIENT_ID')
-        app_secret = current_app.config.get('INSTAGRAM_CLIENT_SECRET')
-        
-        # サブスクリプションIDが設定されていればWebhookを解除
-        if current_user.webhook_subscription_id:
-            unsubscribe_webhook(app_id, app_secret, current_user.webhook_subscription_id)
+        # Instagram Webhookサブスクリプションを解除
+        if current_user.instagram_business_id and current_user.instagram_token:
+            unsubscribe_instagram_webhook(current_user.instagram_business_id, current_user.instagram_token)
         
         # Instagram連携情報をクリア
         current_user.instagram_token = None
@@ -1109,7 +1106,7 @@ def disconnect_facebook():
         
         # 2. Webhookサブスクリプション解除
         if webhook_subscription_id:
-            unsubscribe_success = unsubscribe_webhook(app_id, app_secret, webhook_subscription_id)
+            unsubscribe_success = unsubscribe_instagram_webhook(current_user.instagram_business_id, current_user.instagram_token)
             if unsubscribe_success:
                 print(f"Webhook subscription {webhook_subscription_id} successfully removed")
             else:
@@ -1428,4 +1425,47 @@ def update_affiliate_settings():
     db.session.commit()
     
     flash('アフィリエイト設定を保存しました', 'success')
-    return redirect(url_for('profile.affiliate_settings')) 
+    return redirect(url_for('profile.affiliate_settings'))
+
+# ページのWebhookフィールドサブスクリプションを解除する
+def unsubscribe_page_webhook(page_id, page_access_token):
+    """
+    ページのWebhookフィールドサブスクリプションを解除する
+    
+    Args:
+        page_id (str): FacebookページID
+        page_access_token (str): ページアクセストークン
+    
+    Returns:
+        bool: 成功したかどうか
+    """
+    try:
+        if not page_id or not page_access_token:
+            return False
+            
+        # ページのサブスクリプションを削除
+        webhook_url = f"https://graph.facebook.com/v22.0/{page_id}/subscribed_apps"
+        params = {
+            'access_token': page_access_token
+        }
+        
+        # アクセストークンを隠してログ記録
+        current_app.logger.info(f"Unsubscribing page webhook - Page ID: {page_id}, URL: {webhook_url}")
+        
+        response = requests.delete(webhook_url, params=params)
+        
+        # レスポンスをログに記録
+        current_app.logger.info(f"Page webhook unsubscription response - Status: {response.status_code}, Body: {response.text}")
+        
+        # 成功レスポンスは {"success": true} が返ってくる
+        if response.status_code == 200:
+            result = response.json()
+            return result.get('success', False)
+        
+        # エラーレスポンスの場合はログに記録
+        current_app.logger.error(f"Page webhook unsubscription failed: {response.text}")
+        return False
+    
+    except Exception as e:
+        current_app.logger.exception(f"Error unsubscribing page webhook: {str(e)}")
+        return False 
