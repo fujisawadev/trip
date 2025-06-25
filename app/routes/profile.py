@@ -677,10 +677,10 @@ def disconnect_instagram():
     # CSRFトークンの検証（Flask-WTF内でチェック）
     
     try:
-        # アクセストークン失効処理は不要（トークンは自動的に失効するため）
-        # access_token = current_user.instagram_token
-        # if access_token:
-        #     revoke_meta_token(access_token)
+        # アクセストークンを失効させて、アプリ連携を解除
+        access_token = current_user.instagram_token
+        if access_token:
+            revoke_meta_token(access_token)
         
         # Instagram Webhookサブスクリプションを解除
         if current_user.instagram_business_id and current_user.instagram_token:
