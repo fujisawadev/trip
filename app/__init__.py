@@ -2,11 +2,13 @@ import os
 from flask import Flask, render_template, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
 from dotenv import load_dotenv
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 # .envファイルから環境変数を読み込む
 load_dotenv()
@@ -21,6 +23,19 @@ mail = Mail()
 
 def create_app(config_class=None):
     """アプリケーションファクトリ"""
+    # Sentryの初期化 (HerokuアドオンなどでSENTRY_DSNが設定されている場合のみ)
+    if os.environ.get('SENTRY_DSN'):
+        sentry_sdk.init(
+            dsn=os.environ.get('SENTRY_DSN'),
+            integrations=[
+                FlaskIntegration(),
+            ],
+            # パフォーマンストラッキングを有効にする。本番環境では調整を推奨。
+            traces_sample_rate=1.0,
+            # 環境をセット (例: 'production', 'development')
+            environment=os.environ.get('FLASK_ENV', 'production'),
+        )
+
     # 環境変数を確認
     print(f"Starting application with environment: {os.environ.get('FLASK_ENV', 'production')}")
     
@@ -36,6 +51,14 @@ def create_app(config_class=None):
             url_parts[1] = '://'
             url_parts[2] = url_parts[2].replace('www.my-map.link', 'my-map.link', 1)
             return redirect('https' + url_parts[1] + url_parts[2], code=301)
+    
+    # Sentryにユーザー情報を送信する
+    @flask_app.before_request
+    def set_sentry_user():
+        if current_user.is_authenticated:
+            sentry_sdk.set_user({"id": current_user.id, "email": current_user.email, "username": current_user.username})
+        else:
+            sentry_sdk.set_user(None)
     
     # CSRF保護の設定 - テスト用に一時的に無効化
     flask_app.config['WTF_CSRF_ENABLED'] = False  # CSRF保護を無効化

@@ -74,15 +74,42 @@ class Config:
     # Redisキャッシュ設定
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
     
+    # ブロックするInstagram IDのリスト
+    BLOCKED_INSTAGRAM_IDS = ['52002219496815']
+    
     @staticmethod
     def init_app(app):
         """アプリケーション初期化時の追加設定"""
         # アップロードディレクトリの作成
+        upload_dir = app.config.get('UPLOAD_FOLDER')
         try:
-            os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
-            print(f"Created upload directory: {Config.UPLOAD_FOLDER}")
-        except Exception as e:
-            print(f"Error creating upload directory: {str(e)}")
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+        except OSError as e:
             # Heroku環境ではエラーを無視（一時ファイルシステムを使用）
             if 'DYNO' in os.environ:
-                print("Heroku環境を検出しました。アップロードディレクトリの作成エラーを無視します。") 
+                print("Heroku環境を検出しました。アップロードディレクトリの作成エラーを無視します。")
+            else:
+                # Heroku以外でエラーが発生した場合は例外を送出
+                raise e
+        except Exception as e:
+            print(f"Error creating upload directory: {str(e)}")
+
+# 本番環境用の設定
+class ProductionConfig(Config):
+    DEBUG = False
+
+# 開発環境用の設定
+class DevelopmentConfig(Config):
+    DEBUG = True
+
+# テスト環境用の設定
+class TestingConfig(Config):
+    TESTING = True
+
+config = {
+    'development': DevelopmentConfig,
+    'testing': TestingConfig,
+    'production': ProductionConfig,
+    'default': DevelopmentConfig
+} 
