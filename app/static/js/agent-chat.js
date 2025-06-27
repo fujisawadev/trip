@@ -355,7 +355,7 @@ class AgentChat {
         console.log('[AgentChat] formatMessage started with content:', content);
 
         // テキストをMarkdownとしてパース
-        let htmlContent = marked.parse(content);
+        let htmlContent = marked.parse(content, { breaks: true, gfm: true });
         
         // 相対パスを絶対パスのリンクに変換
         // 例: /username/spot_id -> <a href="/username/spot_id">/username/spot_id</a>

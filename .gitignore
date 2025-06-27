@@ -130,3 +130,5 @@ app/static/uploads/
 *.sqlite3
 
 logs/
+*.rdb
+*.dump

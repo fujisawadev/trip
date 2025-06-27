@@ -251,7 +251,6 @@
     padding: 0.75rem 1rem;
     border-radius: 1.25rem;
     overflow-wrap: break-word;
-    white-space: pre-wrap;
     line-height: 1.5;
 }
 
@@ -267,6 +266,10 @@
     background: #f1f3f4;
     color: #202124;
     border-bottom-left-radius: 0.25rem;
+}
+
+.message.assistant li {
+    margin: 0 0 0.7em;
 }
 
 /* 従来の .message-content 構造との互換性のため残す */
