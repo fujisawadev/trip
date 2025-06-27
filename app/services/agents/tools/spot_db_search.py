@@ -13,6 +13,33 @@ from app import db
 
 logger = logging.getLogger(__name__)
 
+def _safe_float_conversion(value) -> float:
+    """座標値を安全にfloatに変換する"""
+    try:
+        if value is None:
+            return None
+        
+        # 文字列の場合の処理
+        if isinstance(value, str):
+            value = value.strip()
+            if value.lower() in ['', 'none', 'null', 'nan']:
+                return None
+        
+        # 数値変換を試行
+        float_value = float(value)
+        
+        # NaNや無限大のチェック
+        if not (float_value == float_value):  # NaNチェック
+            return None
+        if float_value == float('inf') or float_value == float('-inf'):
+            return None
+            
+        return float_value
+        
+    except (ValueError, TypeError, OverflowError) as e:
+        logger.warning(f"Failed to convert coordinate value '{value}' to float: {e}")
+        return None
+
 def _get_google_place_details(place_id: str) -> dict:
     """Google Places APIから詳細情報を取得"""
     api_key = os.getenv('GOOGLE_MAPS_API_KEY')
@@ -77,22 +104,22 @@ def _auto_enrich_spot_info(spot: Spot) -> dict:
             "description": spot.description or "",
             "category": spot.category or "",
             "location": spot.summary_location or spot.location or spot.formatted_address,
-            "detail_url": f"/{spot.user.display_name or spot.user.username}/{spot.id}",
-            "creator_name": spot.user.display_name or spot.user.username,
+            "detail_url": f"/{getattr(spot.user, 'display_name', None) or getattr(spot.user, 'username', 'unknown')}/{spot.id}" if spot.user else f"/unknown/{spot.id}",
+            "creator_name": getattr(spot.user, 'display_name', None) or getattr(spot.user, 'username', 'unknown') if spot.user else "unknown",
             "created_at": spot.created_at.isoformat() if spot.created_at else None,
             "coordinates": {
-                "lat": float(spot.latitude) if spot.latitude else None,
-                "lng": float(spot.longitude) if spot.longitude else None
+                "lat": _safe_float_conversion(spot.latitude),
+                "lng": _safe_float_conversion(spot.longitude)
             }
         }
         
         # 写真情報（既存）
         photos = []
         for photo in spot.photos[:3]:
-            if photo.file_path:
+            if photo.photo_url:
                 photos.append({
-                    'url': photo.file_path,
-                    'alt': photo.alt_text or spot.name
+                    'url': photo.photo_url,
+                    'alt': getattr(photo, 'alt_text', None) or spot.name
                 })
         enriched["photos"] = photos
         
@@ -103,7 +130,7 @@ def _auto_enrich_spot_info(spot: Spot) -> dict:
             if place_details:
                 # 評価情報
                 if 'rating' in place_details:
-                    enriched['rating'] = float(place_details['rating'])
+                    enriched['rating'] = _safe_float_conversion(place_details['rating'])
                 if 'userRatingCount' in place_details:
                     enriched['review_count'] = place_details['userRatingCount']
                 
@@ -144,7 +171,7 @@ def _auto_enrich_spot_info(spot: Spot) -> dict:
         
         # 既存の評価情報（DB）をフォールバックとして使用
         if 'rating' not in enriched and spot.rating:
-            enriched['rating'] = float(spot.rating)
+            enriched['rating'] = _safe_float_conversion(spot.rating)
         if 'review_count' not in enriched and spot.review_count:
             enriched['review_count'] = spot.review_count
         
@@ -161,7 +188,7 @@ def _auto_enrich_spot_info(spot: Spot) -> dict:
             "detail_url": f"/{spot.user_id}/{spot.id}",
             "photos": [],
             "creator_name": "不明"
-    }
+        }
 
 @tool
 def search_creator_spots(area: str = None, category: str = None, keywords: str = None, user_id: int = None) -> str:
