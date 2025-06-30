@@ -78,6 +78,7 @@ def run_migrations_online():
             connection=connection,
             target_metadata=target_metadata,
             process_revision_directives=process_revision_directives,
+            compare_type=True,  # 型の比較を有効化
             **current_app.extensions['migrate'].configure_args
         )
 
