@@ -31,8 +31,8 @@ listen = ['default']
 # Heroku RedisのURLまたはローカルのRedis URLを取得
 redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
 
-# Redisへの接続を確立
-conn = redis.from_url(redis_url)
+# Redisへの接続を確立（SSL証明書検証を無効化）
+conn = redis.from_url(redis_url, ssl_cert_reqs=None)
 
 if __name__ == '__main__':
     # Flaskのアプリケーションコンテキスト内でワーカーを実行

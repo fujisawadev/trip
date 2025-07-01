@@ -1414,8 +1414,8 @@ def start_instagram_import():
         return jsonify({'error': 'Start date and end date are required.'}), 400
 
     try:
-        # Redis接続とキューのセットアップ
-        redis_conn = Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'))
+        # Redis接続とキューのセットアップ（SSL証明書検証を無効化）
+        redis_conn = Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), ssl_cert_reqs=None)
         q = Queue(connection=redis_conn)
 
         # 重複実行制御: 実行中のジョブがあるかチェック
