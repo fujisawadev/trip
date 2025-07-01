@@ -7,6 +7,13 @@ class ImportProgress(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     source = db.Column(db.String(50), default='instagram', nullable=False)
+    
+    # Job status tracking
+    job_id = db.Column(db.String(36), unique=True, nullable=True) # UUID for the job
+    status = db.Column(db.String(20), default='pending', nullable=False) # e.g., pending, processing, completed, failed
+    result_data = db.Column(db.Text, nullable=True) # JSON results for successful jobs
+    error_info = db.Column(db.Text, nullable=True) # Error message for failed jobs
+
     last_imported_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_post_id = db.Column(db.String(255), nullable=True)
     last_post_timestamp = db.Column(db.DateTime, nullable=True)
@@ -25,11 +32,5 @@ class ImportProgress(db.Model):
         db.UniqueConstraint('user_id', 'source', name='uix_import_progress_user_source'),
     )
     
-    def __init__(self, user_id, source='instagram'):
-        self.user_id = user_id
-        self.source = source
-        self.last_imported_at = datetime.utcnow()
-        self.total_imported_count = 0
-        
     def __repr__(self):
         return f'<ImportProgress {self.id}: {self.source} {self.total_imported_count}件>' 

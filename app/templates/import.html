@@ -63,31 +63,76 @@
         100% { transform: rotate(360deg); }
       }
       
-      /* Spot candidate item */
+      /* Spot candidate item - シンプルデザイン */
       .spot-candidate {
         position: relative;
-        padding: 16px;
-        border-radius: 12px;
         background-color: white;
+        border-radius: 12px;
+        padding: 16px;
+        padding-right: 48px; /* 削除ボタンのスペース */
         margin-bottom: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        border: 1px solid #e5e7eb;
+        transition: border-color 0.2s ease;
+      }
+      
+      .spot-candidate:hover {
+        border-color: #d1d5db;
+      }
+      
+      .spot-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 6px 0;
+        line-height: 1.4;
+      }
+      
+      .spot-address {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0 0 8px 0;
+        line-height: 1.4;
+      }
+      
+      .spot-source {
+        margin-top: 8px;
+      }
+      
+      .instagram-link {
+        color: #3b82f6;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      
+      .instagram-link:hover {
+        text-decoration: underline;
       }
       
       .remove-btn {
-        flex-shrink: 0;
+        position: absolute;
+        top: 12px;
+        right: 12px;
         width: 24px;
         height: 24px;
         border-radius: 50%;
-        background-color: #f87171;
+        background-color: #ef4444;
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        margin-left: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1;
+        transition: all 0.15s ease;
+        opacity: 0.8;
+      }
+      
+      .remove-btn:hover {
+        background-color: #dc2626;
+        opacity: 1;
+        transform: scale(1.05);
       }
       
       /* モーダルダイアログのスタイル */
@@ -112,24 +157,11 @@
         max-height: 90vh;
         overflow-y: auto;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 20px;
+        padding: 24px;
         position: relative;
       }
       
-      .modal-close-btn {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background-color: #f1f5f9;
-        color: #64748b;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-      }
+
       
       /* スライドインアニメーション */
       @keyframes slideIn {
@@ -365,7 +397,6 @@
     <!-- モーダルダイアログ -->
     <div id="import-modal" class="modal-overlay hidden">
       <div class="modal-container slide-in">
-        <div id="modal-close-btn" class="modal-close-btn">×</div>
         
         <!-- ローディング表示 -->
         <div id="loading-container" class="py-8">
@@ -377,8 +408,6 @@
         
         <!-- 結果表示 -->
         <div id="result-container" class="hidden">
-          <h3 class="text-lg font-bold text-neutral-900 mb-4">分析結果</h3>
-          
           <!-- スポットが見つかった場合 -->
           <div id="spots-found-container" class="hidden">
             <div class="bg-green-50 border border-green-100 rounded-lg p-4 mb-4">
@@ -393,17 +422,42 @@
           </div>
 
           <!-- スポットが見つからなかった場合 -->
-          <div id="no-spots-container" class="hidden">
-            <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-4">
-              <p class="text-sm text-yellow-700 mb-2">
-                分析した投稿からスポット情報を抽出できませんでした。
-              </p>
-              <div id="analyzed-posts-container" class="mt-3 space-y-2">
-                <p class="text-xs text-slate-600">分析した投稿：</p>
-                <div id="analyzed-posts-list" class="space-y-2">
-                  <!-- 分析した投稿の一覧がここに表示されます -->
-                </div>
+          <div id="no-spots-container" class="hidden py-4">
+            <div class="flex flex-col items-center justify-center mb-6">
+              <!-- 青い検索アイコン -->
+              <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
+              
+              <!-- タイトル -->
+              <h3 class="text-lg font-bold text-neutral-900 mb-2">スポットが見つかりませんでした</h3>
+              
+              <!-- メッセージ -->
+              <p class="text-sm text-slate-600 text-center">
+                指定した期間の投稿からは場所情報を抽出できませんでした。<br>
+                期間を変更して再度お試しください。
+              </p>
+            </div>
+            
+            <!-- ボタン群 -->
+            <div class="flex gap-2 mt-4">
+              <!-- 期間変更ボタン（メイン） -->
+              <button
+                id="change-period-btn"
+                class="flex-1 flex justify-center items-center px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+              >
+                <span class="text-base font-medium">期間を変更して再試行</span>
+              </button>
+              
+              <!-- 閉じるボタン（サブ） -->
+              <button
+                id="close-no-spots-btn"
+                class="flex justify-center items-center px-4 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors"
+              >
+                <span class="text-base font-medium">閉じる</span>
+              </button>
             </div>
           </div>
           
@@ -495,7 +549,6 @@
         // 要素の取得
         const startImportBtn = document.getElementById('start-import-btn');
         const importModal = document.getElementById('import-modal');
-        const modalCloseBtn = document.getElementById('modal-close-btn');
         const loadingContainer = document.getElementById('loading-container');
         const loadingText = document.getElementById('loading-text');
         const resultContainer = document.getElementById('result-container');
@@ -510,9 +563,15 @@
         const errorMessage = document.getElementById('error-message');
         const retryBtn = document.getElementById('retry-btn');
         const closeErrorBtn = document.getElementById('close-error-btn');
+        const changePeriodBtn = document.getElementById('change-period-btn');
+        const closeNoSpotsBtn = document.getElementById('close-no-spots-btn');
         
         // 保存するスポット候補
         let spotCandidates = [];
+        
+        // ポーリング制御用のフラグ
+        let currentJobId = null;
+        let isPolling = false;
         
         // インポート開始ボタンのクリックイベント
         if (startImportBtn) {
@@ -547,11 +606,6 @@
               startImportBtn.innerHTML = originalText;
             });
           });
-        }
-        
-        // モーダル閉じるボタンのクリックイベント
-        if (modalCloseBtn) {
-          modalCloseBtn.addEventListener('click', closeModal);
         }
         
         // キャンセルボタンのクリックイベント
@@ -607,8 +661,22 @@
           closeErrorBtn.addEventListener('click', closeModal);
         }
         
+        // 期間変更ボタンのクリックイベント
+        if (changePeriodBtn) {
+          changePeriodBtn.addEventListener('click', closeModal);
+        }
+        
+        // スポット見つからない場合の閉じるボタンのクリックイベント
+        if (closeNoSpotsBtn) {
+          closeNoSpotsBtn.addEventListener('click', closeModal);
+        }
+        
         // モーダルを閉じる
         function closeModal() {
+          // ポーリングを停止
+          isPolling = false;
+          currentJobId = null;
+          
           importModal.classList.add('hidden');
           resetModalUI();
         }
@@ -619,13 +687,14 @@
           resultContainer.classList.add('hidden');
           successContainer.classList.add('hidden');
           errorContainer.classList.add('hidden');
+          document.getElementById('no-spots-container').classList.add('hidden');
           spotCandidatesContainer.innerHTML = '';
           spotCandidates = [];
         }
         
-        // インポート処理を開始
+        // インポート処理を開始（非同期版）
         async function startImport() {
-          console.log('インポート処理を開始します');
+          console.log('非同期インポート処理を開始します');
           
           // 期間の取得
           const startDate = document.getElementById('start-date').value;
@@ -635,16 +704,17 @@
           resetModalUI();
           
           try {
-            // 投稿の取得を開始
-            const posts = await fetchPostsInPeriod(startDate, endDate);
-            console.log(`期間内の投稿を${posts.length}件取得しました`);
+            // 1. 非同期ジョブを開始
+            loadingText.textContent = 'インポートジョブを開始中...';
+            const jobId = await startAsyncImport(startDate, endDate);
+            console.log(`ジョブID: ${jobId} でインポート処理を開始しました`);
             
-            if (posts.length === 0) {
-              throw new Error('指定された期間内の投稿が見つかりませんでした');
-            }
+            // 2. ポーリング状態を設定
+            currentJobId = jobId;
+            isPolling = true;
             
-            // スポット分析を開始
-            await analyzeAndDisplayPosts(posts);
+            // 3. ジョブの進捗をポーリング
+            await pollJobStatus(jobId);
             
             return true; // 成功時はtrueを返す
             
@@ -658,185 +728,130 @@
           }
         }
         
-        // 指定期間内の投稿を取得
-        async function fetchPostsInPeriod(startDate, endDate) {
-          const allPosts = [];
-          let nextPageToken = null;
-          let shouldContinue = true;
+        // 非同期インポートジョブを開始
+        async function startAsyncImport(startDate, endDate) {
+          const response = await fetch('/api/import/instagram/start', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+              start_date: startDate,
+              end_date: endDate
+            })
+          });
           
-          while (shouldContinue) {
-            loadingText.textContent = `Instagram投稿を取得中...（${allPosts.length}件取得済み）`;
-            
+          if (!response.ok) {
+            // 重複実行制御のエラーハンドリング
+            if (response.status === 409) {
+              const errorData = await response.json();
+              throw new Error('既にインポート処理が実行中です。現在の処理が完了してから再度お試しください。');
+            }
+            throw new Error(`ジョブの開始に失敗しました (${response.status}: ${response.statusText})`);
+          }
+          
+          const data = await response.json();
+          
+          if (!data.success) {
+            throw new Error(data.error || 'ジョブの開始に失敗しました');
+          }
+          
+          return data.job_id;
+        }
+        
+        // ジョブの進捗をポーリング
+        async function pollJobStatus(jobId) {
+          let pollCount = 0;
+          const maxPolls = 300; // 最大5分間（1秒間隔）
+          
+          while (pollCount < maxPolls && isPolling && currentJobId === jobId) {
             try {
-              const response = await fetch('/api/import/instagram/fetch', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify({
-                  limit: 50,
-                  after: nextPageToken,
-                  start_date: startDate,
-                  end_date: endDate
-                })
-              });
+              const response = await fetch(`/api/import/instagram/status/${jobId}`);
               
               if (!response.ok) {
-                throw new Error(`Instagram投稿の取得に失敗しました (${response.status}: ${response.statusText})`);
+                throw new Error(`ステータス確認に失敗しました (${response.status}: ${response.statusText})`);
               }
               
               const data = await response.json();
+              console.log(`ジョブ ${jobId} のステータス: ${data.status}`);
               
-              if (!data.success) {
-                throw new Error(data.error || 'Instagram投稿の取得に失敗しました');
+              // ローディングメッセージを更新
+              if (data.status === 'pending') {
+                loadingText.textContent = 'ジョブを待機中...';
+              } else if (data.status === 'processing') {
+                loadingText.textContent = 'Instagram投稿を分析中...';
               }
               
-              // 期間内の投稿を追加
-              if (data.posts && data.posts.length > 0) {
-                allPosts.push(...data.posts);
+              if (data.status === 'completed') {
+                console.log('ジョブが正常に完了しました');
+                
+                // 結果データを取得
+                const spotCandidates = data.result_data?.spot_candidates || [];
+                console.log(`${spotCandidates.length}件のスポット候補が見つかりました`);
+                
+                // ローディングを非表示
+                loadingContainer.classList.add('hidden');
+                
+                if (spotCandidates.length > 0) {
+                  // スポットが見つかった場合
+                  // グローバル変数に保存（保存機能で使用）
+                  window.spotCandidates = spotCandidates;
+                  displaySpotCandidates(spotCandidates);
+                  spotCount.textContent = spotCandidates.length;
+                  
+                  // 結果コンテナを表示
+                  resultContainer.classList.remove('hidden');
+                  document.getElementById('spots-found-container').classList.remove('hidden');
+                  document.getElementById('no-spots-container').classList.add('hidden');
+                  document.getElementById('action-buttons').classList.remove('hidden'); // 親コンテナも表示
+                  document.getElementById('save-spots-btn').classList.remove('hidden');
+                } else {
+                  // スポットが見つからなかった場合
+                  resultContainer.classList.remove('hidden');
+                  document.getElementById('spots-found-container').classList.add('hidden');
+                  document.getElementById('no-spots-container').classList.remove('hidden');
+                  document.getElementById('action-buttons').classList.add('hidden');
+                  document.getElementById('save-spots-btn').classList.add('hidden');
+                }
+                
+                // ポーリング終了
+                isPolling = false;
+                currentJobId = null;
+                return; // 完了時はループを抜ける
+                
+              } else if (data.status === 'failed') {
+                // ポーリング終了
+                isPolling = false;
+                currentJobId = null;
+                throw new Error(data.error_info || 'インポート処理が失敗しました');
               }
               
-              // ページネーションの処理
-              nextPageToken = data.paging?.cursors?.after;
-              
-              // 終了条件の判定
-              shouldContinue = shouldContinueFetching(
-                data.posts,
-                startDate,
-                nextPageToken
-              );
+              // 1秒待機してから次のポーリング
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              pollCount++;
               
             } catch (error) {
-              console.error('投稿取得中のエラー:', error);
+              console.error('ポーリング中のエラー:', error);
               throw error;
             }
           }
           
-          return allPosts;
-        }
-        
-        // 投稿取得を続けるかどうかを判定
-        function shouldContinueFetching(posts, startDate, nextPageToken) {
-          if (!nextPageToken) {
-            return false;  // これ以上のページがない
-          }
+          // ポーリング終了（タイムアウトまたは中断）
+          isPolling = false;
+          currentJobId = null;
           
-          if (posts.length === 0) {
-            return false;  // 投稿がない
-          }
-          
-          // 最も古い投稿のタイムスタンプを取得
-          const oldestPost = posts[posts.length - 1];
-          const oldestTimestamp = new Date(oldestPost.timestamp);
-          const startDateTime = new Date(startDate);
-          
-          // 開始日より古い投稿に到達したら終了
-          if (oldestTimestamp < startDateTime) {
-            return false;
-          }
-          
-          return true;  // 続行
-        }
-        
-        // 投稿の分析と表示
-        async function analyzeAndDisplayPosts(posts) {
-          loadingText.textContent = 'スポット情報を分析中...';
-          
-          try {
-            const response = await fetch('/api/import/instagram/analyze', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-              },
-              body: JSON.stringify({ posts })
-            });
-            
-            if (!response.ok) {
-              throw new Error(`スポット情報の分析に失敗しました (${response.status}: ${response.statusText})`);
-            }
-            
-            const data = await response.json();
-            
-            if (!data.success) {
-              throw new Error(data.error || 'スポット情報の分析に失敗しました');
-            }
-            
-            // スポット候補を保存
-            spotCandidates = data.spot_candidates;
-            console.log(`${spotCandidates.length}件のスポット候補が見つかりました`);
-            
-            // 結果表示の準備
-            loadingContainer.classList.add('hidden');
-            resultContainer.classList.remove('hidden');
-            
-            if (spotCandidates.length > 0) {
-              // スポットが見つかった場合
-              displaySpotCandidates(spotCandidates);
-              spotCount.textContent = spotCandidates.length;
-              document.getElementById('spots-found-container').classList.remove('hidden');
-              document.getElementById('no-spots-container').classList.add('hidden');
-              // 保存ボタンを表示
-              document.getElementById('save-spots-btn').classList.remove('hidden');
-            } else {
-              // スポットが見つからなかった場合
-              document.getElementById('spots-found-container').classList.add('hidden');
-              document.getElementById('no-spots-container').classList.remove('hidden');
-              // 保存ボタンを非表示
-              document.getElementById('save-spots-btn').classList.add('hidden');
-              
-              // 分析した投稿の一覧を表示
-              const analyzedPostsList = document.getElementById('analyzed-posts-list');
-              analyzedPostsList.innerHTML = '';
-              
-              posts.forEach(post => {
-                const postElement = document.createElement('div');
-                postElement.className = 'flex items-center text-xs text-slate-600 bg-white rounded-lg p-3 border border-slate-100';
-                
-                const igIcon = document.createElement('div');
-                igIcon.className = 'w-4 h-4 mr-2 flex-shrink-0';
-                igIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="text-slate-400"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`;
-                
-                const postInfo = document.createElement('div');
-                postInfo.className = 'flex-grow';
-                
-                // 投稿日時を日本時間で表示
-                const postDate = new Date(post.timestamp);
-                const formattedDate = postDate.toLocaleString('ja-JP', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                });
-                
-                if (post.permalink) {
-                  postInfo.innerHTML = `
-                    <a href="${post.permalink}" target="_blank" class="text-blue-500 hover:underline">投稿を見る</a>
-                    <span class="text-slate-400 ml-2">(${formattedDate})</span>
-                    <br><span class="text-slate-400">ID: ${post.id}</span>
-                  `;
-                } else {
-                  postInfo.innerHTML = `
-                    <span>${formattedDate}</span>
-                    <br><span class="text-slate-400">ID: ${post.id}</span>
-                  `;
-                }
-                
-                postElement.appendChild(igIcon);
-                postElement.appendChild(postInfo);
-                analyzedPostsList.appendChild(postElement);
-              });
-            }
-            
-          } catch (error) {
-            console.error('分析中のエラー:', error);
-            throw error;
+          if (pollCount >= maxPolls) {
+            throw new Error('処理がタイムアウトしました。時間をおいて再度お試しください。');
+          } else {
+            // ユーザーがモーダルを閉じた場合
+            console.log('ポーリングが中断されました');
           }
         }
         
-        // スポット候補を表示
+
+        
+        // スポット候補を表示 - シンプルデザイン
         function displaySpotCandidates(candidates) {
           spotCandidatesContainer.innerHTML = '';
           
@@ -845,66 +860,60 @@
             spotElement.className = 'spot-candidate';
             spotElement.dataset.index = index;
             
-            // メインコンテンツのコンテナ（右マージン追加）
-            const contentContainer = document.createElement('div');
-            contentContainer.className = 'pr-10'; // 削除ボタン用の余白
-            
-            const nameElement = document.createElement('h4');
-            nameElement.className = 'text-base font-medium text-neutral-900 mb-1';
+            // スポット名
+            const nameElement = document.createElement('h3');
+            nameElement.className = 'spot-name';
             nameElement.textContent = candidate.name;
             
+            // 住所
             const addressElement = document.createElement('p');
-            addressElement.className = 'text-sm text-slate-600';
+            addressElement.className = 'spot-address';
             addressElement.textContent = candidate.formatted_address || '住所情報なし';
             
-            // Instagram投稿情報の表示を追加
-            if (candidate.instagram_post_id) {
+            // 基本要素を追加
+            spotElement.appendChild(nameElement);
+            spotElement.appendChild(addressElement);
+            
+            // Instagram投稿リンク（あれば）
+            if (candidate.instagram_permalink) {
               const sourceElement = document.createElement('div');
-              sourceElement.className = 'flex items-center mt-2 pt-2 border-t border-slate-100';
+              sourceElement.className = 'spot-source';
               
-              const igIcon = document.createElement('div');
-              igIcon.className = 'w-4 h-4 mr-1';
-              igIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="text-slate-400"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`;
+              const postLink = document.createElement('a');
+              postLink.href = candidate.instagram_permalink;
+              postLink.target = '_blank';
+              postLink.rel = 'noopener noreferrer';
+              postLink.className = 'instagram-link';
+              postLink.textContent = 'Instagram投稿を見る';
               
-              const postInfo = document.createElement('div');
-              postInfo.className = 'flex-grow';
-              
-              // パーマリンクがある場合はリンク表示と投稿ID、なければ投稿IDのみ表示
-              if (candidate.instagram_permalink) {
-                postInfo.innerHTML = `<a href="${candidate.instagram_permalink}" target="_blank" class="underline text-blue-500">投稿を見る</a> <span class="text-slate-400">(id: ${candidate.instagram_post_id})</span>`;
-              } else {
-                postInfo.textContent = `投稿ID: ${candidate.instagram_post_id}`;
-              }
-              
-              sourceElement.appendChild(igIcon);
-              sourceElement.appendChild(postInfo);
-              contentContainer.appendChild(nameElement);
-              contentContainer.appendChild(addressElement);
-              contentContainer.appendChild(sourceElement);
-            } else {
-              contentContainer.appendChild(nameElement);
-              contentContainer.appendChild(addressElement);
+              sourceElement.appendChild(postLink);
+              spotElement.appendChild(sourceElement);
             }
             
+            // 削除ボタン
             const removeBtn = document.createElement('div');
             removeBtn.className = 'remove-btn';
             removeBtn.innerHTML = '×';
+            removeBtn.title = 'このスポットを除外';
             removeBtn.addEventListener('click', function() {
-              spotElement.remove();
-              spotCandidates[index] = null;  // 削除フラグ
+              spotElement.style.opacity = '0.5';
+              setTimeout(() => {
+                spotElement.remove();
+                if (window.spotCandidates) {
+                  window.spotCandidates[index] = null;  // 削除フラグ
+                }
+              }, 150);
             });
             
-            spotElement.appendChild(contentContainer);
             spotElement.appendChild(removeBtn);
-            
             spotCandidatesContainer.appendChild(spotElement);
           });
         }
         
         // スポットを保存
         function saveSpots() {
-          // 削除されていないスポット候補を取得
-          const selectedCandidates = spotCandidates.filter(candidate => candidate !== null);
+          // 削除されていないスポット候補を取得（グローバル変数を使用）
+          const selectedCandidates = (window.spotCandidates || []).filter(candidate => candidate !== null);
           
           if (selectedCandidates.length === 0) {
             maplinkToast.warning('保存するスポットがありません');

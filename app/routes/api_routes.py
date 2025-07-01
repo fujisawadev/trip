@@ -2,8 +2,8 @@ import os
 import json
 import requests
 import logging
-from flask import jsonify, request, abort, Blueprint
-from app.models import Spot, Photo, AffiliateLink, SocialPost, ImportHistory, ImportProgress
+from flask import jsonify, request, abort, Blueprint, current_app
+from app.models import Spot, Photo, AffiliateLink, SocialPost, ImportHistory, ImportProgress, User
 from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required
 from sqlalchemy import distinct
@@ -13,6 +13,10 @@ from datetime import datetime
 from app.utils.instagram_helpers import extract_cursor_from_url
 from app.services.google_photos import get_google_photos_by_place_id
 from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url
+from rq import Queue
+from redis import Redis
+from app.tasks import fetch_and_analyze_posts
+import uuid
 
 # API用のブループリントを直接作成
 api_bp = Blueprint('api_routes', __name__, url_prefix='/api')
@@ -1270,17 +1274,55 @@ def save_instagram_spots():
                     print(f"searchText API呼び出しエラー: {str(e)}")
             
             print(f"スポットをデータベースに追加")
-            saved_spots.append({
+            spot_info = {
                 'name': spot.name,
                 'category': spot.category,
                 'formatted_address': spot.formatted_address,
                 'types': spot.types,
                 'summary_location': spot.summary_location,
-                'google_place_id': spot.google_place_id
-            })
+                'google_place_id': spot.google_place_id,
+                'instagram_post_id': spot_data.get('instagram_post_id'),
+                'instagram_permalink': spot_data.get('instagram_permalink')
+            }
+            saved_spots.append(spot_info)
             db.session.add(spot)
             db.session.flush()  # IDを取得するためのフラッシュ
             print(f"スポットID: {spot.id}")
+            
+            # 🆕 Instagram投稿との紐付けを追加
+            if spot_data.get('instagram_permalink'):
+                try:
+                    social_post = SocialPost(
+                        user_id=current_user.id,
+                        spot_id=spot.id,
+                        platform='instagram',
+                        post_url=spot_data.get('instagram_permalink')
+                    )
+                    db.session.add(social_post)
+                    print(f"Instagram投稿を紐付け: {spot_data.get('instagram_permalink')}")
+                except Exception as e:
+                    print(f"Instagram投稿紐付けエラー: {str(e)}")
+            
+            # 🆕 インポート履歴の保存
+            if spot_data.get('instagram_post_id'):
+                try:
+                    import_history = ImportHistory(
+                        user_id=current_user.id,
+                        source='instagram',
+                        external_id=spot_data.get('instagram_post_id'),
+                        status='success',
+                        spot_id=spot.id,
+                        raw_data={
+                            'caption': spot_data.get('instagram_caption'),
+                            'timestamp': spot_data.get('timestamp'),
+                            'permalink': spot_data.get('instagram_permalink'),
+                            'post_id': spot_data.get('instagram_post_id')
+                        }
+                    )
+                    db.session.add(import_history)
+                    print(f"インポート履歴を保存: Instagram投稿ID={spot_data.get('instagram_post_id')}")
+                except Exception as e:
+                    print(f"インポート履歴保存エラー: {str(e)}")
             
             # Google Place IDは保存済み - 写真は表示時に動的取得
             print(f"Google Place ID保存完了: {spot.google_place_id}")
@@ -1355,6 +1397,115 @@ def save_instagram_spots():
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'error': f'Failed to save spots: {str(e)}'}), 500
+
+@api_bp.route('/import/instagram/start', methods=['POST'])
+@login_required
+def start_instagram_import():
+    """Instagramインポートの非同期タスクを開始する"""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.get_json() or {}
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    user_id = current_user.id  # ログイン中のユーザーIDを使用
+
+    if not all([start_date, end_date]):
+        return jsonify({'error': 'Start date and end date are required.'}), 400
+
+    try:
+        # Redis接続とキューのセットアップ
+        redis_conn = Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'))
+        q = Queue(connection=redis_conn)
+
+        # 重複実行制御: 実行中のジョブがあるかチェック
+        existing_running_job = ImportProgress.query.filter_by(
+            user_id=user_id, 
+            source='instagram'
+        ).filter(
+            ImportProgress.status.in_(['pending', 'processing'])
+        ).first()
+        
+        if existing_running_job:
+            return jsonify({
+                'error': 'Import job already in progress. Please wait for the current job to complete.',
+                'existing_job_id': existing_running_job.job_id,
+                'existing_status': existing_running_job.status
+            }), 409  # Conflict status code
+        
+        # 既存の完了/失敗したインポート進捗レコードを検索
+        progress = ImportProgress.query.filter_by(user_id=user_id, source='instagram').first()
+        
+        job_id = str(uuid.uuid4())
+
+        if progress:
+            # 既存のレコードがあれば更新（実行中でない場合のみここに到達）
+            progress.job_id = job_id
+            progress.status = 'pending'
+            progress.import_period_start = datetime.fromisoformat(start_date)
+            progress.import_period_end = datetime.fromisoformat(end_date)
+            progress.error_info = None
+            progress.result_data = None
+        else:
+            # 新しいジョブエントリをDBに作成
+            progress = ImportProgress(
+                user_id=user_id,
+                source='instagram',
+                job_id=job_id,
+                status='pending',
+                import_period_start=datetime.fromisoformat(start_date),
+                import_period_end=datetime.fromisoformat(end_date)
+            )
+            db.session.add(progress)
+
+        db.session.commit()
+
+        # タスクをキューに追加
+        q.enqueue(
+            fetch_and_analyze_posts,
+            args=[job_id, user_id, start_date, end_date],
+            job_timeout=1800, # 30分でタイムアウト
+            job_id=job_id
+        )
+        
+        return jsonify({'success': True, 'job_id': job_id}), 202
+
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Error starting Instagram import job: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'error': 'Failed to start import job.'}), 500
+
+@api_bp.route('/import/instagram/status/<string:job_id>', methods=['GET'])
+@login_required
+def get_import_status(job_id):
+    """非同期インポートタスクのステータスを確認する"""
+    # セキュリティ: 認証チェック
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # セキュリティ: 自分のジョブのみアクセス可能
+        progress = ImportProgress.query.filter_by(
+            job_id=job_id, 
+            user_id=current_user.id  # 重要: ユーザーIDでフィルタして他ユーザーのジョブを参照不可
+        ).first_or_404()
+        
+        response_data = {
+            'job_id': progress.job_id,
+            'status': progress.status,
+        }
+        
+        if progress.status == 'completed':
+            response_data['result_data'] = json.loads(progress.result_data) if progress.result_data else {}
+        elif progress.status == 'failed':
+            response_data['error_info'] = progress.error_info
+            
+        return jsonify(response_data)
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching import status for job {job_id}: {e}")
+        return jsonify({'error': 'Failed to get import status.'}), 500
 
 # 日本語かどうかを判定する関数を追加
 def is_japanese(text):

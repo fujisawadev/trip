@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "id": "18012345678901234567",
+      "caption": "週末は東京スカイツリーに行ってきた！景色が最高でした。展望台からの眺めは圧巻！ #東京スカイツリー #展望台 #絶景",
+      "media_type": "IMAGE",
+      "media_url": "https://scontent-nrt1-1.cdninstagram.com/v/t51.29350-15/123456789_skytree.jpg",
+      "permalink": "https://www.instagram.com/p/ABC123def45/",
+      "timestamp": "2024-12-28T12:00:00+0000"
+    },
+    {
+      "id": "18023456789012345678",
+      "caption": "渋谷のスターバックス 渋谷スカイ店でお茶タイム☕️ 窓からの渋谷の景色がいい感じ！ #スターバックス #渋谷 #カフェタイム",
+      "media_type": "CAROUSEL_ALBUM",
+      "media_url": "https://scontent-nrt1-1.cdninstagram.com/v/t51.29350-15/234567890_starbucks.jpg",
+      "permalink": "https://www.instagram.com/p/DEF456ghi78/",
+      "timestamp": "2024-12-28T13:30:00+0000"
+    },
+    {
+      "id": "18034567890123456789",
+      "caption": "浅草寺でお参りしてきました🙏 雷門の前で記念撮影も！外国人観光客がたくさんいて賑やかでした。 #浅草寺 #雷門 #お参り",
+      "media_type": "IMAGE",
+      "media_url": "https://scontent-nrt1-1.cdninstagram.com/v/t51.29350-15/345678901_sensoji.jpg",
+      "permalink": "https://www.instagram.com/p/GHI789jkl01/",
+      "timestamp": "2024-12-27T18:00:00+0000"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "after": "QVFIUnZAYdlU1VGaW1BZAUhMYWJjV1VjZATVMVklEdjUwcU5nblZAKTlhORXc4UTFIbzNwNEFZAcEdaN2ZAWMHRnVHZAiUkRGZAwcVh0ZAGx0VWhsQ2VhVk9TRzVfbkpNa3EzaW5mOFZABMlJTZAmF6U2tiUVN1ZAGZAaSENfN1pZAWjZATRmM3Q0Mld1ZAVN4ZAUlDRGtTOTFNeGpoR0dNQThmeTVoeXAzQXJVZ"
+    }
+  }
+} 
