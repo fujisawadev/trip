@@ -14,13 +14,12 @@ def get_redis_client():
         print("エラー: REDIS_URLが設定されていません。")
         return None
     
-    # HerokuのRedis URLは 'rediss://' で始まるSSL接続
-    if redis_url.startswith('rediss://'):
-        # SSL接続の場合のみ、Herokuの自己署名証明書を許容する設定を追加
-        return redis.from_url(redis_url, ssl_cert_reqs=None)
-    else:
-        # ローカル環境など、非SSL接続の場合
+    # ローカル開発環境でのSSLエラーを回避
+    if 'localhost' in redis_url or '127.0.0.1' in redis_url:
         return redis.from_url(redis_url)
+    else:
+        # Heroku等の本番環境ではSSL証明書検証を無効化
+        return redis.from_url(redis_url, ssl_cert_reqs=None)
 
 def get_google_photos_by_place_id(place_id: str, max_photos: int = 5) -> list[str]:
     """

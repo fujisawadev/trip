@@ -246,7 +246,12 @@ def add_spot():
                 print(f"楽天トラベルAPI検索（自動）: {name}")
                 hotel_results = search_hotel(name, current_user.rakuten_affiliate_id)
                 
-                if 'error' not in hotel_results and 'hotels' in hotel_results and hotel_results['hotels']:
+                # エラーハンドリング改善
+                if hotel_results.get('error') == 'no_hotels_found':
+                    print(f"楽天トラベル: '{name}'に該当するホテルが見つかりませんでした")
+                elif hotel_results.get('error'):
+                    print(f"楽天トラベルAPIエラー: {hotel_results.get('message', 'Unknown error')}")
+                elif 'hotels' in hotel_results and hotel_results['hotels']:
                     hotel_item = hotel_results['hotels'][0]
                     if 'hotel' in hotel_item and hotel_item['hotel']:
                         hotel_info = hotel_item['hotel'][0]

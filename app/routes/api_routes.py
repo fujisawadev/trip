@@ -9,13 +9,13 @@ from flask_login import current_user, login_required
 from sqlalchemy import distinct
 from app import db
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.utils.instagram_helpers import extract_cursor_from_url
 from app.services.google_photos import get_google_photos_by_place_id
-from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url
+from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url, select_best_hotel_with_evaluation
 from rq import Queue
 from redis import Redis
-from app.tasks import fetch_and_analyze_posts
+from app.tasks import fetch_and_analyze_posts, save_spots_async
 import uuid
 
 # API用のブループリントを直接作成
@@ -30,6 +30,77 @@ if not GOOGLE_MAPS_API_KEY:
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 if not OPENAI_API_KEY:
     print("Warning: OPENAI_API_KEY environment variable is not set. AI features will not work.")
+
+def handle_instagram_api_error(response_text, status_code=None):
+    """Instagram APIエラーを分析してユーザーフレンドリーなメッセージに変換"""
+    try:
+        error_data = json.loads(response_text)
+        error_info = error_data.get('error', {})
+        error_code = error_info.get('code')
+        error_type = error_info.get('type')
+        error_message = error_info.get('message', '')
+        
+        print(f"Instagram APIエラー詳細: code={error_code}, type={error_type}, message={error_message}")
+        
+        if error_code == 190:  # OAuthException - アクセストークン無効
+            return {
+                'user_message': 'Instagram連携の有効期限が切れています。SNS設定から再度連携してください。',
+                'action': 'reauth_required',
+                'action_url': '/profile/sns-settings',
+                'error_code': error_code
+            }
+        elif error_code == 100:  # Invalid parameter
+            return {
+                'user_message': 'Instagram連携に問題があります。しばらく待ってから再度お試しください。',
+                'action': 'retry_later',
+                'error_code': error_code
+            }
+        elif error_code == 4:  # Application request limit reached
+            return {
+                'user_message': 'Instagram APIの利用制限に達しました。しばらく時間をおいてから再度お試しください。',
+                'action': 'retry_later',
+                'error_code': error_code
+            }
+        elif error_code == 17:  # User request limit reached
+            return {
+                'user_message': 'Instagram APIの利用制限に達しました。1時間ほど時間をおいてから再度お試しください。',
+                'action': 'retry_later',
+                'error_code': error_code
+            }
+        elif 'session has been invalidated' in error_message.lower():
+            return {
+                'user_message': 'Instagram連携が無効になっています。SNS設定から再度連携してください。',
+                'action': 'reauth_required',
+                'action_url': '/profile/sns-settings',
+                'error_code': error_code
+            }
+        elif 'password' in error_message.lower():
+            return {
+                'user_message': 'Instagramのパスワード変更により連携が無効になりました。SNS設定から再度連携してください。',
+                'action': 'reauth_required',
+                'action_url': '/profile/sns-settings',
+                'error_code': error_code
+            }
+        else:
+            return {
+                'user_message': 'Instagram連携でエラーが発生しました。SNS設定から連携状態を確認してください。',
+                'action': 'check_settings',
+                'action_url': '/profile/sns-settings',
+                'error_code': error_code,
+                'original_message': error_message
+            }
+    except json.JSONDecodeError:
+        return {
+            'user_message': 'Instagram連携でエラーが発生しました。時間をおいて再度お試しください。',
+            'action': 'retry_later',
+            'original_message': response_text
+        }
+    except Exception as e:
+        print(f"エラーハンドリング中にエラー: {e}")
+        return {
+            'user_message': 'Instagram連携でエラーが発生しました。時間をおいて再度お試しください。',
+            'action': 'retry_later'
+        }
 
 @api_bp.route('/spots/<int:spot_id>', methods=['GET'])
 def get_spot(spot_id):
@@ -623,7 +694,13 @@ def fetch_instagram_posts():
         
         if response.status_code != 200:
             print(f"Instagram Graph APIエラー: {response.text}")
-            return jsonify({'error': f'Instagram API error: {response.text}'}), 400
+            error_info = handle_instagram_api_error(response.text, response.status_code)
+            return jsonify({
+                'error': error_info['user_message'],
+                'action': error_info.get('action'),
+                'action_url': error_info.get('action_url'),
+                'error_code': error_info.get('error_code')
+            }), 400
         
         response_data = response.json()
         print(f"レスポンスデータ: {json.dumps(response_data, indent=2)[:500]}...")  # 最初の500文字だけ表示
@@ -720,17 +797,31 @@ def analyze_instagram_posts():
             
             # OpenAI APIを使用してキャプションからスポット名を抽出
             prompt = f"""
-            以下のInstagramの投稿キャプションから、訪問した場所やスポットの名前を全て抽出してください。
-            複数の場所が言及されている場合は、それぞれを別々に抽出してください。
-            最大5つまでのスポットを抽出し、JSONリスト形式で返してください。
+            以下のInstagramキャプションから、実際に訪問した具体的な施設名・店舗名・観光スポット名を抽出してください。
+            複数の施設を訪問している場合は、すべて抽出してください。
+
+            抽出対象：
+            - レストラン、カフェ、バーなどの飲食店
+            - ホテル、旅館、民宿などの宿泊施設  
+            - 観光地、テーマパーク、美術館などの観光施設
+            - ショップ、百貨店などの商業施設
+
+            除外対象：
+            - 都道府県名、市区町村名（例：東京都、渋谷区、藤沢市）
+            - 駅名、空港名
+            - 一般的な地名（例：湘南、関東地方）
+
+            複合表現の処理：
+            - 「○○の△△ホテル」→「○○ △△」として抽出
+            - ブランド名は保持（例：「星野リゾート」「リッツカールトン」）
             
             キャプション: {caption}
             
-            出力形式:
+            出力形式をJSON形式で返してください:
             {{
               "spots": [
-                "スポット名1",
-                "スポット名2",
+                "施設名1",
+                "施設名2",
                 ...
               ]
             }}
@@ -1335,21 +1426,25 @@ def save_instagram_spots():
                     # 楽天トラベルAPIを呼び出してホテル情報を取得
                     hotel_results = search_hotel(spot.name, current_user.rakuten_affiliate_id)
                     
-                    if 'error' not in hotel_results and 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
+                    # エラーハンドリング改善
+                    if hotel_results.get('error') == 'no_hotels_found':
+                        print(f"楽天トラベル: '{spot.name}'に該当するホテルが見つかりませんでした")
+                    elif hotel_results.get('error'):
+                        print(f"楽天トラベルAPIエラー: {hotel_results.get('message', 'Unknown error')}")
+                    elif 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
                         print(f"ホテル検索結果: {len(hotel_results['hotels'])}件見つかりました")
-                        # ホテル情報を取得
-                        for hotel_item in hotel_results['hotels']:
-                            # 修正: hotel_item['hotel']はリスト型なのでインデックスでアクセス
-                            if 'hotel' in hotel_item and len(hotel_item['hotel']) > 0:
-                                # 最初の要素に 'hotelBasicInfo' が含まれている
-                                hotel_info = hotel_item['hotel'][0]
+                        
+                        # 🆕 LLM評価システムによる最適ホテル選択
+                        selected_hotel = select_best_hotel_with_evaluation(spot.name, hotel_results)
+                        
+                        if selected_hotel:
+                            # 選択されたホテルの情報を処理
+                            if 'hotel' in selected_hotel and len(selected_hotel['hotel']) > 0:
+                                hotel_info = selected_hotel['hotel'][0]
                                 if 'hotelBasicInfo' in hotel_info:
                                     basic_info = hotel_info['hotelBasicInfo']
                                     hotel_name = basic_info.get('hotelName', '')
-                                    print(f"ホテル名: {hotel_name}")
-                                    
-                                    # 類似度チェックを撤廃し、最初に見つかったホテルを正とする
-                                    print(f"類似度チェックをスキップし、最初のホテルを採用: {hotel_name}")
+                                    print(f"LLM評価により選択されたホテル: {hotel_name}")
                                     
                                     # URLがある場合のみ処理
                                     if basic_info.get('hotelInformationUrl'):
@@ -1376,7 +1471,8 @@ def save_instagram_spots():
                                         db.session.add(affiliate_link)
                                         
                                         print(f"楽天トラベルアフィリエイトリンクを自動生成: スポット名={spot.name}")
-                                        break  # 最初の一致したホテルのみ使用
+                        else:
+                            print(f"LLM評価により、適切なホテルが見つかりませんでした: スポット名={spot.name}")
                 except Exception as e:
                     print(f"楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
         
@@ -1398,6 +1494,140 @@ def save_instagram_spots():
         db.session.rollback()
         return jsonify({'error': f'Failed to save spots: {str(e)}'}), 500
 
+@api_bp.route('/import/instagram/save-async', methods=['POST'])
+@login_required
+def start_instagram_save():
+    """Instagramスポット保存の非同期タスクを開始する"""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.get_json() or {}
+    spot_candidates = data.get('spot_candidates', [])
+    user_id = current_user.id
+    
+    if not spot_candidates:
+        return jsonify({'error': 'No spot candidates provided'}), 400
+    
+    try:
+        # Redis接続とキューのセットアップ
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        
+        # ローカル開発環境ではSSL設定を無効化
+        if 'localhost' in redis_url or '127.0.0.1' in redis_url:
+            redis_conn = Redis.from_url(redis_url)
+        else:
+            # Heroku等の本番環境ではSSL証明書検証を無効化
+            redis_conn = Redis.from_url(redis_url, ssl_cert_reqs=None)
+        
+        q = Queue(connection=redis_conn)
+        
+        # 重複実行制御: 1時間以内の実行中の保存ジョブがあるかチェック
+        timeout_threshold = datetime.utcnow() - timedelta(hours=1)
+        progress = ImportProgress.query.filter_by(
+            user_id=user_id, 
+            source='instagram'
+        ).first()
+        
+        if progress and progress.save_status in ['pending', 'processing']:
+            # 1時間以内の場合のみ重複と判定
+            if progress.last_imported_at > timeout_threshold:
+                return jsonify({
+                    'error': 'Save job already in progress. Please wait for the current job to complete.',
+                    'existing_save_job_id': progress.save_job_id,
+                    'existing_save_status': progress.save_status
+                }), 409
+            else:
+                # 1時間以上経過している場合は、古いジョブを無効にする
+                print(f"1時間以上経過した保存ジョブを無効化: save_job_id={progress.save_job_id}")
+                progress.save_status = 'failed'
+                progress.save_error_info = 'Timeout: Job was running for more than 1 hour'
+                db.session.commit()
+        
+        # 既存のImportProgressレコードを取得または作成
+        if not progress:
+            progress = ImportProgress(
+                user_id=user_id,
+                source='instagram'
+            )
+            db.session.add(progress)
+            db.session.flush()  # IDを取得
+        
+        # 保存ジョブの情報を設定
+        save_job_id = str(uuid.uuid4())
+        progress.save_job_id = save_job_id
+        progress.save_status = 'pending'
+        progress.save_error_info = None
+        progress.save_result_data = None
+        db.session.commit()
+        
+        print(f"保存ジョブを開始: save_job_id={save_job_id}, user_id={user_id}, candidates={len(spot_candidates)}")
+        
+        # 非同期タスクをキューに追加
+        job = q.enqueue(
+            save_spots_async,
+            save_job_id=save_job_id,
+            user_id=user_id,
+            spot_candidates=spot_candidates,
+            job_timeout=600  # 10分のタイムアウト
+        )
+        
+        return jsonify({
+            'success': True,
+            'save_job_id': save_job_id,
+            'message': f'{len(spot_candidates)}件のスポット保存処理を開始しました。'
+        })
+        
+    except Exception as e:
+        print(f"保存ジョブ開始エラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # エラーが発生した場合、DBの状態を更新
+        if 'progress' in locals() and progress:
+            progress.save_status = 'failed'
+            progress.save_error_info = str(e)
+            db.session.commit()
+        
+        return jsonify({'error': f'Failed to start save job: {str(e)}'}), 500
+
+@api_bp.route('/import/instagram/save-status/<string:save_job_id>', methods=['GET'])
+@login_required
+def get_save_status(save_job_id):
+    """保存ジョブのステータスを取得する"""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # ImportProgressテーブルから保存ジョブの情報を取得
+        progress = ImportProgress.query.filter_by(
+            save_job_id=save_job_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not progress:
+            return jsonify({'error': 'Save job not found'}), 404
+        
+        result = {
+            'save_job_id': save_job_id,
+            'status': progress.save_status,
+            'error_info': progress.save_error_info
+        }
+        
+        # 完了した場合は結果データも含める
+        if progress.save_status == 'completed' and progress.save_result_data:
+            try:
+                result['result_data'] = json.loads(progress.save_result_data)
+            except json.JSONDecodeError:
+                result['result_data'] = {}
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"保存ステータス取得エラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to get save status: {str(e)}'}), 500
+
 @api_bp.route('/import/instagram/start', methods=['POST'])
 @login_required
 def start_instagram_import():
@@ -1414,23 +1644,34 @@ def start_instagram_import():
         return jsonify({'error': 'Start date and end date are required.'}), 400
 
     try:
-        # Redis接続とキューのセットアップ（SSL証明書検証を無効化）
-        redis_conn = Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'), ssl_cert_reqs=None)
+        # Redis接続とキューのセットアップ（ローカル開発環境でのSSLエラーを回避）
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        
+        # ローカル開発環境ではSSL設定を無効化
+        if 'localhost' in redis_url or '127.0.0.1' in redis_url:
+            redis_conn = Redis.from_url(redis_url)
+        else:
+            # Heroku等の本番環境ではSSL証明書検証を無効化
+            redis_conn = Redis.from_url(redis_url, ssl_cert_reqs=None)
+        
         q = Queue(connection=redis_conn)
 
-        # 重複実行制御: 実行中のジョブがあるかチェック
+        # 重複実行制御: 1時間以内の実行中のジョブがあるかチェック
+        timeout_threshold = datetime.utcnow() - timedelta(hours=1)
         existing_running_job = ImportProgress.query.filter_by(
             user_id=user_id, 
             source='instagram'
         ).filter(
-            ImportProgress.status.in_(['pending', 'processing'])
+            ImportProgress.status.in_(['pending', 'processing']),
+            ImportProgress.last_imported_at > timeout_threshold  # 1時間以内のもののみ
         ).first()
         
         if existing_running_job:
             return jsonify({
                 'error': 'Import job already in progress. Please wait for the current job to complete.',
                 'existing_job_id': existing_running_job.job_id,
-                'existing_status': existing_running_job.status
+                'existing_status': existing_running_job.status,
+                'timeout_info': '1時間経過後に自動的にリセットされます'
             }), 409  # Conflict status code
         
         # 既存の完了/失敗したインポート進捗レコードを検索

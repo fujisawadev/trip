@@ -573,6 +573,10 @@
         let currentJobId = null;
         let isPolling = false;
         
+        // 保存ポーリング制御用のフラグ
+        let currentSaveJobId = null;
+        let isSavePolling = false;
+        
         // インポート開始ボタンのクリックイベント
         if (startImportBtn) {
           startImportBtn.addEventListener('click', function() {
@@ -677,6 +681,10 @@
           isPolling = false;
           currentJobId = null;
           
+          // 保存ポーリングも停止
+          isSavePolling = false;
+          currentSaveJobId = null;
+          
           importModal.classList.add('hidden');
           resetModalUI();
         }
@@ -746,7 +754,7 @@
             // 重複実行制御のエラーハンドリング
             if (response.status === 409) {
               const errorData = await response.json();
-              throw new Error('既にインポート処理が実行中です。現在の処理が完了してから再度お試しください。');
+              throw new Error('既にインポート処理が実行中です。1時間経過後に自動的にリセットされますので、しばらく待ってから再度お試しください。');
             }
             throw new Error(`ジョブの開始に失敗しました (${response.status}: ${response.statusText})`);
           }
@@ -763,7 +771,9 @@
         // ジョブの進捗をポーリング
         async function pollJobStatus(jobId) {
           let pollCount = 0;
-          const maxPolls = 300; // 最大5分間（1秒間隔）
+          let pollInterval = 2000; // 初期値：2秒
+          const maxInterval = 8000; // 最大：8秒
+          const maxPolls = 180; // 最大6分間（動的間隔）
           
           while (pollCount < maxPolls && isPolling && currentJobId === jobId) {
             try {
@@ -774,7 +784,7 @@
               }
               
               const data = await response.json();
-              console.log(`ジョブ ${jobId} のステータス: ${data.status}`);
+              console.log(`ジョブ ${jobId} のステータス: ${data.status} (ポーリング間隔: ${pollInterval}ms)`);
               
               // ローディングメッセージを更新
               if (data.status === 'pending') {
@@ -827,9 +837,14 @@
                 throw new Error(data.error_info || 'インポート処理が失敗しました');
               }
               
-              // 1秒待機してから次のポーリング
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // 動的ポーリング間隔で待機
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
               pollCount++;
+              
+              // 時間が経つにつれてポーリング間隔を延長（サーバー負荷軽減）
+              if (pollCount > 5) { // 5回目以降から間隔を延長
+                pollInterval = Math.min(pollInterval * 1.2, maxInterval);
+              }
               
             } catch (error) {
               console.error('ポーリング中のエラー:', error);
@@ -910,8 +925,10 @@
           });
         }
         
-        // スポットを保存
-        function saveSpots() {
+        // スポットを保存（非同期版）
+        async function saveSpots() {
+          console.log('非同期保存処理を開始します');
+          
           // 削除されていないスポット候補を取得（グローバル変数を使用）
           const selectedCandidates = (window.spotCandidates || []).filter(candidate => candidate !== null);
           
@@ -920,13 +937,40 @@
             return Promise.reject(new Error('保存するスポットがありません'));
           }
           
-          // ローディング表示
-          resultContainer.classList.add('hidden');
-          loadingContainer.classList.remove('hidden');
-          loadingText.textContent = 'スポットを保存中...';
-          
-          // スポットを保存
-          return fetch('/api/import/instagram/save', {
+          try {
+            // ローディング表示
+            resultContainer.classList.add('hidden');
+            loadingContainer.classList.remove('hidden');
+            loadingText.textContent = '保存ジョブを開始中...';
+            
+            // 1. 非同期保存ジョブを開始
+            const saveJobId = await startAsyncSave(selectedCandidates);
+            console.log(`保存ジョブID: ${saveJobId} で保存処理を開始しました`);
+            
+            // 2. ポーリング状態を設定
+            currentSaveJobId = saveJobId;
+            isSavePolling = true;
+            
+            // 3. 保存ジョブの進捗をポーリング
+            await pollSaveJobStatus(saveJobId);
+            
+            return true; // 成功時はtrueを返す
+            
+          } catch (error) {
+            console.error('保存処理中のエラー:', error);
+            
+            // エラー表示
+            loadingContainer.classList.add('hidden');
+            errorContainer.classList.remove('hidden');
+            errorMessage.textContent = error.message || 'スポットの保存中にエラーが発生しました。時間をおいて再度お試しください。';
+            
+            return false; // 失敗時はfalseを返す
+          }
+        }
+        
+        // 非同期保存ジョブを開始
+        async function startAsyncSave(selectedCandidates) {
+          const response = await fetch('/api/import/instagram/save-async', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -935,34 +979,101 @@
             body: JSON.stringify({
               spot_candidates: selectedCandidates
             })
-          })
-          .then(response => {
-            if (!response.ok) {
-              return response.text().then(text => {
-                console.error('エラーレスポンスの詳細:', text);
-                throw new Error(`スポットの保存に失敗しました (${response.status}: ${response.statusText})`);
-              });
-            }
-            return response.json();
-          })
-          .then(data => {
-            if (data.success) {
-              // 成功表示
-              loadingContainer.classList.add('hidden');
-              successContainer.classList.remove('hidden');
-              savedCount.textContent = data.count;
-            } else {
-              throw new Error('スポットの保存に失敗しました');
-            }
-          })
-          .catch(error => {
-            console.error('Error:', error);
-            
-            // エラー表示
-            loadingContainer.classList.add('hidden');
-            errorContainer.classList.remove('hidden');
-            errorMessage.textContent = error.message || 'スポットの保存中にエラーが発生しました。時間をおいて再度お試しください。';
           });
+          
+          if (!response.ok) {
+            // 重複実行制御のエラーハンドリング
+            if (response.status === 409) {
+              const errorData = await response.json();
+              throw new Error('既に保存処理が実行中です。しばらく待ってから再度お試しください。');
+            }
+            throw new Error(`保存ジョブの開始に失敗しました (${response.status}: ${response.statusText})`);
+          }
+          
+          const data = await response.json();
+          
+          if (!data.success) {
+            throw new Error(data.error || '保存ジョブの開始に失敗しました');
+          }
+          
+          return data.save_job_id;
+        }
+        
+        // 保存ジョブの進捗をポーリング
+        async function pollSaveJobStatus(saveJobId) {
+          let pollCount = 0;
+          let pollInterval = 2000; // 初期値：2秒
+          const maxInterval = 8000; // 最大：8秒
+          const maxPolls = 180; // 最大6分間（動的間隔）
+          
+          while (pollCount < maxPolls && isSavePolling && currentSaveJobId === saveJobId) {
+            try {
+              const response = await fetch(`/api/import/instagram/save-status/${saveJobId}`);
+              
+              if (!response.ok) {
+                throw new Error(`保存ステータス確認に失敗しました (${response.status}: ${response.statusText})`);
+              }
+              
+              const data = await response.json();
+              console.log(`保存ジョブ ${saveJobId} のステータス: ${data.status} (ポーリング間隔: ${pollInterval}ms)`);
+              
+              // ローディングメッセージを更新
+              if (data.status === 'pending') {
+                loadingText.textContent = '保存ジョブを待機中...';
+              } else if (data.status === 'processing') {
+                loadingText.textContent = 'スポットを保存中...';
+              }
+              
+              if (data.status === 'completed') {
+                console.log('保存ジョブが正常に完了しました');
+                
+                // 結果データを取得
+                const resultData = data.result_data || {};
+                const savedCount = resultData.count || 0;
+                console.log(`${savedCount}件のスポットが保存されました`);
+                
+                // 成功表示
+                loadingContainer.classList.add('hidden');
+                successContainer.classList.remove('hidden');
+                document.getElementById('saved-count').textContent = savedCount;
+                
+                // ポーリング終了
+                isSavePolling = false;
+                currentSaveJobId = null;
+                return; // 完了時はループを抜ける
+                
+              } else if (data.status === 'failed') {
+                // ポーリング終了
+                isSavePolling = false;
+                currentSaveJobId = null;
+                throw new Error(data.error_info || '保存処理が失敗しました');
+              }
+              
+              // 動的ポーリング間隔で待機
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              pollCount++;
+              
+              // 時間が経つにつれてポーリング間隔を延長（サーバー負荷軽減）
+              if (pollCount > 5) { // 5回目以降から間隔を延長
+                pollInterval = Math.min(pollInterval * 1.2, maxInterval);
+              }
+              
+            } catch (error) {
+              console.error('保存ポーリング中のエラー:', error);
+              throw error;
+            }
+          }
+          
+          // ポーリング終了（タイムアウトまたは中断）
+          isSavePolling = false;
+          currentSaveJobId = null;
+          
+          if (pollCount >= maxPolls) {
+            throw new Error('保存処理がタイムアウトしました。時間をおいて再度お試しください。');
+          } else {
+            // ユーザーがモーダルを閉じた場合
+            console.log('保存ポーリングが中断されました');
+          }
         }
         
         // CSRFトークンを取得

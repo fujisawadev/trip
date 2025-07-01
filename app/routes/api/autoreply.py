@@ -161,7 +161,7 @@ def analyze_message(message):
 
 メッセージ: {message}
 
-次の形式でJSON応答してください:
+次の形式でJSON形式の応答をしてください:
 {{
   "is_location_question": true/false,
   "confidence": 0-1の数値,

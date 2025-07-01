@@ -35,6 +35,7 @@ try:
             ssl_context = None
             
             # Heroku環境ではSSLを無効化（Herokuは独自のSSL終端を提供）
+            # ローカル開発環境でも、証明書が存在し、明示的にHTTPS有効化が指定された場合のみHTTPS使用
             if not is_heroku() and os.environ.get('USE_HTTPS', '').lower() == 'true':
                 # 証明書ファイルのパスを指定
                 cert_path = os.environ.get('SSL_CERT_PATH', 'localhost.crt')
@@ -47,6 +48,10 @@ try:
                 else:
                     print(f"警告: 証明書ファイルが見つかりません。HTTPSは無効化されます。")
                     print(f"証明書パス: {cert_path}, キーパス: {key_path}")
+                    print(f"ローカル開発環境ではHTTPを使用してください: http://localhost:{port}")
+            else:
+                # デフォルトではHTTPを使用（ローカル開発環境）
+                print(f"ローカル開発環境: HTTPで起動します: http://localhost:{port}")
             
             # Heroku環境ではPROCFILEを使用するため、この行は実行されない
             if not is_heroku():
