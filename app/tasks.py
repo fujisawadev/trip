@@ -648,9 +648,9 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
                 try:
                     logger.info(f"[SaveJob {save_job_id}] 楽天トラベルAPI検索: {spot.name}")
                     
-                    # 楽天トラベルAPIを呼び出してホテル情報を取得
-                    from app.utils.rakuten_api import search_hotel, select_best_hotel_with_evaluation, generate_rakuten_affiliate_url
-                    hotel_results = search_hotel(spot.name, user.rakuten_affiliate_id)
+                    # 楽天トラベルAPIを呼び出してホテル情報を取得（段階的検索対応）
+                    from app.utils.rakuten_api import search_hotel_with_fallback, select_best_hotel_with_evaluation, generate_rakuten_affiliate_url
+                    hotel_results = search_hotel_with_fallback(spot.name, user.rakuten_affiliate_id)
                     
                     # エラーハンドリング改善
                     if hotel_results.get('error') == 'no_hotels_found':

@@ -12,7 +12,7 @@ import re
 from datetime import datetime, timedelta
 from app.utils.instagram_helpers import extract_cursor_from_url
 from app.services.google_photos import get_google_photos_by_place_id
-from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url, select_best_hotel_with_evaluation
+from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url, select_best_hotel_with_evaluation, simple_hotel_search_for_manual, search_hotel_with_fallback
 from rq import Queue
 from redis import Redis
 from app.tasks import fetch_and_analyze_posts, save_spots_async
@@ -1423,8 +1423,8 @@ def save_instagram_spots():
             if current_user.rakuten_affiliate_id and spot.name:
                 try:
                     print(f"楽天トラベルAPI検索: {spot.name}")
-                    # 楽天トラベルAPIを呼び出してホテル情報を取得
-                    hotel_results = search_hotel(spot.name, current_user.rakuten_affiliate_id)
+                    # 楽天トラベルAPIを呼び出してホテル情報を取得（段階的検索対応）
+                    hotel_results = search_hotel_with_fallback(spot.name, current_user.rakuten_affiliate_id)
                     
                     # エラーハンドリング改善
                     if hotel_results.get('error') == 'no_hotels_found':
@@ -1771,3 +1771,81 @@ def is_japanese(text):
                 return True
     
     return False
+
+@api_bp.route('/rakuten/manual-search', methods=['POST'])
+@login_required
+def manual_rakuten_search():
+    """手動操作用の楽天ホテル検索API（完全独立）
+    
+    スポット登録・編集画面でユーザーが「ホテルを検索して選択」ボタンを
+    クリックした際に呼び出される専用エンドポイント
+    """
+    if not current_user.is_authenticated:
+        return jsonify({'error': '認証が必要です'}), 401
+        
+    if not current_user.rakuten_affiliate_id:
+        return jsonify({'error': 'アフィリエイトIDが設定されていません'}), 400
+    
+    try:
+        # リクエストデータを取得
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'リクエストデータが必要です'}), 400
+            
+        spot_name = data.get('spot_name', '').strip()
+        if not spot_name:
+            return jsonify({'error': 'スポット名が必要です'}), 400
+        
+        print(f"手動楽天検索開始: ユーザー={current_user.id}, スポット名='{spot_name}'")
+        
+        # 手動操作用のシンプルな検索処理（LLM評価なし）
+        result = simple_hotel_search_for_manual(
+            spot_name=spot_name,
+            affiliate_id=current_user.rakuten_affiliate_id,
+            max_results=5
+        )
+        
+        # エラーハンドリング
+        if result.get('error'):
+            error_code = result.get('error')
+            error_message = result.get('message', '検索中にエラーが発生しました')
+            
+            # 「ホテルが見つからない」は正常な結果として扱う
+            if error_code == 'no_hotels_found':
+                print(f"手動楽天検索結果: ホテルが見つかりませんでした")
+                return jsonify({
+                    'success': True,
+                    'hotels': [],
+                    'total_count': 0,
+                    'message': '該当するホテルが見つかりませんでした'
+                })
+            
+            # その他のエラーは400エラーとして扱う
+            print(f"手動楽天検索エラー: {error_message}")
+            return jsonify({
+                'success': False,
+                'error': error_code,
+                'message': error_message
+            }), 400
+        
+        # 成功レスポンス
+        hotels = result.get('hotels', [])
+        print(f"手動楽天検索完了: {len(hotels)}件の候補を取得")
+        
+        return jsonify({
+            'success': True,
+            'hotels': hotels,
+            'total_count': len(hotels),
+            'message': f'{len(hotels)}件のホテル候補が見つかりました'
+        })
+        
+    except Exception as e:
+        print(f"手動楽天検索API予期しないエラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': 'server_error',
+            'message': '検索中にエラーが発生しました。しばらく時間をおいて再度お試しください。'
+        }), 500

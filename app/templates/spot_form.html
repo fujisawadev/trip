@@ -80,13 +80,12 @@
         animation: spin 1s linear infinite;
         position: absolute;
         right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
+        top: 30%;
       }
       
       @keyframes spin {
-        0% { transform: translateY(-50%) rotate(0deg); }
-        100% { transform: translateY(-50%) rotate(360deg); }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
       
       .toggle-switch:checked + .toggle-slider {
@@ -408,14 +407,26 @@
                   {% for platform, placeholder in social_platforms.items() %}
                   <div class="flex flex-col gap-1.5 w-full">
                     <label for="{{ platform }}_url" class="text-sm font-medium text-neutral-600">{{ platform|title }}</label>
-                    <input
-                      type="url"
-                      id="{{ platform }}_url"
-                      name="{{ platform }}_url"
-                      value="{{ spot_social_links.get(platform, '') }}"
-                      placeholder="{{ placeholder }}"
-                      class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div class="relative">
+                      <input
+                        type="url"
+                        id="{{ platform }}_url"
+                        name="{{ platform }}_url"
+                        value="{{ spot_social_links.get(platform, '') }}"
+                        placeholder="{{ placeholder }}"
+                        class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        class="link-preview-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors hidden"
+                        data-input-id="{{ platform }}_url"
+                        title="リンクを開く"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   {% endfor %}
                 </div>
@@ -449,16 +460,35 @@
                   <!-- Rakuten Link (Fixed) -->
                   <div class="flex flex-col gap-1.5">
                     <label for="rakuten_url" class="text-sm font-medium text-neutral-600">楽天トラベル URL</label>
-                    <input type="url" id="rakuten_url" name="rakuten_url" value="{{ rakuten_link.url if rakuten_link else '' }}" placeholder="楽天トラベルのURL" class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="relative">
+                      <input type="url" id="rakuten_url" name="rakuten_url" value="{{ rakuten_link.url if rakuten_link else '' }}" placeholder="楽天トラベルのURL" class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <button
+                        type="button"
+                        class="link-preview-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors hidden"
+                        data-input-id="rakuten_url"
+                        title="リンクを開く"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   
                   {% if current_user.rakuten_affiliate_id %}
+                    <button type="button" id="search-rakuten-hotels" 
+                            class="mt-2 w-full px-4 py-2 text-sm font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      ホテルを検索して選択
+                    </button>
                     <p class="text-xs text-slate-500 mt-1">
-                      <a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイトID設定済み</a>: この項目が空の場合、スポット名に一致するホテルを自動で検索し、アフィリエイトリンクを生成します。
+                      <a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイトID設定済み</a>: 上のボタンでスポット名に一致するホテルを検索し、候補から選択できます。
                     </p>
                   {% else %}
                     <p class="text-xs text-slate-500 mt-1">
-                      楽天アフィリエイトIDをお持ちの場合は、<a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイト設定</a>から登録すると、URLが空の場合にリンクが自動生成されます。
+                      楽天アフィリエイトIDをお持ちの場合は、<a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイト設定</a>から登録すると、ホテル検索機能が利用できるようになります。
                     </p>
                   {% endif %}
 
@@ -477,7 +507,20 @@
                         </div>
                         <div class="flex flex-col gap-1.5">
                           <label :for="'other_link_url_' + index" class="text-sm font-medium text-neutral-600">URL</label>
-                          <input type="url" :id="'other_link_url_' + index" :name="'other_links[' + index + '][url]'" x-model="link.url" placeholder="https://..." class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          <div class="relative">
+                            <input type="url" :id="'other_link_url_' + index" :name="'other_links[' + index + '][url]'" x-model="link.url" placeholder="https://..." class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button
+                              type="button"
+                              class="link-preview-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors"
+                              x-show="link.url && link.url.trim() !== ''"
+                              @click="window.open(link.url, '_blank')"
+                              title="リンクを開く"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         <button type="button" @click="removeLink(index)" class="text-sm text-red-500 hover:text-red-700 self-end">削除</button>
                       </div>
@@ -612,6 +655,7 @@
     </div>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="{{ url_for('static', filename='js/rakuten-manual-search.js') }}"></script>
     <script>
       // グローバルエラーハンドリング
       window.addEventListener('error', function(event) {
@@ -941,6 +985,66 @@
             }
           });
         }
+
+        // リンクプレビューボタンの制御
+        function setupLinkPreviewButtons() {
+          const linkInputs = document.querySelectorAll('input[type="url"]');
+          
+          linkInputs.forEach(input => {
+            const container = input.closest('.relative');
+            if (!container) return;
+            
+            const previewBtn = container.querySelector('.link-preview-btn');
+            if (!previewBtn) return;
+            
+            // 初期状態の設定
+            togglePreviewButton(input, previewBtn);
+            
+            // リアルタイム監視
+            input.addEventListener('input', () => {
+              togglePreviewButton(input, previewBtn);
+            });
+            
+            // ブラウザのautofillも考慮
+            input.addEventListener('change', () => {
+              togglePreviewButton(input, previewBtn);
+            });
+            
+            // ボタンクリック時の処理
+            previewBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const url = input.value.trim();
+              if (url && isValidUrl(url)) {
+                window.open(url, '_blank');
+              }
+            });
+          });
+        }
+        
+        function togglePreviewButton(input, button) {
+          const url = input.value.trim();
+          if (url && isValidUrl(url)) {
+            button.classList.remove('hidden');
+          } else {
+            button.classList.add('hidden');
+          }
+        }
+        
+        function isValidUrl(string) {
+          try {
+            new URL(string);
+            return true;
+          } catch (_) {
+            return false;
+          }
+        }
+        
+        // 初期化
+        setupLinkPreviewButtons();
+        
+        // ページロード後に再度実行（Alpine.jsの動的コンテンツ用）
+        setTimeout(setupLinkPreviewButtons, 1000);
       });
     </script>
   </body>

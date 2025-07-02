@@ -240,41 +240,7 @@ def add_spot():
             db.session.add(affiliate_link)
             print(f"手動で楽天トラベルリンクを追加: {rakuten_url}")
         
-        elif current_user.rakuten_affiliate_id and name:
-            # 手動入力がなく、アフィリエイトIDが設定されている場合のみ自動検索
-            try:
-                print(f"楽天トラベルAPI検索（自動）: {name}")
-                hotel_results = search_hotel(name, current_user.rakuten_affiliate_id)
-                
-                # エラーハンドリング改善
-                if hotel_results.get('error') == 'no_hotels_found':
-                    print(f"楽天トラベル: '{name}'に該当するホテルが見つかりませんでした")
-                elif hotel_results.get('error'):
-                    print(f"楽天トラベルAPIエラー: {hotel_results.get('message', 'Unknown error')}")
-                elif 'hotels' in hotel_results and hotel_results['hotels']:
-                    hotel_item = hotel_results['hotels'][0]
-                    if 'hotel' in hotel_item and hotel_item['hotel']:
-                        hotel_info = hotel_item['hotel'][0]
-                        if 'hotelBasicInfo' in hotel_info:
-                            basic_info = hotel_info['hotelBasicInfo']
-                            hotel_url = basic_info.get('hotelInformationUrl')
-                            
-                            if hotel_url:
-                                affiliate_url = generate_rakuten_affiliate_url(hotel_url, current_user.rakuten_affiliate_id)
-                                affiliate_link = AffiliateLink(
-                                    spot_id=spot.id,
-                                    platform='rakuten',
-                                    url=affiliate_url,
-                                    title='楽天トラベル',
-                                    description='楽天トラベルで予約 (PRを含む)',
-                                    icon_key='rakuten-travel',
-                                    is_active=True
-                                )
-                                db.session.add(affiliate_link)
-                                print(f"楽天トラベルリンクを自動生成: {affiliate_url}")
-            except Exception as e:
-                print(f"楽天トラベルリンクの自動生成中にエラー: {str(e)}")
-        
+
         # SNSリンクの更新
         _update_social_links(spot.id, request.form)
 

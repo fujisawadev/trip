@@ -51,6 +51,148 @@ def validate_and_clean_keyword(keyword):
     
     return cleaned_keyword.strip()
 
+def generate_search_variations(original_keyword):
+    """検索キーワードのバリエーションを生成して検索精度を向上させる"""
+    import unicodedata
+    
+    variations = []
+    
+    # 1. 元のキーワード
+    variations.append(original_keyword)
+    
+    # 2. 括弧内の文字を除去
+    import re
+    no_parentheses = re.sub(r'[（(].*?[）)]', '', original_keyword).strip()
+    if no_parentheses and no_parentheses != original_keyword:
+        variations.append(no_parentheses)
+    
+    # 3. 全角半角正規化
+    normalized = unicodedata.normalize('NFKC', original_keyword)
+    if normalized != original_keyword:
+        variations.append(normalized)
+    
+    # 4. 括弧除去 + 正規化
+    normalized_no_parentheses = unicodedata.normalize('NFKC', no_parentheses)
+    if normalized_no_parentheses and normalized_no_parentheses != no_parentheses:
+        variations.append(normalized_no_parentheses)
+    
+    # 5. 「リゾート」「ホテル」「旅館」などの宿泊施設キーワードを含む場合の短縮版
+    hotel_keywords = ['リゾート', 'ホテル', '旅館', '民宿', 'ゲストハウス']
+    for hotel_keyword in hotel_keywords:
+        if hotel_keyword in original_keyword:
+            # 施設名の主要部分のみを抽出
+            parts = original_keyword.split()
+            main_parts = [part for part in parts if hotel_keyword in part or len(part) > 2]
+            if len(main_parts) < len(parts):
+                short_name = ' '.join(main_parts)
+                if short_name and short_name not in variations:
+                    variations.append(short_name)
+    
+    # 6. スペースを除去した版
+    no_space = original_keyword.replace(' ', '').replace('　', '')
+    if no_space != original_keyword and len(no_space) > 3:
+        variations.append(no_space)
+    
+    # 重複除去と空文字除去
+    unique_variations = []
+    for variation in variations:
+        cleaned = variation.strip()
+        if cleaned and cleaned not in unique_variations and len(cleaned) > 1:
+            unique_variations.append(cleaned)
+    
+    logger.info(f"検索バリエーション生成: '{original_keyword}' -> {unique_variations}")
+    return unique_variations
+
+def search_hotel_with_variations(original_keyword, affiliate_id=None, max_results=5):
+    """複数のキーワードバリエーションで段階的に検索を行う"""
+    
+    search_variations = generate_search_variations(original_keyword)
+    all_hotels = []
+    seen_hotel_ids = set()
+    
+    for i, keyword in enumerate(search_variations):
+        logger.info(f"検索試行 {i+1}/{len(search_variations)}: '{keyword}'")
+        
+        # 各バリエーションで検索（より多くの候補を取得）
+        result = search_hotel(keyword, affiliate_id, hits=5)
+        
+        if result.get('error') != 'no_hotels_found' and result.get('hotels'):
+            hotels = result.get('hotels', [])
+            logger.info(f"検索試行 {i+1}: {len(hotels)}件のホテルが見つかりました")
+            
+            # 重複除去しながらホテルを追加
+            for hotel in hotels:
+                hotel_info = hotel.get('hotel', [{}])[0] if hotel.get('hotel') else {}
+                basic_info = hotel_info.get('hotelBasicInfo', {})
+                hotel_id = basic_info.get('hotelNo')  # 楽天ホテル番号
+                
+                if hotel_id and hotel_id not in seen_hotel_ids:
+                    seen_hotel_ids.add(hotel_id)
+                    all_hotels.append(hotel)
+                    
+                    # 十分な件数が集まったら終了
+                    if len(all_hotels) >= max_results:
+                        logger.info(f"十分な候補数({len(all_hotels)}件)が集まったため検索を終了")
+                        break
+            
+            if len(all_hotels) >= max_results:
+                break
+        else:
+            logger.info(f"検索試行 {i+1}: ホテルが見つかりませんでした")
+    
+    if all_hotels:
+        logger.info(f"段階的検索完了: 総計{len(all_hotels)}件のホテルが見つかりました")
+        return {
+            'hotels': all_hotels[:max_results],
+            'search_keyword': original_keyword,
+            'successful_variations': [var for var in search_variations if var != original_keyword]
+        }
+    else:
+        logger.info(f"段階的検索完了: 全てのバリエーションでホテルが見つかりませんでした")
+        return {
+            "error": "no_hotels_found",
+            "message": "該当するホテルが見つかりませんでした",
+            "keyword": original_keyword,
+            "tried_variations": search_variations,
+            "hotels": []
+        }
+
+def search_hotel_with_fallback(spot_name, affiliate_id, hits=3):
+    """自動インポート用のハイブリッド検索（従来検索 + 段階的検索フォールバック）
+    
+    Args:
+        spot_name (str): スポット名（検索キーワード）
+        affiliate_id (str): 楽天アフィリエイトID
+        hits (int): 取得件数（デフォルト3件）
+        
+    Returns:
+        dict: 検索結果（従来と同じフォーマット）
+    """
+    logger.info(f"ハイブリッド検索開始: スポット名='{spot_name}'")
+    
+    # 1. まず従来検索を試行（既存の成功ケースを維持）
+    hotel_results = search_hotel(spot_name, affiliate_id, hits)
+    
+    # 2. 成功した場合はそのまま返す（コスト増加なし）
+    if hotel_results.get('error') != 'no_hotels_found':
+        logger.info(f"従来検索成功: {len(hotel_results.get('hotels', []))}件のホテルが見つかりました")
+        return hotel_results
+    
+    # 3. 失敗時のみ段階的検索を実行
+    logger.info(f"従来検索失敗、段階的検索を開始: '{spot_name}'")
+    fallback_results = search_hotel_with_variations(spot_name, affiliate_id, max_results=hits)
+    
+    if fallback_results.get('error') != 'no_hotels_found':
+        logger.info(f"段階的検索成功: {len(fallback_results.get('hotels', []))}件のホテルが見つかりました")
+        # 段階的検索の成功情報をログに記録
+        successful_variations = fallback_results.get('successful_variations', [])
+        if successful_variations:
+            logger.info(f"成功したキーワードバリエーション: {successful_variations}")
+    else:
+        logger.info(f"段階的検索も失敗: 全てのバリエーションでホテルが見つかりませんでした")
+    
+    return fallback_results
+
 def evaluate_hotel_candidates_with_llm(spot_name, hotel_candidates):
     """LLMを使用してホテル候補とスポット名のマッチ度を評価"""
     openai_api_key = os.environ.get('OPENAI_API_KEY')
@@ -176,12 +318,13 @@ def select_best_hotel_with_evaluation(spot_name, hotel_results):
         logger.info(f"全ホテル候補が閾値未満: 最高スコア={best_score}, 閾値={RAKUTEN_MATCH_THRESHOLD}, スポット='{spot_name}'")
         return None
 
-def search_hotel(keyword, affiliate_id=None):
+def search_hotel(keyword, affiliate_id=None, hits=3):
     """楽天トラベルAPIでホテルを検索する関数
     
     Args:
         keyword (str): 検索キーワード（ホテル名など）
         affiliate_id (str, optional): 楽天アフィリエイトID
+        hits (int): 取得件数（デフォルト3件）
         
     Returns:
         dict: APIレスポンス
@@ -206,7 +349,7 @@ def search_hotel(keyword, affiliate_id=None):
         "format": "json",
         "keyword": cleaned_keyword,  # クリーンアップされたキーワードを使用
         "applicationId": api_key,
-        "hits": 3,  # 取得件数（LLM評価用に最適化）
+        "hits": hits,  # 取得件数
         "responseType": "small"
     }
     
@@ -362,3 +505,89 @@ def generate_rakuten_affiliate_url(url, affiliate_id):
         logger.error(f"アフィリエイトURL生成エラー: {e}")
         print(f"アフィリエイトURL生成: エラーのため元URLを返します - {e}")
         return url  # エラー時は元URLをそのまま返す 
+
+def simple_hotel_search_for_manual(spot_name, affiliate_id, max_results=5):
+    """手動選択用のシンプルなホテル検索（段階的検索機能付き）
+    
+    Args:
+        spot_name (str): スポット名（検索キーワード）
+        affiliate_id (str): 楽天アフィリエイトID
+        max_results (int): 最大取得件数（デフォルト5件）
+        
+    Returns:
+        dict: 手動選択用にフォーマットされた検索結果
+    """
+    if not spot_name or not affiliate_id:
+        return {
+            "error": "invalid_parameters",
+            "message": "スポット名またはアフィリエイトIDが指定されていません"
+        }
+    
+    logger.info(f"手動検索開始: スポット名='{spot_name}', 最大件数={max_results}")
+    
+    # 新しい段階的検索機能を使用
+    api_result = search_hotel_with_variations(spot_name, affiliate_id, max_results)
+    
+    if api_result.get('error'):
+        logger.warning(f"手動検索API呼び出しエラー: {api_result.get('message', 'Unknown error')}")
+        return api_result
+    
+    # 手動選択用のフォーマット処理
+    return format_hotels_for_manual_selection(api_result, affiliate_id, max_results)
+
+def format_hotels_for_manual_selection(api_result, affiliate_id, max_results):
+    """手動選択用のホテルデータ整形
+    
+    Args:
+        api_result (dict): 楽天APIの生レスポンス
+        affiliate_id (str): アフィリエイトID
+        max_results (int): 最大件数
+        
+    Returns:
+        dict: 整形済みのホテルデータ
+    """
+    hotels = api_result.get('hotels', [])[:max_results]
+    formatted_hotels = []
+    
+    logger.info(f"手動選択用フォーマット開始: 候補数={len(hotels)}")
+    
+    for i, hotel_item in enumerate(hotels):
+        try:
+            if 'hotel' in hotel_item and hotel_item['hotel']:
+                hotel_info = hotel_item['hotel'][0]
+                basic_info = hotel_info.get('hotelBasicInfo', {})
+                
+                # 基本情報を取得
+                hotel_name = basic_info.get('hotelName', '')
+                address = basic_info.get('address1', '') + basic_info.get('address2', '')
+                image_url = basic_info.get('hotelImageUrl', '')
+                original_url = basic_info.get('hotelInformationUrl', '')
+                
+                # アフィリエイトURL生成
+                affiliate_url = ''
+                if original_url:
+                    affiliate_url = generate_rakuten_affiliate_url(original_url, affiliate_id)
+                
+                formatted_hotel = {
+                    'name': hotel_name,
+                    'address': address,
+                    'image_url': image_url,
+                    'original_url': original_url,
+                    'affiliate_url': affiliate_url
+                }
+                
+                formatted_hotels.append(formatted_hotel)
+                logger.info(f"手動選択候補{i+1}: {hotel_name}")
+                
+        except Exception as e:
+            logger.error(f"ホテル情報の整形エラー (候補{i+1}): {e}")
+            continue
+    
+    result = {
+        'success': True,
+        'hotels': formatted_hotels,
+        'total_count': len(formatted_hotels)
+    }
+    
+    logger.info(f"手動選択用フォーマット完了: 有効候補数={len(formatted_hotels)}")
+    return result 
