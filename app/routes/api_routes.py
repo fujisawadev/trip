@@ -1521,15 +1521,15 @@ def start_instagram_save():
         
         q = Queue(connection=redis_conn)
         
-        # 重複実行制御: 1時間以内の実行中の保存ジョブがあるかチェック
-        timeout_threshold = datetime.utcnow() - timedelta(hours=1)
+        # 重複実行制御: 15分以内の実行中の保存ジョブがあるかチェック
+        timeout_threshold = datetime.utcnow() - timedelta(minutes=15)
         progress = ImportProgress.query.filter_by(
             user_id=user_id, 
             source='instagram'
         ).first()
         
         if progress and progress.save_status in ['pending', 'processing']:
-            # 1時間以内の場合のみ重複と判定
+            # 15分以内の場合のみ重複と判定
             if progress.last_imported_at > timeout_threshold:
                 return jsonify({
                     'error': 'Save job already in progress. Please wait for the current job to complete.',
@@ -1537,10 +1537,10 @@ def start_instagram_save():
                     'existing_save_status': progress.save_status
                 }), 409
             else:
-                # 1時間以上経過している場合は、古いジョブを無効にする
-                print(f"1時間以上経過した保存ジョブを無効化: save_job_id={progress.save_job_id}")
+                # 15分以上経過している場合は、古いジョブを無効にする
+                print(f"15分以上経過した保存ジョブを無効化: save_job_id={progress.save_job_id}")
                 progress.save_status = 'failed'
-                progress.save_error_info = 'Timeout: Job was running for more than 1 hour'
+                progress.save_error_info = 'Timeout: Job was running for more than 15 minutes'
                 db.session.commit()
         
         # 既存のImportProgressレコードを取得または作成
@@ -1568,7 +1568,7 @@ def start_instagram_save():
             save_job_id=save_job_id,
             user_id=user_id,
             spot_candidates=spot_candidates,
-            job_timeout=600  # 10分のタイムアウト
+            job_timeout=300  # 5分のタイムアウト
         )
         
         return jsonify({
@@ -1656,14 +1656,14 @@ def start_instagram_import():
         
         q = Queue(connection=redis_conn)
 
-        # 重複実行制御: 1時間以内の実行中のジョブがあるかチェック
-        timeout_threshold = datetime.utcnow() - timedelta(hours=1)
+        # 重複実行制御: 15分以内の実行中のジョブがあるかチェック
+        timeout_threshold = datetime.utcnow() - timedelta(minutes=15)
         existing_running_job = ImportProgress.query.filter_by(
             user_id=user_id, 
             source='instagram'
         ).filter(
             ImportProgress.status.in_(['pending', 'processing']),
-            ImportProgress.last_imported_at > timeout_threshold  # 1時間以内のもののみ
+            ImportProgress.last_imported_at > timeout_threshold  # 15分以内のもののみ
         ).first()
         
         if existing_running_job:
@@ -1671,7 +1671,7 @@ def start_instagram_import():
                 'error': 'Import job already in progress. Please wait for the current job to complete.',
                 'existing_job_id': existing_running_job.job_id,
                 'existing_status': existing_running_job.status,
-                'timeout_info': '1時間経過後に自動的にリセットされます'
+                'timeout_info': '15分経過後に自動的にリセットされます'
             }), 409  # Conflict status code
         
         # 既存の完了/失敗したインポート進捗レコードを検索
@@ -1705,7 +1705,7 @@ def start_instagram_import():
         q.enqueue(
             fetch_and_analyze_posts,
             args=[job_id, user_id, start_date, end_date],
-            job_timeout=1800, # 30分でタイムアウト
+            job_timeout=600, # 10分でタイムアウト
             job_id=job_id
         )
         
