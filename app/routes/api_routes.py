@@ -1748,6 +1748,213 @@ def get_import_status(job_id):
         current_app.logger.error(f"Error fetching import status for job {job_id}: {e}")
         return jsonify({'error': 'Failed to get import status.'}), 500
 
+@api_bp.route('/import/instagram/cancel/<string:job_id>', methods=['POST'])
+@login_required
+def cancel_import_job(job_id):
+    """インポートジョブをキャンセルする"""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # Redis接続の設定
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        
+        if 'localhost' in redis_url or '127.0.0.1' in redis_url:
+            redis_conn = Redis.from_url(redis_url)
+        else:
+            redis_conn = Redis.from_url(redis_url, ssl_cert_reqs=None)
+        
+        # 1. RQジョブをキャンセル（エラーが発生しても続行）
+        try:
+            from rq.job import Job
+            import rq
+            
+            job = Job.fetch(job_id, connection=redis_conn)
+            job_status = job.get_status()
+            
+            if job_status in ['queued', 'started']:
+                # まずjob.cancel()を試行
+                try:
+                    job.cancel()
+                    print(f"RQジョブをキャンセルしました: {job_id}")
+                except Exception as cancel_error:
+                    print(f"job.cancel()エラー（rq.cancel_job()で再試行）: {cancel_error}")
+                    # 失敗した場合のみrq.cancel_job()を使用
+                    rq.cancel_job(job_id, connection=redis_conn)
+                    print(f"rq.cancel_job関数でジョブをキャンセルしました: {job_id}")
+            else:
+                print(f"ジョブは既に{job_status}状態のためキャンセル不要: {job_id}")
+            
+        except Exception as rq_error:
+            print(f"RQジョブキャンセルエラー（続行）: {rq_error}")
+        
+        # 2. DB状態を更新（セキュリティ: 自分のジョブのみ）
+        progress = ImportProgress.query.filter_by(
+            job_id=job_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not progress:
+            return jsonify({'error': 'Job not found'}), 404
+        
+        # ジョブステータスを更新
+        progress.status = 'cancelled'
+        progress.error_info = 'User cancelled the job'
+        db.session.commit()
+        
+        print(f"インポートジョブをキャンセルしました: job_id={job_id}, user_id={current_user.id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'インポートジョブをキャンセルしました'
+        })
+        
+    except Exception as e:
+        print(f"インポートジョブキャンセルエラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to cancel import job: {str(e)}'}), 500
+
+@api_bp.route('/import/instagram/cancel-save/<string:save_job_id>', methods=['POST'])
+@login_required
+def cancel_save_job(save_job_id):
+    """保存ジョブをキャンセルする"""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # Redis接続の設定
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        
+        if 'localhost' in redis_url or '127.0.0.1' in redis_url:
+            redis_conn = Redis.from_url(redis_url)
+        else:
+            redis_conn = Redis.from_url(redis_url, ssl_cert_reqs=None)
+        
+        # 1. RQジョブをキャンセル（エラーが発生しても続行）
+        try:
+            from rq.job import Job
+            import rq
+            
+            job = Job.fetch(save_job_id, connection=redis_conn)
+            job_status = job.get_status()
+            
+            if job_status in ['queued', 'started']:
+                # まずjob.cancel()を試行
+                try:
+                    job.cancel()
+                    print(f"RQ保存ジョブをキャンセルしました: {save_job_id}")
+                except Exception as cancel_error:
+                    print(f"job.cancel()エラー（rq.cancel_job()で再試行）: {cancel_error}")
+                    # 失敗した場合のみrq.cancel_job()を使用
+                    rq.cancel_job(save_job_id, connection=redis_conn)
+                    print(f"rq.cancel_job関数で保存ジョブをキャンセルしました: {save_job_id}")
+            else:
+                print(f"保存ジョブは既に{job_status}状態のためキャンセル不要: {save_job_id}")
+            
+        except Exception as rq_error:
+            print(f"RQ保存ジョブキャンセルエラー（続行）: {rq_error}")
+        
+        # 2. DB状態を更新（セキュリティ: 自分のジョブのみ）
+        progress = ImportProgress.query.filter_by(
+            save_job_id=save_job_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not progress:
+            return jsonify({'error': 'Save job not found'}), 404
+        
+        # 保存ジョブステータスを更新
+        progress.save_status = 'cancelled'
+        progress.save_error_info = 'User cancelled the save job'
+        db.session.commit()
+        
+        print(f"保存ジョブをキャンセルしました: save_job_id={save_job_id}, user_id={current_user.id}")
+        
+        return jsonify({
+            'success': True,
+            'message': '保存ジョブをキャンセルしました'
+        })
+        
+    except Exception as e:
+        print(f"保存ジョブキャンセルエラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to cancel save job: {str(e)}'}), 500
+
+@api_bp.route('/import/instagram/check-active-jobs', methods=['GET'])
+@login_required
+def check_active_jobs():
+    """現在のユーザーの進行中ジョブをチェックする（復帰機能用）"""
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # 現在のユーザーの最新の ImportProgress レコードを取得
+        progress = ImportProgress.query.filter_by(
+            user_id=current_user.id
+        ).order_by(ImportProgress.last_imported_at.desc()).first()
+        
+        if not progress:
+            return jsonify({
+                'has_active_job': False,
+                'message': '進行中のジョブはありません'
+            })
+        
+        # インポートジョブの状態をチェック
+        active_import_job = None
+        active_save_job = None
+        
+        # インポートジョブが進行中かチェック
+        if progress.job_id and progress.status in ['pending', 'processing']:
+            active_import_job = {
+                'type': 'import',
+                'job_id': progress.job_id,
+                'status': progress.status,
+                'created_at': progress.last_imported_at.isoformat() if progress.last_imported_at else None
+            }
+        
+        # 保存ジョブが進行中かチェック
+        if progress.save_job_id and progress.save_status in ['pending', 'processing']:
+            active_save_job = {
+                'type': 'save',
+                'job_id': progress.save_job_id,
+                'status': progress.save_status,
+                'created_at': progress.last_imported_at.isoformat() if progress.last_imported_at else None
+            }
+        
+        # どちらかのジョブが進行中の場合
+        if active_import_job or active_save_job:
+            response_data = {
+                'has_active_job': True,
+                'jobs': []
+            }
+            
+            if active_import_job:
+                response_data['jobs'].append(active_import_job)
+            
+            if active_save_job:
+                response_data['jobs'].append(active_save_job)
+            
+            # 分析完了データがある場合は含める（保存ジョブ復帰時に必要）
+            if progress.result_data and active_save_job:
+                response_data['result_data'] = progress.result_data
+            
+            print(f"進行中ジョブを検出: user_id={current_user.id}, import={bool(active_import_job)}, save={bool(active_save_job)}")
+            return jsonify(response_data)
+        
+        # 進行中のジョブがない場合
+        return jsonify({
+            'has_active_job': False,
+            'message': '進行中のジョブはありません'
+        })
+        
+    except Exception as e:
+        print(f"進行中ジョブチェックエラー: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to check active jobs: {str(e)}'}), 500
+
 # 日本語かどうかを判定する関数を追加
 def is_japanese(text):
     """テキストに日本語が含まれているかを判定する"""

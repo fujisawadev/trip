@@ -40,6 +40,23 @@ def fetch_and_analyze_posts(job_id, user_id, start_date_str, end_date_str):
     Instagramの投稿を取得し、分析してスポット候補を抽出する非同期タスク。
     """
     logger.info(f"[Job {job_id}] Processing started for user {user_id}.")
+    
+    def check_if_cancelled():
+        """ジョブがキャンセルされているかチェックする"""
+        try:
+            progress = ImportProgress.query.filter_by(job_id=job_id).first()
+            if progress and progress.status == 'cancelled':
+                logger.info(f"[Job {job_id}] Job was cancelled by user. Exiting gracefully.")
+                raise Exception("CANCELLED_BY_USER")
+        except Exception as e:
+            if "CANCELLED_BY_USER" in str(e):
+                raise
+            # DBエラーの場合はログに記録するが処理は続行
+            logger.warning(f"[Job {job_id}] Error checking cancellation status: {e}")
+    
+    # 開始前にキャンセル状態チェック
+    check_if_cancelled()
+    
     _update_job_status(job_id, 'processing')
 
     try:
@@ -49,6 +66,8 @@ def fetch_and_analyze_posts(job_id, user_id, start_date_str, end_date_str):
             raise ValueError("User not found or Instagram not connected.")
 
         # --- 1. 全投稿を取得 ---
+        check_if_cancelled()  # 投稿取得前にチェック
+        
         all_posts = _fetch_all_instagram_posts(job_id, user.instagram_token, start_date_str, end_date_str)
         if not all_posts:
             logger.info(f"[Job {job_id}] No posts found for the specified period.")
@@ -56,9 +75,13 @@ def fetch_and_analyze_posts(job_id, user_id, start_date_str, end_date_str):
             return
 
         # --- 2. 投稿を分析 ---
+        check_if_cancelled()  # 分析前にチェック
+        
         spot_candidates = _analyze_posts_with_openai(job_id, all_posts)
 
         # --- 3. Google Places APIで情報を補完 ---
+        check_if_cancelled()  # Google Places検索前にチェック
+        
         enriched_candidates = _enrich_candidates_with_google_places(job_id, spot_candidates)
 
         logger.info(f"[Job {job_id}] Found {len(enriched_candidates)} potential spots.")
@@ -71,6 +94,11 @@ def fetch_and_analyze_posts(job_id, user_id, start_date_str, end_date_str):
         logger.info(f"[Job {job_id}] Processing finished successfully.")
 
     except Exception as e:
+        # キャンセルされた場合は静かに終了
+        if "CANCELLED_BY_USER" in str(e):
+            logger.info(f"[Job {job_id}] Job was cancelled by user. Exiting gracefully.")
+            return
+        
         logger.error(f"[Job {job_id}] An error occurred: {e}")
         logger.error(traceback.format_exc())
         
@@ -386,6 +414,23 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
     選択されたスポット候補を非同期で保存する
     """
     logger.info(f"[SaveJob {save_job_id}] Save processing started for user {user_id}.")
+    
+    def check_if_cancelled():
+        """保存ジョブがキャンセルされているかチェックする"""
+        try:
+            progress = ImportProgress.query.filter_by(save_job_id=save_job_id).first()
+            if progress and progress.save_status == 'cancelled':
+                logger.info(f"[SaveJob {save_job_id}] Save job was cancelled by user. Exiting gracefully.")
+                raise Exception("CANCELLED_BY_USER")
+        except Exception as e:
+            if "CANCELLED_BY_USER" in str(e):
+                raise
+            # DBエラーの場合はログに記録するが処理は続行
+            logger.warning(f"[SaveJob {save_job_id}] Error checking cancellation status: {e}")
+    
+    # 開始前にキャンセル状態チェック
+    check_if_cancelled()
+    
     _update_save_job_status(save_job_id, 'processing')
     
     try:
@@ -400,6 +445,10 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
         
         # スポット候補の情報をログに出力
         for i, spot_data in enumerate(spot_candidates):
+            # 定期的にキャンセル状態をチェック（5件ごと）
+            if i % 5 == 0:
+                check_if_cancelled()
+            
             logger.info(f"[SaveJob {save_job_id}] Processing spot {i+1}/{len(spot_candidates)}: {spot_data.get('name', 'Unknown')}")
             
             # スポットの基本情報を設定
@@ -715,6 +764,11 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
         logger.info(f"[SaveJob {save_job_id}] Save processing finished successfully.")
 
     except Exception as e:
+        # キャンセルされた場合は静かに終了
+        if "CANCELLED_BY_USER" in str(e):
+            logger.info(f"[SaveJob {save_job_id}] Save job was cancelled by user. Exiting gracefully.")
+            return
+        
         logger.error(f"[SaveJob {save_job_id}] An error occurred: {e}")
         logger.error(traceback.format_exc())
         

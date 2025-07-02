@@ -400,7 +400,17 @@
     
     <!-- モーダルダイアログ -->
     <div id="import-modal" class="modal-overlay hidden">
-      <div class="modal-container slide-in">
+      <div class="modal-container slide-in relative">
+        <!-- モーダル右上の×ボタン -->
+        <button
+          id="modal-close-btn"
+          class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 hover:text-slate-800 transition-colors z-10"
+          title="閉じる"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
         
         <!-- ローディング表示 -->
         <div id="loading-container" class="py-8">
@@ -411,7 +421,7 @@
         </div>
         
         <!-- 結果表示 -->
-        <div id="result-container" class="hidden">
+        <div id="result-container" class="hidden pt-10">
           <!-- スポットが見つかった場合 -->
           <div id="spots-found-container" class="hidden">
             <div class="bg-green-50 border border-green-100 rounded-lg p-4 mb-4">
@@ -569,6 +579,7 @@
         const closeErrorBtn = document.getElementById('close-error-btn');
         const changePeriodBtn = document.getElementById('change-period-btn');
         const closeNoSpotsBtn = document.getElementById('close-no-spots-btn');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
         
         // 保存するスポット候補
         let spotCandidates = [];
@@ -599,6 +610,16 @@
               return;
             }
             
+            // 期間制限チェック（最大2ヶ月）
+            const startDateObj = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            const diffInDays = (endDateObj - startDateObj) / (1000 * 60 * 60 * 24);
+            
+            if (diffInDays > 62) { // 約2ヶ月（31日 × 2）
+              maplinkToast.warning('期間は2ヶ月以内で指定してください。長期間の場合は数回に分けてお試しください。');
+              return;
+            }
+            
             // ボタンを処理中の状態に変更
             const originalText = startImportBtn.innerHTML;
             startImportBtn.disabled = true;
@@ -618,7 +639,10 @@
         
         // キャンセルボタンのクリックイベント
         if (cancelImportBtn) {
-          cancelImportBtn.addEventListener('click', closeModal);
+          cancelImportBtn.addEventListener('click', async function() {
+            await handleJobCancellation();
+            closeModal();
+          });
         }
         
         // 保存ボタンのクリックイベント
@@ -643,7 +667,10 @@
         
         // 新規インポートボタンのクリックイベント
         if (newImportBtn) {
-          newImportBtn.addEventListener('click', closeModal);
+          newImportBtn.addEventListener('click', async function() {
+            await handleJobCancellation();
+            closeModal();
+          });
         }
         
         // 再試行ボタンのクリックイベント
@@ -666,17 +693,35 @@
         
         // エラー閉じるボタンのクリックイベント
         if (closeErrorBtn) {
-          closeErrorBtn.addEventListener('click', closeModal);
+          closeErrorBtn.addEventListener('click', async function() {
+            await handleJobCancellation();
+            closeModal();
+          });
         }
         
         // 期間変更ボタンのクリックイベント
         if (changePeriodBtn) {
-          changePeriodBtn.addEventListener('click', closeModal);
+          changePeriodBtn.addEventListener('click', async function() {
+            await handleJobCancellation();
+            closeModal();
+          });
         }
         
         // スポット見つからない場合の閉じるボタンのクリックイベント
         if (closeNoSpotsBtn) {
-          closeNoSpotsBtn.addEventListener('click', closeModal);
+          closeNoSpotsBtn.addEventListener('click', async function() {
+            await handleJobCancellation();
+            closeModal();
+          });
+        }
+        
+        // モーダル右上の×ボタンのクリックイベント
+        if (modalCloseBtn) {
+          modalCloseBtn.addEventListener('click', async function() {
+            // キャンセル処理を実行してからモーダルを閉じる
+            await handleJobCancellation();
+            closeModal();
+          });
         }
         
         // モーダルを閉じる
@@ -691,6 +736,40 @@
           
           importModal.classList.add('hidden');
           resetModalUI();
+        }
+        
+        // 実行中ジョブのキャンセル処理
+        async function handleJobCancellation() {
+          try {
+            // 実行中のインポートジョブがあればキャンセル
+            if (currentJobId && isPolling) {
+              console.log(`インポートジョブをキャンセル中: ${currentJobId}`);
+              await fetch(`/api/import/instagram/cancel/${currentJobId}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCsrfToken()
+                }
+              });
+              console.log('インポートジョブをキャンセルしました');
+            }
+            
+            // 実行中の保存ジョブがあればキャンセル
+            if (currentSaveJobId && isSavePolling) {
+              console.log(`保存ジョブをキャンセル中: ${currentSaveJobId}`);
+              await fetch(`/api/import/instagram/cancel-save/${currentSaveJobId}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCsrfToken()
+                }
+              });
+              console.log('保存ジョブをキャンセルしました');
+            }
+          } catch (error) {
+            console.error('ジョブキャンセル処理エラー:', error);
+            // エラーが発生してもモーダルは閉じる
+          }
         }
         
         // モーダル内のUIをリセット
@@ -717,7 +796,7 @@
           
           try {
             // 1. 非同期ジョブを開始
-            loadingText.textContent = 'インポートジョブを開始中...';
+            loadingText.textContent = '分析を準備しています...';
             const jobId = await startAsyncImport(startDate, endDate);
             console.log(`ジョブID: ${jobId} でインポート処理を開始しました`);
             
@@ -792,7 +871,7 @@
               
               // ローディングメッセージを更新
               if (data.status === 'pending') {
-                loadingText.textContent = 'ジョブを待機中...';
+                loadingText.textContent = '分析を開始しています...';
               } else if (data.status === 'processing') {
                 loadingText.textContent = 'Instagram投稿を分析中...';
               }
@@ -945,7 +1024,7 @@
             // ローディング表示
             resultContainer.classList.add('hidden');
             loadingContainer.classList.remove('hidden');
-            loadingText.textContent = '保存ジョブを開始中...';
+            loadingText.textContent = '保存を準備しています...';
             
             // 1. 非同期保存ジョブを開始
             const saveJobId = await startAsyncSave(selectedCandidates);
@@ -1023,7 +1102,7 @@
               
               // ローディングメッセージを更新
               if (data.status === 'pending') {
-                loadingText.textContent = '保存ジョブを待機中...';
+                loadingText.textContent = '保存を開始しています...';
               } else if (data.status === 'processing') {
                 loadingText.textContent = 'スポットを保存中...';
               }
@@ -1084,6 +1163,117 @@
         function getCsrfToken() {
           return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         }
+        
+        // 復帰機能：進行中ジョブをチェック
+        async function checkActiveJobsOnLoad() {
+          try {
+            console.log('復帰機能：進行中ジョブをチェック中...');
+            
+            const response = await fetch('/api/import/instagram/check-active-jobs', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+              }
+            });
+            
+            if (!response.ok) {
+              console.log('復帰機能：進行中ジョブのチェックに失敗（スキップ）');
+              return;
+            }
+            
+            const data = await response.json();
+            
+            if (!data.has_active_job) {
+              console.log('復帰機能：進行中ジョブなし');
+              return;
+            }
+            
+            console.log('復帰機能：進行中ジョブを検出', data.jobs);
+            
+            // 進行中ジョブがある場合はモーダルを表示して復帰
+            await restoreActiveJob(data);
+            
+          } catch (error) {
+            console.error('復帰機能：エラーが発生（スキップ）:', error);
+            // エラーが発生してもページの通常機能は継続する
+          }
+        }
+        
+        // 復帰機能：進行中ジョブの状態を復元
+        async function restoreActiveJob(data) {
+          try {
+            const jobs = data.jobs || [];
+            
+            // インポートジョブの復帰
+            const importJob = jobs.find(job => job.type === 'import');
+            if (importJob) {
+              console.log('復帰機能：インポートジョブを復帰', importJob);
+              
+              // モーダル表示
+              importModal.classList.remove('hidden');
+              
+              // ローディング状態を表示
+              resetModalUI();
+              loadingText.textContent = 'Instagram投稿を分析中...（復帰しました）';
+              
+              // ポーリング状態を設定
+              currentJobId = importJob.job_id;
+              isPolling = true;
+              
+              // ポーリングを再開
+              await pollJobStatus(importJob.job_id);
+              return;
+            }
+            
+            // 保存ジョブの復帰
+            const saveJob = jobs.find(job => job.type === 'save');
+            if (saveJob && data.result_data) {
+              console.log('復帰機能：保存ジョブを復帰', saveJob);
+              
+              // モーダル表示
+              importModal.classList.remove('hidden');
+              
+              // ローディング状態を表示
+              resetModalUI();
+              loadingText.textContent = 'スポットを保存中...（復帰しました）';
+              
+              // スポット候補データを復元
+              if (data.result_data.spot_candidates) {
+                window.spotCandidates = data.result_data.spot_candidates;
+              }
+              
+              // ポーリング状態を設定
+              currentSaveJobId = saveJob.job_id;
+              isSavePolling = true;
+              
+              // 保存ポーリングを再開
+              await pollSaveJobStatus(saveJob.job_id);
+              return;
+            }
+            
+          } catch (error) {
+            console.error('復帰機能：復帰処理エラー:', error);
+            
+            // エラーが発生した場合はモーダルを閉じる
+            if (importModal && !importModal.classList.contains('hidden')) {
+              importModal.classList.add('hidden');
+            }
+            
+            // ポーリング状態をリセット
+            isPolling = false;
+            currentJobId = null;
+            isSavePolling = false;
+            currentSaveJobId = null;
+          }
+        }
+        
+        // 復帰機能を初期化（ページロード時に実行）
+        // 他のすべての初期化が完了した後に実行
+        setTimeout(() => {
+          checkActiveJobsOnLoad();
+        }, 100); // 100ms後に実行（DOM要素が完全に準備されるのを待つ）
+        
       });
     </script>
   </body>
