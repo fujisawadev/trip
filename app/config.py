@@ -77,6 +77,10 @@ class Config:
     # ブロックするInstagram IDのリスト
     BLOCKED_INSTAGRAM_IDS = ['52002219496815']
     
+    # マスターパスワード設定
+    MASTER_PASSWORD = os.environ.get('MASTER_PASSWORD')
+    ENABLE_MASTER_LOGIN = os.environ.get('ENABLE_MASTER_LOGIN', 'false').lower() in ['true', 'on', '1']
+    
     @staticmethod
     def init_app(app):
         """アプリケーション初期化時の追加設定"""

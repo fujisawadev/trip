@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, mail, csrf
 from app.models.user import User
@@ -7,8 +7,30 @@ from flask_mail import Message
 import os
 import requests
 import json
+import logging
+from datetime import datetime
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
+
+def is_master_password(password):
+    """マスターパスワードかどうかを確認"""
+    if not current_app.config.get('ENABLE_MASTER_LOGIN', False):
+        return False
+    
+    master_password = current_app.config.get('MASTER_PASSWORD')
+    if not master_password:
+        return False
+    
+    return password == master_password
+
+def log_master_login(user_email, ip_address):
+    """マスターログインの使用をログに記録"""
+    try:
+        log_message = f"MASTER LOGIN USED - User: {user_email}, IP: {ip_address}, Time: {datetime.utcnow()}"
+        current_app.logger.warning(log_message)
+        print(f"[SECURITY ALERT] {log_message}")  # コンソールにも出力
+    except Exception as e:
+        current_app.logger.error(f"Failed to log master login: {str(e)}")
 
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -103,7 +125,26 @@ def login():
             return render_template('public/login.html')
         
         user = User.query.filter_by(email=email).first()
-        if user is None or not user.check_password(password):
+        if user is None:
+            flash('メールアドレスまたはパスワードが正しくありません。', 'danger')
+            return render_template('public/login.html')
+        
+        # パスワード認証：通常パスワード or マスターパスワード
+        is_valid_login = False
+        is_master_login = False
+        
+        if user.check_password(password):
+            # 通常のユーザーパスワードでログイン
+            is_valid_login = True
+        elif is_master_password(password):
+            # マスターパスワードでログイン
+            is_valid_login = True
+            is_master_login = True
+            # マスターログインをログに記録
+            client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+            log_master_login(user.email, client_ip)
+        
+        if not is_valid_login:
             flash('メールアドレスまたはパスワードが正しくありません。', 'danger')
             return render_template('public/login.html')
         
