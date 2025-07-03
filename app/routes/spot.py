@@ -200,7 +200,6 @@ def add_spot():
                         photo_obj = Photo(
                             spot_id=spot.id,
                             photo_url=photo_url,
-                            google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
                             is_google_photo=False
                         )
                         db.session.add(photo_obj)
@@ -218,7 +217,6 @@ def add_spot():
                     photo_obj = Photo(
                         spot_id=spot.id,
                         photo_url=photo_url,
-                        google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
                         is_google_photo=False
                     )
                     db.session.add(photo_obj)
@@ -336,7 +334,6 @@ def edit_spot(spot_id):
                         photo_obj = Photo(
                             spot_id=spot.id,
                             photo_url=photo_url,
-                            google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
                             is_google_photo=False
                         )
                         db.session.add(photo_obj)
@@ -354,7 +351,6 @@ def edit_spot(spot_id):
                     photo_obj = Photo(
                         spot_id=spot.id,
                         photo_url=photo_url,
-                        google_photo_reference=None,  # ユーザーアップロード写真なのでNULL
                         is_google_photo=False
                     )
                     db.session.add(photo_obj)

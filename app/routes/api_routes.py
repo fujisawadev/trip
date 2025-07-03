@@ -554,18 +554,15 @@ def get_google_photo(photo_id):
     # 写真情報を取得
     photo = Photo.query.get_or_404(photo_id)
     
-    # Google写真参照情報がない場合はエラー
-    if not photo.is_google_photo or not photo.google_photo_reference:
-        return jsonify({'error': 'No Google photo reference available'}), 404
-    
-    # 写真参照情報を使用してURLを生成
-    photo_reference = photo.google_photo_reference
-    photo_url = f"https://places.googleapis.com/v1/{photo_reference}/media?maxHeightPx=800&maxWidthPx=800&key={GOOGLE_MAPS_API_KEY}"
+    # Google写真参照情報機能は削除されました
+    if not photo.is_google_photo:
+        return jsonify({'error': 'Google photo reference feature has been removed'}), 404
     
     return jsonify({
         'photo_id': photo.id,
-        'photo_url': photo_url,
-        'is_google_photo': photo.is_google_photo
+        'photo_url': photo.photo_url,
+        'is_google_photo': photo.is_google_photo,
+        'message': 'Google photo reference feature has been removed'
     })
 
 @api_bp.route('/spot/<int:spot_id>/photos', methods=['GET'])
@@ -586,16 +583,9 @@ def get_spot_photos(spot_id):
     for photo in photos:
         photo_data = {
             'id': photo.id,
-            'is_google_photo': photo.is_google_photo
+            'is_google_photo': photo.is_google_photo,
+            'photo_url': photo.photo_url
         }
-        
-        if photo.is_google_photo and photo.google_photo_reference:
-            # Google写真の場合は参照情報を含める
-            photo_data['google_photo_reference'] = photo.google_photo_reference
-            photo_data['photo_url'] = f"https://places.googleapis.com/v1/{photo.google_photo_reference}/media?maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}"
-        else:
-            # ユーザーアップロード写真の場合はURLを含める
-            photo_data['photo_url'] = photo.photo_url
         
         photos_data.append(photo_data)
     

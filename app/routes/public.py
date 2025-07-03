@@ -112,8 +112,7 @@ def test_koshien_photo():
     spot_info = {
         "spot_id": spot.id,
         "name": spot.name,
-        "google_place_id": spot.google_place_id,
-        "google_photo_reference": spot.google_photo_reference
+        "google_place_id": spot.google_place_id
     }
     
     # 関連する写真を取得
@@ -123,8 +122,7 @@ def test_koshien_photo():
         photo_info.append({
             "photo_id": photo.id,
             "photo_url": photo.photo_url,
-            "is_google_photo": photo.is_google_photo,
-            "google_photo_reference": photo.google_photo_reference
+            "is_google_photo": photo.is_google_photo
         })
     
     spot_info["photos"] = photo_info
@@ -133,24 +131,7 @@ def test_koshien_photo():
     cdn_url = None
     cdn_accessible = False
     
-    if spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None':
-        url = f"https://places.googleapis.com/v1/{spot.google_photo_reference}/media?skipHttpRedirect=true&maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}"
-        
-        try:
-            response = requests.get(url)
-            if response.status_code == 200:
-                try:
-                    data = response.json()
-                    if 'photoUri' in data:
-                        cdn_url = data['photoUri']
-                        # CDN URLにアクセス可能かチェック
-                        cdn_check = requests.head(cdn_url)
-                        cdn_accessible = cdn_check.status_code == 200
-                except json.JSONDecodeError:
-                    pass
-        except Exception as e:
-            spot_info["error"] = str(e)
-    
+    # Google Photo Reference機能は削除されたため、この機能は無効化
     spot_info["cdn_url"] = cdn_url
     spot_info["cdn_accessible"] = cdn_accessible
     
@@ -175,18 +156,18 @@ def test_koshien_photo():
             <pre>{json.dumps(spot_info, indent=2, ensure_ascii=False)}</pre>
             
             <h2>Google Photo Reference</h2>
-            <p>{spot.google_photo_reference or 'None'}</p>
+            <p>機能が削除されました</p>
             
             <h2>CDN URL</h2>
-            <p>{cdn_url or 'None'}</p>
+            <p>機能が削除されました</p>
             
             <h2>画像テスト</h2>
             <div>
                 <h3>1. プロキシエンドポイント経由</h3>
-                <img src="{url_for('public.photo_proxy', photo_reference=spot.google_photo_reference) if spot.google_photo_reference and spot.google_photo_reference != 'null' and spot.google_photo_reference != 'None' else url_for('static', filename='images/default_profile.png')}" alt="甲子園 via Proxy">
+                <img src="{url_for('static', filename='images/default_profile.png')}" alt="デフォルト画像">
                 
                 <h3>2. CDN URL直接アクセス（取得できた場合）</h3>
-                {f'<img src="{cdn_url}" alt="甲子園 via CDN">' if cdn_url else '<p>CDN URLが取得できませんでした</p>'}
+                <p>機能が削除されました</p>
             </div>
         </div>
     </body>
