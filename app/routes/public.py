@@ -89,7 +89,7 @@ def username_profile(username):
     # ソーシャルアカウント情報を取得
     social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
     
-    return render_template('public/new_profile.html', 
+    return render_template('public/profile.html', 
                           user=user, 
                           spots=spots_data,
                           social_accounts=social_accounts,

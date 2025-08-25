@@ -1293,6 +1293,12 @@ def update_url():
     flash('URLが更新されました。', 'success')
     return redirect(url_for('profile.url_settings'))
 
+@bp.route('/analytics')
+@login_required
+def analytics():
+    """簡易アナリティクスページ（お財布）"""
+    return render_template('new_analytics.html', user=current_user)
+
 @bp.route('/<display_name>')
 def display_name_profile(display_name):
     """表示名によるユーザープロファイル表示"""
@@ -1344,7 +1350,7 @@ def display_name_profile(display_name):
     from app.models import SocialAccount
     social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
     
-    return render_template('public/new_profile.html', 
+    return render_template('public/profile.html', 
                           user=user, 
                           spots=spots_data,
                           social_accounts=social_accounts,
