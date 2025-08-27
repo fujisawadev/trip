@@ -78,8 +78,8 @@ def username_profile(username):
     """ユーザー名ベースの公開プロフィールページを表示する"""
     user = User.query.filter_by(username=username).first_or_404()
     
-    # ユーザーが作成したスポットを取得
-    spots = Spot.query.filter_by(user_id=user.id, is_active=True).order_by(Spot.created_at.desc()).all()
+    # ユーザーが作成したスポットを取得（更新日時の新しい順）
+    spots = Spot.query.filter_by(user_id=user.id, is_active=True).order_by(Spot.updated_at.desc()).all()
     
     # スポットをJSONシリアライズ可能な形式に変換
     spots_data = []

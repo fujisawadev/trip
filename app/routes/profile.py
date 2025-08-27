@@ -1345,8 +1345,8 @@ def display_name_profile(display_name):
         abort(404)
     
     user = User.query.filter_by(display_name=display_name).first_or_404()
-    # アクティブなスポットのみを取得するように修正
-    spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
+    # アクティブなスポットのみを取得し、更新日時の新しい順に並べ替え
+    spots = Spot.query.filter_by(user_id=user.id, is_active=True).order_by(Spot.updated_at.desc()).all()
     
     # スポットデータをJSONシリアライズ可能な形式に変換
     spots_data = []

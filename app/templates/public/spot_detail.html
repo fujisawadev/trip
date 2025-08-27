@@ -5018,6 +5018,10 @@
 </style>
 <meta name=referrer content=no-referrer>
 {# デモ用の厳格CSPは外部画像読み込みを阻害するため削除 #}
+ <!-- Favicon -->
+ <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
+ <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
+
 <noscript>
   <style>
     #container {
