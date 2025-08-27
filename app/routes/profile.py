@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db, csrf
 from app.models.user import User
+from app.models.social_account import SocialAccount
 from app.models.spot import Spot
 from app.models.import_progress import ImportProgress
 from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
@@ -142,11 +143,16 @@ def edit_profile():
     if request.method == 'POST':
         username = request.form.get('username')
         bio = request.form.get('bio')
+        instagram = (request.form.get('instagram') or '').strip()
+        twitter = (request.form.get('twitter') or '').strip()
+        tiktok = (request.form.get('tiktok') or '').strip()
+        youtube = (request.form.get('youtube') or '').strip()
         
         # ユーザー名の重複チェック（自分以外）
         if username != current_user.username and User.query.filter_by(username=username).first():
             flash('このユーザー名は既に使用されています。', 'danger')
-            return render_template('edit_profile.html', user=current_user)
+            existing_social_accounts = SocialAccount.query.filter_by(user_id=current_user.id).first()
+            return render_template('edit_profile.html', user=current_user, social_accounts=existing_social_accounts)
         
         # プロフィール画像のアップロード処理
         if 'profile_pic' in request.files:
@@ -177,12 +183,41 @@ def edit_profile():
         # ユーザー情報の更新
         current_user.username = username
         current_user.bio = bio
+        
+        # SNSアカウント情報の保存（単一レコードで各SNSカラムを保持）
+        try:
+            social_accounts = SocialAccount.query.filter_by(user_id=current_user.id).first()
+            if not social_accounts:
+                # 初回作成時に必須フィールドを設定
+                try:
+                    public_url = current_user.get_public_url()
+                except Exception:
+                    public_url = f"/user/{current_user.username}"
+                social_accounts = SocialAccount(
+                    user_id=current_user.id,
+                    platform='links',
+                    username=current_user.username,
+                    profile_url=public_url,
+                    icon_key='links',
+                    display_order=0
+                )
+                db.session.add(social_accounts)
+            
+            # 入力値を保存（空はNoneに）
+            social_accounts.instagram = instagram or None
+            social_accounts.twitter = twitter or None
+            social_accounts.tiktok = tiktok or None
+            social_accounts.youtube = youtube or None
+        except Exception as e:
+            print(f"SNSアカウント保存中にエラー: {str(e)}")
         db.session.commit()
         
         flash('プロフィールが更新されました。', 'success')
         return redirect(url_for('profile.mypage'))
     
-    return render_template('edit_profile.html', user=current_user)
+    # 既存SNSアカウントを取得してテンプレートに渡す
+    existing_social_accounts = SocialAccount.query.filter_by(user_id=current_user.id).first()
+    return render_template('edit_profile.html', user=current_user, social_accounts=existing_social_accounts)
 
 @bp.route('/settings')
 @login_required
@@ -1315,6 +1350,9 @@ def display_name_profile(display_name):
     
     # スポットデータをJSONシリアライズ可能な形式に変換
     spots_data = []
+    categories = set()
+    locations = set()
+    prices = set()
     for spot in spots:
         # ユーザーがアップロードした写真
         user_photos = [p for p in spot.photos if not p.is_google_photo]
@@ -1338,10 +1376,22 @@ def display_name_profile(display_name):
             'longitude': spot.longitude,
             'category': spot.category or '',
             'description': spot.description or '',
+            'review_summary': spot.review_summary,
             'rating': spot.rating,
+            'created_at': spot.created_at.isoformat() if getattr(spot, 'created_at', None) else None,
+            'updated_at': spot.updated_at.isoformat() if getattr(spot, 'updated_at', None) else None,
+            'price_range': getattr(spot, 'price_range', None),
             'photos': all_photos
         }
         spots_data.append(spot_dict)
+        if spot_dict.get('category'):
+            categories.add(spot_dict['category'])
+        loc = spot_dict.get('summary_location') or spot_dict.get('location')
+        if loc:
+            locations.add(loc)
+        pr = spot_dict.get('price_range')
+        if pr:
+            prices.add(pr)
     
     # Google Maps API Keyをconfigとして渡す
     from app.routes.public import GOOGLE_MAPS_API_KEY
@@ -1353,6 +1403,9 @@ def display_name_profile(display_name):
     return render_template('public/profile.html', 
                           user=user, 
                           spots=spots_data,
+                          filter_categories=sorted(categories),
+                          filter_locations=sorted(locations),
+                          filter_prices=sorted(prices),
                           social_accounts=social_accounts,
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 

@@ -137,8 +137,8 @@
           </div>
 
           <!-- Social Media Accounts -->
-          <div id="social-media-section" class="flex flex-col gap-4 w-full hidden">
-            <h2 class="text-base font-medium text-neutral-900">SNSアカウント</h2>
+          <div id="social-media-section" class="flex flex-col gap-4 w-full">
+            <h2 class="text-sm font-medium text-neutral-900">SNSアカウント</h2>
             
             <!-- Instagram -->
             <div class="flex flex-col gap-2 w-full">
@@ -155,23 +155,7 @@
                 />
               </div>
             </div>
-            
-            <!-- Twitter -->
-            <div class="flex flex-col gap-2 w-full">
-              <label for="twitter" class="text-sm font-medium text-neutral-900">Twitter</label>
-              <div class="relative">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">@</span>
-                <input
-                  type="text"
-                  id="twitter"
-                  name="twitter"
-                  value="{{ social_accounts.twitter if social_accounts and social_accounts.twitter }}"
-                  placeholder="ユーザー名"
-                  class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            
+
             <!-- TikTok -->
             <div class="flex flex-col gap-2 w-full">
               <label for="tiktok" class="text-sm font-medium text-neutral-900">TikTok</label>
@@ -187,7 +171,7 @@
                 />
               </div>
             </div>
-            
+
             <!-- YouTube -->
             <div class="flex flex-col gap-2 w-full">
               <label for="youtube" class="text-sm font-medium text-neutral-900">YouTube</label>
@@ -199,6 +183,22 @@
                 placeholder="チャンネルURL"
                 class="px-4 py-3 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            <!-- X (Twitter) -->
+            <div class="flex flex-col gap-2 w-full">
+              <label for="twitter" class="text-sm font-medium text-neutral-900">X</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">@</span>
+                <input
+                  type="text"
+                  id="twitter"
+                  name="twitter"
+                  value="{{ social_accounts.twitter if social_accounts and social_accounts.twitter }}"
+                  placeholder="ユーザー名"
+                  class="px-4 py-3 pl-8 w-full text-base bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
 

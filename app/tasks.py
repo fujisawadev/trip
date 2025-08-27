@@ -9,6 +9,7 @@ import traceback
 from app import db
 from app.models import ImportProgress, User, Spot, SocialPost, ImportHistory, AffiliateLink
 from app.utils.rakuten_api import safe_decode_text
+from app.services.google_places import get_place_review_summary
 
 # ロガーの設定
 logging.basicConfig(level=logging.INFO)
@@ -641,6 +642,16 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
                 except Exception as e:
                     logger.error(f"[SaveJob {save_job_id}] searchText API呼び出しエラー: {str(e)}")
             
+            # レビュー要約（editorialSummary → reviewSummary 優先、languageCode=ja）を取得
+            try:
+                if spot.google_place_id and (not getattr(spot, 'review_summary', None) or not spot.review_summary):
+                    fetched_summary = get_place_review_summary(spot.google_place_id)
+                    if fetched_summary:
+                        spot.review_summary = fetched_summary
+                        logger.info(f"[SaveJob {save_job_id}] review_summary を設定しました（{len(fetched_summary)} 文字）")
+            except Exception as e:
+                logger.warning(f"[SaveJob {save_job_id}] review_summary取得エラー（続行）: {str(e)}")
+
             logger.info(f"[SaveJob {save_job_id}] スポットをデータベースに追加")
             spot_info = {
                 'name': spot.name,
@@ -692,64 +703,36 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
                 except Exception as e:
                     logger.error(f"[SaveJob {save_job_id}] インポート履歴保存エラー: {str(e)}")
             
-            # 楽天トラベルアフィリエイトリンクの自動生成
-            if user.rakuten_affiliate_id and spot.name:
-                try:
-                    logger.info(f"[SaveJob {save_job_id}] 楽天トラベルAPI検索: {spot.name}")
-                    
-                    # 楽天トラベルAPIを呼び出してホテル情報を取得（段階的検索対応）
-                    from app.utils.rakuten_api import search_hotel_with_fallback, select_best_hotel_with_evaluation, generate_rakuten_affiliate_url
-                    hotel_results = search_hotel_with_fallback(spot.name, user.rakuten_affiliate_id)
-                    
-                    # エラーハンドリング改善
-                    if hotel_results.get('error') == 'no_hotels_found':
-                        logger.info(f"[SaveJob {save_job_id}] 楽天トラベル: '{spot.name}'に該当するホテルが見つかりませんでした")
-                    elif hotel_results.get('error'):
-                        logger.warning(f"[SaveJob {save_job_id}] 楽天トラベルAPIエラー: {hotel_results.get('message', 'Unknown error')}")
-                    elif 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
-                        logger.info(f"[SaveJob {save_job_id}] ホテル検索結果: {len(hotel_results['hotels'])}件見つかりました")
-                        
-                        # LLM評価システムによる最適ホテル選択
-                        selected_hotel = select_best_hotel_with_evaluation(spot.name, hotel_results)
-                        
-                        if selected_hotel:
-                            # 選択されたホテルの情報を処理
-                            if 'hotel' in selected_hotel and len(selected_hotel['hotel']) > 0:
-                                hotel_info = selected_hotel['hotel'][0]
-                                if 'hotelBasicInfo' in hotel_info:
-                                    basic_info = hotel_info['hotelBasicInfo']
-                                    hotel_name = basic_info.get('hotelName', '')
-                                    logger.info(f"[SaveJob {save_job_id}] LLM評価により選択されたホテル: {hotel_name}")
-                                    
-                                    # URLがある場合のみ処理
-                                    if basic_info.get('hotelInformationUrl'):
-                                        hotel_url = basic_info.get('hotelInformationUrl')
-                                        logger.info(f"[SaveJob {save_job_id}] ホテルURL: {hotel_url}")
-                                        
-                                        # アフィリエイトURLを生成
-                                        affiliate_url = generate_rakuten_affiliate_url(
-                                            hotel_url,
-                                            user.rakuten_affiliate_id
-                                        )
-                                        logger.info(f"[SaveJob {save_job_id}] アフィリエイトURL生成: {affiliate_url}")
-                                        
-                                        # 新規リンク作成
-                                        affiliate_link = AffiliateLink(
-                                            spot_id=spot.id,
-                                            platform='rakuten',
-                                            url=affiliate_url,
-                                            title='楽天トラベル',
-                                            description='楽天トラベルで予約 (PRを含む)',
-                                            icon_key='rakuten-travel',
-                                            is_active=True
-                                        )
-                                        db.session.add(affiliate_link)
-                                        
-                                        logger.info(f"[SaveJob {save_job_id}] 楽天トラベルアフィリエイトリンクを自動生成: スポット名={spot.name}")
-                        else:
-                            logger.info(f"[SaveJob {save_job_id}] LLM評価により、適切なホテルが見つかりませんでした: スポット名={spot.name}")
-                except Exception as e:
-                    logger.error(f"[SaveJob {save_job_id}] 楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
+            # 楽天トラベルアフィリエイトリンクの自動生成（仕様変更のため一時停止）
+            # if user.rakuten_affiliate_id and spot.name:
+            #     try:
+            #         logger.info(f"[SaveJob {save_job_id}] 楽天トラベルAPI検索: {spot.name}")
+            #         from app.utils.rakuten_api import search_hotel_with_fallback, select_best_hotel_with_evaluation, generate_rakuten_affiliate_url
+            #         hotel_results = search_hotel_with_fallback(spot.name, user.rakuten_affiliate_id)
+            #         if hotel_results.get('error') == 'no_hotels_found':
+            #             logger.info(f"[SaveJob {save_job_id}] 楽天トラベル: '{spot.name}'に該当するホテルが見つかりませんでした")
+            #         elif hotel_results.get('error'):
+            #             logger.warning(f"[SaveJob {save_job_id}] 楽天トラベルAPIエラー: {hotel_results.get('message', 'Unknown error')}")
+            #         elif 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
+            #             selected_hotel = select_best_hotel_with_evaluation(spot.name, hotel_results)
+            #             if selected_hotel:
+            #                 if 'hotel' in selected_hotel and len(selected_hotel['hotel']) > 0:
+            #                     hotel_info = selected_hotel['hotel'][0]
+            #                     if 'hotelBasicInfo' in hotel_info and hotel_info['hotelBasicInfo'].get('hotelInformationUrl'):
+            #                         hotel_url = hotel_info['hotelBasicInfo']['hotelInformationUrl']
+            #                         affiliate_url = generate_rakuten_affiliate_url(hotel_url, user.rakuten_affiliate_id)
+            #                         affiliate_link = AffiliateLink(
+            #                             spot_id=spot.id,
+            #                             platform='rakuten',
+            #                             url=affiliate_url,
+            #                             title='楽天トラベル',
+            #                             description='楽天トラベルで予約 (PRを含む)',
+            #                             icon_key='rakuten-travel',
+            #                             is_active=True
+            #                         )
+            #                         db.session.add(affiliate_link)
+            #     except Exception as e:
+            #         logger.error(f"[SaveJob {save_job_id}] 楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
         
         logger.info(f"[SaveJob {save_job_id}] データベースに変更をコミット")
         db.session.commit()

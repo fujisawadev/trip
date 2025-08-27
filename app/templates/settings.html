@@ -18,6 +18,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
     <style>
       /* グローバルナビゲーション用のスタイル */
       .global-nav {
@@ -33,6 +34,11 @@
       }
       .nav-item svg {
         margin-bottom: 4px;
+      }
+      .nav-item .material-icons-outlined {
+        margin-bottom: 4px;
+        font-size: 24px;
+        line-height: 24px;
       }
       body {
         padding-bottom: 64px; /* ナビゲーションの高さ分の余白を追加 */
@@ -119,13 +125,9 @@
             </ul>
           </section>
 
-          <!-- Monetization Section -->
+          <!-- Monetization Section (仕様変更のため一時非表示)
           <section>
-            <h2
-              class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900"
-            >
-              収益化
-            </h2>
+            <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900">収益化</h2>
             <ul>
               <li>
                 <a href="{{ url_for('profile.affiliate_settings') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
@@ -147,6 +149,7 @@
               </li>
             </ul>
           </section>
+          -->
           
           <!-- Account Section -->
           <section>
@@ -294,13 +297,11 @@
         </svg>
         <span class="text-xs">マイページ</span>
       </a>
-      {# スポット登録関連のエンドポイントをリストで定義 #}
-      {% set spot_endpoints = ['spot.add_spot', 'spot.edit_spot', 'profile.import_management'] %}
-      <a href="{{ url_for('spot.add_spot') }}" class="nav-item {% if request.endpoint in spot_endpoints %}text-blue-500{% else %}text-slate-500 hover:text-blue-700{% endif %}">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span class="text-xs">スポット登録</span>
+      {# アナリティクス（おさいふ）関連のエンドポイントをリストで定義 #}
+      {% set analytics_endpoints = ['profile.analytics'] %}
+      <a href="{{ url_for('profile.analytics') }}" class="nav-item {% if request.endpoint in analytics_endpoints %}text-blue-500{% else %}text-slate-500 hover:text-blue-700{% endif %}">
+        <span class="material-icons-outlined">account_balance_wallet</span>
+        <span class="text-xs">おさいふ</span>
       </a>
       {# 設定関連のエンドポイントをリストで定義 #}
       {% set settings_endpoints = ['profile.settings', 'auth.change_email', 'auth.change_password', 'profile.url_settings', 'profile.sns_settings', 'profile.affiliate_settings'] %}

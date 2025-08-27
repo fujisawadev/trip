@@ -208,6 +208,7 @@
           <input type="hidden" id="types" name="types" value="{% if is_edit %}{{ spot.types or '' }}{% endif %}">
           <input type="hidden" id="thumbnail_url" name="thumbnail_url" value="{% if is_edit %}{{ spot.thumbnail_url or '' }}{% endif %}">
           <input type="hidden" id="summary_location" name="summary_location" value="{% if is_edit %}{{ spot.summary_location or '' }}{% endif %}">
+          <input type="hidden" id="review_summary" name="review_summary" value="{% if is_edit %}{{ spot.review_summary or '' }}{% endif %}">
           <!-- Spot Name -->
           <div class="flex flex-col gap-2 w-full">
             <label for="spotName" class="text-sm font-bold text-neutral-900">スポット名</label>
@@ -436,7 +437,7 @@
 {{ custom_links|tojson|safe if is_edit else '[]' }}
                 </script>
                 
-                <!-- Affiliate Links -->
+                <!-- その他のリンク（アフィリエイト関連は一時非表示） -->
                 <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl"
                      x-data="{
                        otherLinks: (() => {
@@ -448,55 +449,11 @@
                            return [];
                          }
                        })(),
-                       addLink() {
-                         this.otherLinks.push({ id: null, title: '', url: '' });
-                       },
-                       removeLink(index) {
-                         this.otherLinks.splice(index, 1);
-                       }
+                       addLink() { this.otherLinks.push({ id: null, title: '', url: '' }); },
+                       removeLink(index) { this.otherLinks.splice(index, 1); }
                      }">
-                  <h3 class="text-sm font-bold text-neutral-900">予約・アフィリエイトリンク</h3>
-                  
-                  <!-- Rakuten Link (Fixed) -->
-                  <div class="flex flex-col gap-1.5">
-                    <label for="rakuten_url" class="text-sm font-medium text-neutral-600">楽天トラベル URL</label>
-                    <div class="relative">
-                      <input type="url" id="rakuten_url" name="rakuten_url" value="{{ rakuten_link.url if rakuten_link else '' }}" placeholder="楽天トラベルのURL" class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <button
-                        type="button"
-                        class="link-preview-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors hidden"
-                        data-input-id="rakuten_url"
-                        title="リンクを開く"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {% if current_user.rakuten_affiliate_id %}
-                    <button type="button" id="search-rakuten-hotels" 
-                            class="mt-2 w-full px-4 py-2 text-sm font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      ホテルを検索して選択
-                    </button>
-                    <p class="text-xs text-slate-500 mt-1">
-                      <a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイトID設定済み</a>: 上のボタンでスポット名に一致するホテルを検索し、候補から選択できます。
-                    </p>
-                  {% else %}
-                    <p class="text-xs text-slate-500 mt-1">
-                      楽天アフィリエイトIDをお持ちの場合は、<a href="{{ url_for('profile.affiliate_settings') }}" class="text-blue-500 hover:underline">アフィリエイト設定</a>から登録すると、ホテル検索機能が利用できるようになります。
-                    </p>
-                  {% endif %}
+                  <h3 class="text-sm font-bold text-neutral-900">その他のリンク</h3>
 
-                  <!-- Divider -->
-                  <hr class="border-t border-slate-200 my-2">
-
-                  <!-- Other Links Section -->
-                  <h4 class="text-sm font-bold text-neutral-900">その他のリンク</h4>
                   <div class="flex flex-col gap-4">
                     <template x-for="(link, index) in otherLinks" :key="index">
                       <div class="flex flex-col gap-3 p-3 bg-white rounded-lg border border-slate-200">
@@ -655,7 +612,7 @@
     </div>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="{{ url_for('static', filename='js/rakuten-manual-search.js') }}"></script>
+    <!-- <script src="{{ url_for('static', filename='js/rakuten-manual-search.js') }}"></script> -->
     <script>
       // グローバルエラーハンドリング
       window.addEventListener('error', function(event) {
@@ -906,6 +863,7 @@
                 if (data.summary_location) document.getElementById('summary_location').value = data.summary_location;
                 if (data.types && data.types.length > 0) typesInput.value = JSON.stringify(data.types);
                 if (data.thumbnail_url) thumbnailUrlInput.value = data.thumbnail_url;
+                if (data.review_summary) document.getElementById('review_summary').value = data.review_summary;
                 
                 if (globalMap && data.latitude && data.longitude) {
                   updateMarkerAndInputs(data.latitude, data.longitude);

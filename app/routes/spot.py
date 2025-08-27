@@ -15,6 +15,7 @@ from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
 from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url
 from sqlalchemy.orm import joinedload
 from app.services.google_photos import get_google_photos_by_place_id
+from app.services.google_places import get_place_review_summary
 
 bp = Blueprint('spot', __name__)
 
@@ -143,6 +144,8 @@ def add_spot():
         types = request.form.get('types', '')
         # サマリーロケーションを取得
         summary_location = request.form.get('summary_location', '')
+        # レビューサマリーを取得（フロントからのhidden）
+        review_summary = request.form.get('review_summary', '')
         
         # 評価データを取得
         rating = request.form.get('rating', '')
@@ -165,12 +168,22 @@ def add_spot():
             formatted_address=formatted_address,
             types=types,
             summary_location=summary_location,
+            review_summary=review_summary or None,
             rating=float(rating) if rating else 0.0,
             review_count=1 if rating else 0,
             is_active=is_active
         )
         db.session.add(spot)
         db.session.flush()  # IDを確定するためにflush
+
+        # サーバ側フォールバック: hiddenが空で、place_id があればAPIから取得
+        try:
+            if (not review_summary or review_summary.strip() == '') and google_place_id:
+                fetched = get_place_review_summary(google_place_id)
+                if fetched:
+                    spot.review_summary = fetched
+        except Exception as _:
+            pass
         
         # 写真のアップロード処理 (ユーザーがアップロードした写真はこちらで処理される)
         photos = request.files.getlist('photos')
@@ -221,22 +234,20 @@ def add_spot():
                     )
                     db.session.add(photo_obj)
         
-        # --- 楽天トラベル アフィリエイトリンク処理 ---
-        rakuten_url = request.form.get('rakuten_url', '').strip()
-
-        if rakuten_url:
-            # 手動URLが入力されていれば、それを保存
-            affiliate_link = AffiliateLink(
-                spot_id=spot.id,
-                platform='rakuten',
-                url=rakuten_url,
-                title='楽天トラベル',
-                description='楽天トラベルで予約 (PRを含む)',
-                icon_key='rakuten-travel',
-                is_active=True # URLがあれば常にアクティブ
-            )
-            db.session.add(affiliate_link)
-            print(f"手動で楽天トラベルリンクを追加: {rakuten_url}")
+        # --- 楽天トラベル アフィリエイトリンク処理（仕様変更のため一時停止） ---
+        # rakuten_url = request.form.get('rakuten_url', '').strip()
+        # if rakuten_url:
+        #     affiliate_link = AffiliateLink(
+        #         spot_id=spot.id,
+        #         platform='rakuten',
+        #         url=rakuten_url,
+        #         title='楽天トラベル',
+        #         description='楽天トラベルで予約 (PRを含む)',
+        #         icon_key='rakuten-travel',
+        #         is_active=True
+        #     )
+        #     db.session.add(affiliate_link)
+        #     print(f"手動で楽天トラベルリンクを追加: {rakuten_url}")
         
 
         # SNSリンクの更新
@@ -284,6 +295,16 @@ def edit_spot(spot_id):
         
         # サマリーロケーションを更新
         spot.summary_location = request.form.get('summary_location', '')
+        # レビューサマリーを更新（hidden優先、無ければサーバ側フォールバック）
+        form_review_summary = request.form.get('review_summary', '')
+        spot.review_summary = form_review_summary or spot.review_summary
+        if (not spot.review_summary or spot.review_summary.strip() == '') and new_place_id:
+            try:
+                fetched = get_place_review_summary(new_place_id)
+                if fetched:
+                    spot.review_summary = fetched
+            except Exception as _:
+                pass
         
         # 評価データを更新
         rating = request.form.get('rating', '')
@@ -355,36 +376,32 @@ def edit_spot(spot_id):
                     )
                     db.session.add(photo_obj)
         
-        # --- 楽天トラベル アフィリエイトリンク処理 ---
-        rakuten_url = request.form.get('rakuten_url', '').strip()
-        existing_link = AffiliateLink.query.filter_by(
-            spot_id=spot.id,
-            platform='rakuten'
-        ).first()
-
-        if rakuten_url:
-            # URLが入力されている場合、既存のリンクを更新または新規作成
-            if existing_link:
-                existing_link.url = rakuten_url
-                existing_link.is_active = True
-                print(f"楽天トラベルリンクを更新: {rakuten_url}")
-            else:
-                new_link = AffiliateLink(
-                    spot_id=spot.id,
-                    platform='rakuten',
-                    url=rakuten_url,
-                    title='楽天トラベル',
-                    description='楽天トラベルで予約 (PRを含む)',
-                    icon_key='rakuten-travel',
-                    is_active=True
-                )
-                db.session.add(new_link)
-                print(f"楽天トラベルリンクを新規作成: {rakuten_url}")
-        
-        elif existing_link:
-            # URLが空にされ、既存のリンクがある場合は削除
-            db.session.delete(existing_link)
-            print(f"楽天トラベルリンクを削除: ID={existing_link.id}")
+        # --- 楽天トラベル アフィリエイトリンク処理（仕様変更のため一時停止） ---
+        # rakuten_url = request.form.get('rakuten_url', '').strip()
+        # existing_link = AffiliateLink.query.filter_by(
+        #     spot_id=spot.id,
+        #     platform='rakuten'
+        # ).first()
+        # if rakuten_url:
+        #     if existing_link:
+        #         existing_link.url = rakuten_url
+        #         existing_link.is_active = True
+        #         print(f"楽天トラベルリンクを更新: {rakuten_url}")
+        #     else:
+        #         new_link = AffiliateLink(
+        #             spot_id=spot.id,
+        #             platform='rakuten',
+        #             url=rakuten_url,
+        #             title='楽天トラベル',
+        #             description='楽天トラベルで予約 (PRを含む)',
+        #             icon_key='rakuten-travel',
+        #             is_active=True
+        #         )
+        #         db.session.add(new_link)
+        #         print(f"楽天トラベルリンクを新規作成: {rakuten_url}")
+        # elif existing_link:
+        #     db.session.delete(existing_link)
+        #     print(f"楽天トラベルリンクを削除: ID={existing_link.id}")
 
         # SNSリンクの更新
         _update_social_links(spot.id, request.form)

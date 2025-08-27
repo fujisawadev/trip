@@ -45,6 +45,11 @@
       .nav-item svg {
         margin-bottom: 4px;
       }
+      .nav-item .material-icons-outlined {
+        margin-bottom: 4px;
+        font-size: 24px;
+        line-height: 24px;
+      }
       body {
         padding-bottom: 70px; /* ナビゲーションの高さ分の余白を追加 */
         background-color: white; /* 背景色を白に戻す */
@@ -229,52 +234,13 @@
         <main class="flex-grow p-4 pb-44">
           <div class="mb-5 flex justify-between items-center">
             <h2
-              id="spots-heading-display"
-              class="text-xl font-bold text-[var(--text-primary)] cursor-pointer truncate"
-              onclick="toggleHeadingEdit()"
+              class="text-base font-bold text-[var(--text-primary)] truncate"
             >
-              {{ user.spots_heading or 'おすすめスポット' }}
+              おすすめスポット
             </h2>
-            <button
-              id="edit-heading-btn"
-              type="button"
-              class="edit-heading-btn text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-2 flex-shrink-0"
-              onclick="toggleHeadingEdit()"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
           </div>
           
-          <!-- 見出し編集フォーム (初期状態は非表示) -->
-          <div id="spots-heading-form" class="mb-5 hidden">
-            <form id="heading-edit-form" action="{{ url_for('profile.update_spots_heading') }}" method="POST" class="flex gap-2 items-center">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input
-                type="text"
-                name="spots_heading"
-                id="spots-heading-input"
-                value="{{ user.spots_heading or 'おすすめスポット' }}"
-                class="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                maxlength="50"
-                required
-              >
-              <button
-                type="submit"
-                class="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm flex-shrink-0"
-              >
-                保存
-              </button>
-              <button
-                type="button"
-                class="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition text-sm flex-shrink-0"
-                onclick="toggleHeadingEdit()"
-              >
-                キャンセル
-              </button>
-            </form>
-          </div>
+          
 
           <!-- Search and Filter Section - sticky container start -->
           <div class="search-filter-container">
@@ -402,7 +368,12 @@
       </div>
     </header>
 
-    <!-- 新規スポット追加ボタンは削除 -->
+    <!-- 新規スポット追加ボタン（右下固定） -->
+    <a href="{{ url_for('spot.add_spot') }}" class="add-spot-btn" aria-label="スポットを追加">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </a>
 
     <!-- 固定フッターナビゲーション -->
     <nav class="global-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 max-w-[480px] mx-auto">
@@ -412,13 +383,11 @@
         </svg>
         <span class="text-xs">マイページ</span>
       </a>
-      {# スポット登録関連のエンドポイントをリストで定義 #}
-      {% set spot_endpoints = ['spot.add_spot', 'spot.edit_spot', 'profile.import_management'] %}
-      <a href="{{ url_for('spot.add_spot') }}" class="nav-item {% if request.endpoint in spot_endpoints %}text-blue-500{% else %}text-slate-500 hover:text-blue-700{% endif %}">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span class="text-xs">スポット登録</span>
+      {# アナリティクス（おさいふ）関連のエンドポイントをリストで定義 #}
+      {% set analytics_endpoints = ['profile.analytics'] %}
+      <a href="{{ url_for('profile.analytics') }}" class="nav-item {% if request.endpoint in analytics_endpoints %}text-blue-500{% else %}text-slate-500 hover:text-blue-700{% endif %}">
+        <span class="material-icons-outlined">account_balance_wallet</span>
+        <span class="text-xs">おさいふ</span>
       </a>
       {# 設定関連のエンドポイントをリストで定義 #}
       {% set settings_endpoints = ['profile.settings'] %}
@@ -519,29 +488,7 @@
         // この関数も使わなくなったため空にしておく
       }
       
-      // 見出し編集の切り替え
-      function toggleHeadingEdit() {
-        const displayElement = document.getElementById('spots-heading-display');
-        const formElement = document.getElementById('spots-heading-form');
-        const inputElement = document.getElementById('spots-heading-input');
-        const editButton = document.getElementById('edit-heading-btn');
-        
-        if (formElement.classList.contains('hidden')) {
-          // 表示を切り替え
-          displayElement.classList.add('hidden');
-          formElement.classList.remove('hidden');
-          editButton.classList.add('hidden');
-          // 入力フィールドにフォーカス
-          inputElement.focus();
-          // 入力フィールドのテキストを全選択
-          inputElement.select();
-        } else {
-          // 表示を元に戻す
-          displayElement.classList.remove('hidden');
-          formElement.classList.add('hidden');
-          editButton.classList.remove('hidden');
-        }
-      }
+      
       
       // 無限スクロールの設定
       function setupInfiniteScroll() {

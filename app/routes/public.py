@@ -83,8 +83,20 @@ def username_profile(username):
     
     # スポットをJSONシリアライズ可能な形式に変換
     spots_data = []
+    categories = set()
+    locations = set()
+    prices = set()
     for spot in spots:
-        spots_data.append(spot.to_dict())
+        d = spot.to_dict()
+        spots_data.append(d)
+        if d.get('category'):
+            categories.add(d['category'])
+        loc = d.get('summary_location') or d.get('location')
+        if loc:
+            locations.add(loc)
+        pr = d.get('price_range')
+        if pr:
+            prices.add(pr)
 
     # ソーシャルアカウント情報を取得
     social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
@@ -92,6 +104,9 @@ def username_profile(username):
     return render_template('public/profile.html', 
                           user=user, 
                           spots=spots_data,
+                          filter_categories=sorted(categories),
+                          filter_locations=sorted(locations),
+                          filter_prices=sorted(prices),
                           social_accounts=social_accounts,
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 
@@ -355,8 +370,8 @@ def user_spot_detail(displayname, spot_id):
         if post.platform in social_links:
             social_links[post.platform] = post.post_url
     
-    return render_template('public/spot_detail_page.html', 
+    return render_template('public/spot_detail.html', 
                           user=user, 
                           spot=spot, 
                           photos=all_photos,
-                          social_links=social_links) 
+                          social_links=social_links)

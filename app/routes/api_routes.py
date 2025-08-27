@@ -183,8 +183,8 @@ def place_details():
     headers = {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'displayName,formattedAddress,location,types,photos',
-        'X-Goog-LanguageCode': 'ja',  # 日本語を指定
+        'X-Goog-FieldMask': 'displayName,formattedAddress,location,types,photos,editorialSummary,reviewSummary',
+        'X-Goog-LanguageCode': 'ja',  # 日本語を指定（ヘッダー）
         'User-Agent': 'my-map.link App (https://my-map.link)'
     }
     
@@ -193,7 +193,8 @@ def place_details():
     
     try:
         # GETリクエストを使用
-        response = requests.get(url, headers=headers)
+        # ヘッダーだけでなく、クエリにも languageCode=ja を明示
+        response = requests.get(url, headers=headers, params={'languageCode': 'ja'})
         print(f"Response status code: {response.status_code}")
         data = response.json()
         print(f"Google Places API response: {data}")
@@ -241,6 +242,36 @@ def place_details():
             'types': data.get('types', []),
             'place_id': place_id
         }
+
+        # レビュー要約（editorialSummary を優先、フォールバックで reviewSummary）
+        try:
+            editorial = data.get('editorialSummary')
+            review_summary_text = None
+            if isinstance(editorial, dict):
+                txt = editorial.get('text')
+                if isinstance(txt, str) and txt.strip():
+                    review_summary_text = txt.strip()
+            elif isinstance(editorial, str) and editorial.strip():
+                review_summary_text = editorial.strip()
+
+            if not review_summary_text:
+                rs = data.get('reviewSummary')
+                if isinstance(rs, dict):
+                    # 代表的な形: { text: "..." } や { overview: { text: "..." } }
+                    txt = rs.get('text')
+                    if isinstance(txt, str) and txt.strip():
+                        review_summary_text = txt.strip()
+                    else:
+                        overview = rs.get('overview') if isinstance(rs.get('overview'), dict) else None
+                        if overview and isinstance(overview.get('text'), str) and overview.get('text').strip():
+                            review_summary_text = overview.get('text').strip()
+                elif isinstance(rs, str) and rs.strip():
+                    review_summary_text = rs.strip()
+
+            if review_summary_text:
+                place_details['review_summary'] = review_summary_text
+        except Exception:
+            pass
         
         # 写真がある場合は最初の1枚のURLを取得
         if 'photos' in data and len(data['photos']) > 0:
@@ -1354,6 +1385,46 @@ def save_instagram_spots():
                 except Exception as e:
                     print(f"searchText API呼び出しエラー: {str(e)}")
             
+            # レビュー要約の取得（editorialSummary → reviewSummary 優先）
+            try:
+                if spot.google_place_id and (not getattr(spot, 'review_summary', None) or not spot.review_summary):
+                    # 直接 Places v1 を叩いて最小フィールドで取得
+                    details_url = f"https://places.googleapis.com/v1/places/{spot.google_place_id}"
+                    details_headers = {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                        'X-Goog-FieldMask': 'editorialSummary,reviewSummary',
+                        'X-Goog-LanguageCode': 'ja',
+                        'User-Agent': 'my-map.link App (https://my-map.link)'
+                    }
+                    rs_resp = requests.get(details_url, headers=details_headers, params={'languageCode': 'ja'}, timeout=8)
+                    if rs_resp.status_code == 200:
+                        rs_data = rs_resp.json() if rs_resp.content else {}
+                        review_summary_text = None
+                        editorial = rs_data.get('editorialSummary')
+                        if isinstance(editorial, dict):
+                            txt = editorial.get('text')
+                            if isinstance(txt, str) and txt.strip():
+                                review_summary_text = txt.strip()
+                        elif isinstance(editorial, str) and editorial.strip():
+                            review_summary_text = editorial.strip()
+                        if not review_summary_text:
+                            rs = rs_data.get('reviewSummary')
+                            if isinstance(rs, dict):
+                                txt = rs.get('text')
+                                if isinstance(txt, str) and txt.strip():
+                                    review_summary_text = txt.strip()
+                                else:
+                                    overview = rs.get('overview') if isinstance(rs.get('overview'), dict) else None
+                                    if overview and isinstance(overview.get('text'), str) and overview.get('text').strip():
+                                        review_summary_text = overview.get('text').strip()
+                            elif isinstance(rs, str) and rs.strip():
+                                review_summary_text = rs.strip()
+                        if review_summary_text:
+                            spot.review_summary = review_summary_text
+            except Exception as _:
+                pass
+
             print(f"スポットをデータベースに追加")
             spot_info = {
                 'name': spot.name,
@@ -1409,62 +1480,41 @@ def save_instagram_spots():
             print(f"Google Place ID保存完了: {spot.google_place_id}")
             print("写真は表示時にGoogle Photos Serviceで動的取得されます")
             
-            # 楽天トラベルアフィリエイトリンクの自動生成
-            if current_user.rakuten_affiliate_id and spot.name:
-                try:
-                    print(f"楽天トラベルAPI検索: {spot.name}")
-                    # 楽天トラベルAPIを呼び出してホテル情報を取得（段階的検索対応）
-                    hotel_results = search_hotel_with_fallback(spot.name, current_user.rakuten_affiliate_id)
-                    
-                    # エラーハンドリング改善
-                    if hotel_results.get('error') == 'no_hotels_found':
-                        print(f"楽天トラベル: '{spot.name}'に該当するホテルが見つかりませんでした")
-                    elif hotel_results.get('error'):
-                        print(f"楽天トラベルAPIエラー: {hotel_results.get('message', 'Unknown error')}")
-                    elif 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
-                        print(f"ホテル検索結果: {len(hotel_results['hotels'])}件見つかりました")
-                        
-                        # 🆕 LLM評価システムによる最適ホテル選択
-                        selected_hotel = select_best_hotel_with_evaluation(spot.name, hotel_results)
-                        
-                        if selected_hotel:
-                            # 選択されたホテルの情報を処理
-                            if 'hotel' in selected_hotel and len(selected_hotel['hotel']) > 0:
-                                hotel_info = selected_hotel['hotel'][0]
-                                if 'hotelBasicInfo' in hotel_info:
-                                    basic_info = hotel_info['hotelBasicInfo']
-                                    hotel_name = basic_info.get('hotelName', '')
-                                    print(f"LLM評価により選択されたホテル: {hotel_name}")
-                                    
-                                    # URLがある場合のみ処理
-                                    if basic_info.get('hotelInformationUrl'):
-                                        hotel_url = basic_info.get('hotelInformationUrl')
-                                        print(f"ホテルURL: {hotel_url}")
-                                        
-                                        # アフィリエイトURLを生成
-                                        affiliate_url = generate_rakuten_affiliate_url(
-                                            hotel_url,
-                                            current_user.rakuten_affiliate_id
-                                        )
-                                        print(f"アフィリエイトURL生成: {affiliate_url}")
-                                        
-                                        # 新規リンク作成
-                                        affiliate_link = AffiliateLink(
-                                            spot_id=spot.id,
-                                            platform='rakuten',
-                                            url=affiliate_url,
-                                            title='楽天トラベル',
-                                            description='楽天トラベルで予約 (PRを含む)',
-                                            icon_key='rakuten-travel',
-                                            is_active=True
-                                        )
-                                        db.session.add(affiliate_link)
-                                        
-                                        print(f"楽天トラベルアフィリエイトリンクを自動生成: スポット名={spot.name}")
-                        else:
-                            print(f"LLM評価により、適切なホテルが見つかりませんでした: スポット名={spot.name}")
-                except Exception as e:
-                    print(f"楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
+            # 楽天トラベルアフィリエイトリンクの自動生成（仕様変更のため一時停止）
+            # if current_user.rakuten_affiliate_id and spot.name:
+            #     try:
+            #         print(f"楽天トラベルAPI検索: {spot.name}")
+            #         hotel_results = search_hotel_with_fallback(spot.name, current_user.rakuten_affiliate_id)
+            #         if hotel_results.get('error') == 'no_hotels_found':
+            #             print(f"楽天トラベル: '{spot.name}'に該当するホテルが見つかりませんでした")
+            #         elif hotel_results.get('error'):
+            #             print(f"楽天トラベルAPIエラー: {hotel_results.get('message', 'Unknown error')}")
+            #         elif 'hotels' in hotel_results and len(hotel_results['hotels']) > 0:
+            #             print(f"ホテル検索結果: {len(hotel_results['hotels'])}件見つかりました")
+            #             selected_hotel = select_best_hotel_with_evaluation(spot.name, hotel_results)
+            #             if selected_hotel:
+            #                 if 'hotel' in selected_hotel and len(selected_hotel['hotel']) > 0:
+            #                     hotel_info = selected_hotel['hotel'][0]
+            #                     if 'hotelBasicInfo' in hotel_info:
+            #                         basic_info = hotel_info['hotelBasicInfo']
+            #                         if basic_info.get('hotelInformationUrl'):
+            #                             hotel_url = basic_info.get('hotelInformationUrl')
+            #                             affiliate_url = generate_rakuten_affiliate_url(
+            #                                 hotel_url,
+            #                                 current_user.rakuten_affiliate_id
+            #                             )
+            #                             affiliate_link = AffiliateLink(
+            #                                 spot_id=spot.id,
+            #                                 platform='rakuten',
+            #                                 url=affiliate_url,
+            #                                 title='楽天トラベル',
+            #                                 description='楽天トラベルで予約 (PRを含む)',
+            #                                 icon_key='rakuten-travel',
+            #                                 is_active=True
+            #                             )
+            #                             db.session.add(affiliate_link)
+            #     except Exception as e:
+            #         print(f"楽天トラベルアフィリエイトリンク生成エラー: {str(e)}")
         
         print(f"データベースに変更をコミット")
         db.session.commit()

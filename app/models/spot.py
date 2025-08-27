@@ -29,6 +29,7 @@ class Spot(db.Model):
     # レビュー関連のフィールド
     rating = db.Column(db.Float, nullable=False, default=0.0)  # 評価の平均点（1.0-5.0）
     review_count = db.Column(db.Integer, default=0, nullable=False)  # レビュー数
+    review_summary = db.Column(db.Text, nullable=True)  # Googleレビューの要約テキスト
     
     # リレーションシップ
     photos = db.relationship('Photo', backref='spot', lazy=True, cascade='all, delete-orphan')
@@ -59,5 +60,6 @@ class Spot(db.Model):
             'google_maps_url': self.google_maps_url,
             'rating': self.rating,
             'review_count': self.review_count,
+            'review_summary': self.review_summary,
             'photos': [photo.to_dict() for photo in self.photos]
         }

@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <meta charset=utf-8>
-
 <meta name=viewport content="width=device-width, initial-scale=1">
 <meta name=color-scheme content="light dark">
 <style id=reset-css>
@@ -35,10 +34,10 @@
     flex-shrink: 0
   }
 </style>
-<meta name="description" content="{{ (user.bio or (user.username ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
+<meta name="description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
 <meta name="robots" content="index,follow">
 <meta name="agd-partner-manual-verification" />
-<title>{{ user.display_name or user.username }} | maplink</title>
+<title>{{ spot.name }} | {{ user.display_name or user.username }} | maplink</title>
 <script data-noptimize="1" data-cfasync="false" data-wpfc-render="false">
   (function () {
       var script = document.createElement("script");
@@ -67,6 +66,15 @@
         --tw-space-y-reverse: 0;
         --tw-space-x-reverse: 0;
         --tw-border-style: solid;
+        --tw-gradient-position: initial;
+        --tw-gradient-from: #0000;
+        --tw-gradient-via: #0000;
+        --tw-gradient-to: #0000;
+        --tw-gradient-stops: initial;
+        --tw-gradient-via-stops: initial;
+        --tw-gradient-from-position: 0%;
+        --tw-gradient-via-position: 50%;
+        --tw-gradient-to-position: 100%;
         --tw-leading: initial;
         --tw-font-weight: initial;
         --tw-tracking: initial;
@@ -103,6 +111,15 @@
         --tw-drop-shadow-color: initial;
         --tw-drop-shadow-alpha: 100%;
         --tw-drop-shadow-size: initial;
+        --tw-backdrop-blur: initial;
+        --tw-backdrop-brightness: initial;
+        --tw-backdrop-contrast: initial;
+        --tw-backdrop-grayscale: initial;
+        --tw-backdrop-hue-rotate: initial;
+        --tw-backdrop-invert: initial;
+        --tw-backdrop-opacity: initial;
+        --tw-backdrop-saturate: initial;
+        --tw-backdrop-sepia: initial;
         --tw-duration: initial;
         --tw-ease: initial;
         --tw-content: "";
@@ -119,10 +136,17 @@
     :host {
       --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --color-red-500: oklch(.637 .237 25.331);
       --color-yellow-400: oklch(.852 .199 91.936);
       --color-green-50: oklch(.982 .018 155.826);
       --color-green-500: oklch(.723 .219 149.579);
       --color-green-600: oklch(.627 .194 149.214);
+      --color-blue-500: oklch(.623 .214 259.815);
+      --color-purple-50: oklch(.977 .014 308.299);
+      --color-purple-500: oklch(.627 .265 303.9);
+      --color-pink-50: oklch(.971 .014 343.198);
+      --color-pink-200: oklch(.899 .061 343.231);
+      --color-pink-500: oklch(.656 .241 354.308);
       --color-gray-100: oklch(.967 .003 264.542);
       --color-gray-300: oklch(.872 .01 258.338);
       --color-black: #000;
@@ -131,7 +155,6 @@
       --container-sm: 24rem;
       --container-lg: 32rem;
       --container-4xl: 56rem;
-      --container-6xl: 72rem;
       --text-xs: .75rem;
       --text-xs--line-height: calc(1/.75);
       --text-sm: .875rem;
@@ -155,6 +178,7 @@
       --leading-relaxed: 1.625;
       --radius-xs: .125rem;
       --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+      --animate-spin: spin 1s linear infinite;
       --animate-pulse: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
       --aspect-video: 16/9;
       --default-transition-duration: .15s;
@@ -483,7 +507,6 @@
       font-weight: var(--font-weight-medium);
       line-height: 1.5
     }
-
     :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) h4 {
       font-size: var(--text-base);
       font-weight: var(--font-weight-medium);
@@ -509,6 +532,7 @@
       line-height: 1.5
     }
   }
+
   @layer utilities {
     .\@container\/card-header {
       container: card-header/inline-size
@@ -550,6 +574,10 @@
       position: relative
     }
 
+    .sticky {
+      position: sticky
+    }
+
     .inset-0 {
       inset: calc(var(--spacing)*0)
     }
@@ -576,10 +604,6 @@
 
     .top-1\/2 {
       top: 50%
-    }
-
-    .top-3 {
-      top: calc(var(--spacing)*3)
     }
 
     .top-3\.5 {
@@ -638,10 +662,6 @@
       bottom: calc(var(--spacing)*0)
     }
 
-    .bottom-3 {
-      bottom: calc(var(--spacing)*3)
-    }
-
     .bottom-4 {
       bottom: calc(var(--spacing)*4)
     }
@@ -664,10 +684,6 @@
 
     .left-2 {
       left: calc(var(--spacing)*2)
-    }
-
-    .left-3 {
-      left: calc(var(--spacing)*3)
     }
 
     .left-4 {
@@ -710,6 +726,40 @@
       grid-row-start: 1
     }
 
+    .container {
+      width: 100%
+    }
+
+    @media (width>=40rem) {
+      .container {
+        max-width: 40rem
+      }
+    }
+
+    @media (width>=48rem) {
+      .container {
+        max-width: 48rem
+      }
+    }
+
+    @media (width>=64rem) {
+      .container {
+        max-width: 64rem
+      }
+    }
+
+    @media (width>=80rem) {
+      .container {
+        max-width: 80rem
+      }
+    }
+
+    @media (width>=96rem) {
+      .container {
+        max-width: 96rem
+      }
+    }
+
     .-mx-1 {
       margin-inline: calc(var(--spacing)*-1)
     }
@@ -746,6 +796,10 @@
       margin-top: calc(var(--spacing)*2)
     }
 
+    .mt-3 {
+      margin-top: calc(var(--spacing)*3)
+    }
+
     .mt-4 {
       margin-top: calc(var(--spacing)*4)
     }
@@ -754,8 +808,8 @@
       margin-top: auto
     }
 
-    .mb-1 {
-      margin-bottom: calc(var(--spacing)*1)
+    .mr-1 {
+      margin-right: calc(var(--spacing)*1)
     }
 
     .mb-2 {
@@ -784,13 +838,6 @@
 
     .line-clamp-1 {
       -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-      display: -webkit-box;
-      overflow: hidden
-    }
-
-    .line-clamp-2 {
-      -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       display: -webkit-box;
       overflow: hidden
@@ -942,6 +989,10 @@
       height: calc(var(--spacing)*12)
     }
 
+    .h-14 {
+      height: calc(var(--spacing)*14)
+    }
+
     .h-24 {
       height: calc(var(--spacing)*24)
     }
@@ -953,7 +1004,6 @@
     .h-\[calc\(100\%-1px\)\] {
       height: calc(100% - 1px)
     }
-
     .h-\[var\(--radix-navigation-menu-viewport-height\)\] {
       height: var(--radix-navigation-menu-viewport-height)
     }
@@ -1108,10 +1158,6 @@
 
     .max-w-4xl {
       max-width: var(--container-4xl)
-    }
-
-    .max-w-6xl {
-      max-width: var(--container-6xl)
     }
 
     .max-w-\[calc\(100\%-2rem\)\] {
@@ -1275,12 +1321,12 @@
       animation: var(--animate-pulse)
     }
 
-    .cursor-default {
-      cursor: default
+    .animate-spin {
+      animation: var(--animate-spin)
     }
 
-    .cursor-pointer {
-      cursor: pointer
+    .cursor-default {
+      cursor: default
     }
 
     .touch-none {
@@ -1305,9 +1351,6 @@
 
     .auto-rows-min {
       grid-auto-rows: min-content
-    }
-    .grid-cols-1 {
-      grid-template-columns: repeat(1, minmax(0, 1fr))
     }
 
     .grid-cols-2 {
@@ -1459,7 +1502,6 @@
     .rounded-\[2px\] {
       border-radius: 2px
     }
-
     .rounded-\[4px\] {
       border-radius: 4px
     }
@@ -1503,6 +1545,11 @@
     .border {
       border-style: var(--tw-border-style);
       border-width: 1px
+    }
+
+    .border-0 {
+      border-style: var(--tw-border-style);
+      border-width: 0
     }
 
     .border-\[1\.5px\] {
@@ -1558,12 +1605,32 @@
       }
     }
 
+    .border-border\/60 {
+      border-color: var(--border)
+    }
+
+    @supports (color:color-mix(in lab, red, red)) {
+      .border-border\/60 {
+        border-color: color-mix(in oklab, var(--border) 60%, transparent)
+      }
+    }
+
     .border-green-500 {
       border-color: var(--color-green-500)
     }
 
     .border-input {
       border-color: var(--input)
+    }
+
+    .border-pink-200\/50 {
+      border-color: color-mix(in srgb, oklch(.899 .061 343.231) 50%, transparent)
+    }
+
+    @supports (color:color-mix(in lab, red, red)) {
+      .border-pink-200\/50 {
+        border-color: color-mix(in oklab, var(--color-pink-200) 50%, transparent)
+      }
     }
 
     .border-primary {
@@ -1598,6 +1665,30 @@
       background-color: var(--background)
     }
 
+    .bg-background\/95 {
+      background-color: var(--background)
+    }
+
+    @supports (color:color-mix(in lab, red, red)) {
+      .bg-background\/95 {
+        background-color: color-mix(in oklab, var(--background) 95%, transparent)
+      }
+    }
+
+    .bg-black {
+      background-color: var(--color-black)
+    }
+
+    .bg-black\/30 {
+      background-color: #0000004d
+    }
+
+    @supports (color:color-mix(in lab, red, red)) {
+      .bg-black\/30 {
+        background-color: color-mix(in oklab, var(--color-black) 30%, transparent)
+      }
+    }
+
     .bg-black\/50 {
       background-color: #00000080
     }
@@ -1606,6 +1697,10 @@
       .bg-black\/50 {
         background-color: color-mix(in oklab, var(--color-black) 50%, transparent)
       }
+    }
+
+    .bg-blue-500 {
+      background-color: var(--color-blue-500)
     }
 
     .bg-border {
@@ -1682,6 +1777,10 @@
       }
     }
 
+    .bg-red-500 {
+      background-color: var(--color-red-500)
+    }
+
     .bg-secondary {
       background-color: var(--secondary)
     }
@@ -1696,6 +1795,20 @@
 
     .bg-transparent {
       background-color: #0000
+    }
+
+    .bg-white {
+      background-color: var(--color-white)
+    }
+
+    .bg-white\/50 {
+      background-color: #ffffff80
+    }
+
+    @supports (color:color-mix(in lab, red, red)) {
+      .bg-white\/50 {
+        background-color: color-mix(in oklab, var(--color-white) 50%, transparent)
+      }
     }
 
     .bg-white\/80 {
@@ -1718,8 +1831,37 @@
       }
     }
 
+    .bg-gradient-to-r {
+      --tw-gradient-position: to right in oklab;
+      background-image: linear-gradient(var(--tw-gradient-stops))
+    }
+
+    .from-pink-50 {
+      --tw-gradient-from: var(--color-pink-50);
+      --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position))
+    }
+
+    .from-purple-500 {
+      --tw-gradient-from: var(--color-purple-500);
+      --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position))
+    }
+
+    .to-pink-500 {
+      --tw-gradient-to: var(--color-pink-500);
+      --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position))
+    }
+
+    .to-purple-50 {
+      --tw-gradient-to: var(--color-purple-50);
+      --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position))
+    }
+
     .fill-current {
       fill: currentColor
+    }
+
+    .fill-pink-500 {
+      fill: var(--color-pink-500)
     }
 
     .fill-primary {
@@ -1756,10 +1898,6 @@
 
     .p-6 {
       padding: calc(var(--spacing)*6)
-    }
-
-    .p-8 {
-      padding: calc(var(--spacing)*8)
     }
 
     .p-\[3px\] {
@@ -1814,6 +1952,10 @@
       padding-block: calc(var(--spacing)*2)
     }
 
+    .py-2\.5 {
+      padding-block: calc(var(--spacing)*2.5)
+    }
+
     .py-3 {
       padding-block: calc(var(--spacing)*3)
     }
@@ -1826,16 +1968,16 @@
       padding-block: calc(var(--spacing)*6)
     }
 
+    .py-8 {
+      padding-block: calc(var(--spacing)*8)
+    }
+
     .pt-0 {
       padding-top: calc(var(--spacing)*0)
     }
 
     .pt-1 {
       padding-top: calc(var(--spacing)*1)
-    }
-
-    .pt-2 {
-      padding-top: calc(var(--spacing)*2)
     }
 
     .pt-3 {
@@ -1857,7 +1999,6 @@
     .pr-2\.5 {
       padding-right: calc(var(--spacing)*2.5)
     }
-
     .pr-8 {
       padding-right: calc(var(--spacing)*8)
     }
@@ -1874,6 +2015,10 @@
       padding-bottom: calc(var(--spacing)*6)
     }
 
+    .pb-8 {
+      padding-bottom: calc(var(--spacing)*8)
+    }
+
     .pl-2 {
       padding-left: calc(var(--spacing)*2)
     }
@@ -1884,10 +2029,6 @@
 
     .pl-8 {
       padding-left: calc(var(--spacing)*8)
-    }
-
-    .pl-10 {
-      padding-left: calc(var(--spacing)*10)
     }
 
     .text-center {
@@ -2001,10 +2142,6 @@
       white-space: nowrap
     }
 
-    .whitespace-pre-line {
-      white-space: pre-line
-    }
-
     .text-accent-foreground {
       color: var(--accent-foreground)
     }
@@ -2035,6 +2172,10 @@
 
     .text-muted-foreground {
       color: var(--muted-foreground)
+    }
+
+    .text-pink-500 {
+      color: var(--color-pink-500)
     }
 
     .text-popover-foreground {
@@ -2088,6 +2229,10 @@
       text-underline-offset: 4px
     }
 
+    .opacity-30 {
+      opacity: .3
+    }
+
     .opacity-50 {
       opacity: .5
     }
@@ -2105,6 +2250,7 @@
       --tw-shadow: 0 0 0 1px var(--tw-shadow-color, hsl(var(--sidebar-border)));
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
     }
+
     .shadow-lg {
       --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, #0000001a), 0 4px 6px -4px var(--tw-shadow-color, #0000001a);
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
@@ -2177,6 +2323,17 @@
 
     .filter {
       filter: var(--tw-blur, ) var(--tw-brightness, ) var(--tw-contrast, ) var(--tw-grayscale, ) var(--tw-hue-rotate, ) var(--tw-invert, ) var(--tw-saturate, ) var(--tw-sepia, ) var(--tw-drop-shadow, )
+    }
+
+    .backdrop-blur {
+      --tw-backdrop-blur: blur(8px);
+      -webkit-backdrop-filter: var(--tw-backdrop-blur, ) var(--tw-backdrop-brightness, ) var(--tw-backdrop-contrast, ) var(--tw-backdrop-grayscale, ) var(--tw-backdrop-hue-rotate, ) var(--tw-backdrop-invert, ) var(--tw-backdrop-opacity, ) var(--tw-backdrop-saturate, ) var(--tw-backdrop-sepia, );
+      backdrop-filter: var(--tw-backdrop-blur, ) var(--tw-backdrop-brightness, ) var(--tw-backdrop-contrast, ) var(--tw-backdrop-grayscale, ) var(--tw-backdrop-hue-rotate, ) var(--tw-backdrop-invert, ) var(--tw-backdrop-opacity, ) var(--tw-backdrop-saturate, ) var(--tw-backdrop-sepia, )
+    }
+
+    .backdrop-filter {
+      -webkit-backdrop-filter: var(--tw-backdrop-blur, ) var(--tw-backdrop-brightness, ) var(--tw-backdrop-contrast, ) var(--tw-backdrop-grayscale, ) var(--tw-backdrop-hue-rotate, ) var(--tw-backdrop-invert, ) var(--tw-backdrop-opacity, ) var(--tw-backdrop-saturate, ) var(--tw-backdrop-sepia, );
+      backdrop-filter: var(--tw-backdrop-blur, ) var(--tw-backdrop-brightness, ) var(--tw-backdrop-contrast, ) var(--tw-backdrop-grayscale, ) var(--tw-backdrop-hue-rotate, ) var(--tw-backdrop-invert, ) var(--tw-backdrop-opacity, ) var(--tw-backdrop-saturate, ) var(--tw-backdrop-sepia, )
     }
 
     .transition {
@@ -2323,11 +2480,11 @@
       width: var(--sidebar-width-icon)
     }
 
-    .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)\+\(--spacing\(4\)\)\]:is(:where(.group)[data-collapsible="icon"] *) {
+    .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)\+\(--spacing\(4\)\)\)\]:is(:where(.group)[data-collapsible="icon"] *) {
       width: calc(var(--sidebar-width-icon) + (calc(var(--spacing)*4)))
     }
 
-    .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)\+\(--spacing\(4\)\+2px\)\]:is(:where(.group)[data-collapsible="icon"] *) {
+    .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)\+\(--spacing\(4\)\)\+2px\)\]:is(:where(.group)[data-collapsible="icon"] *) {
       width: calc(var(--sidebar-width-icon) + (calc(var(--spacing)*4)) + 2px)
     }
 
@@ -2342,7 +2499,6 @@
     .group-data-\[collapsible\=icon\]\:p-2\!:is(:where(.group)[data-collapsible="icon"] *) {
       padding: calc(var(--spacing)*2) !important
     }
-
     .group-data-\[collapsible\=icon\]\:opacity-0:is(:where(.group)[data-collapsible="icon"] *) {
       opacity: 0
     }
@@ -2604,17 +2760,41 @@
     }
 
     @media (hover:hover) {
-      .hover\:scale-105:hover {
-        --tw-scale-x: 105%;
-        --tw-scale-y: 105%;
-        --tw-scale-z: 105%;
+      .hover\:scale-110:hover {
+        --tw-scale-x: 110%;
+        --tw-scale-y: 110%;
+        --tw-scale-z: 110%;
         scale: var(--tw-scale-x) var(--tw-scale-y)
+      }
+    }
+
+    @media (hover:hover) {
+      .hover\:border-ring\/40:hover {
+        border-color: var(--ring)
+      }
+
+      @supports (color:color-mix(in lab, red, red)) {
+        .hover\:border-ring\/40:hover {
+          border-color: color-mix(in oklab, var(--ring) 40%, transparent)
+        }
       }
     }
 
     @media (hover:hover) {
       .hover\:bg-accent:hover {
         background-color: var(--accent)
+      }
+    }
+
+    @media (hover:hover) {
+      .hover\:bg-black\/50:hover {
+        background-color: #00000080
+      }
+
+      @supports (color:color-mix(in lab, red, red)) {
+        .hover\:bg-black\/50:hover {
+          background-color: color-mix(in oklab, var(--color-black) 50%, transparent)
+        }
       }
     }
 
@@ -2740,13 +2920,6 @@
     }
 
     @media (hover:hover) {
-      .hover\:shadow-lg:hover {
-        --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, #0000001a), 0 4px 6px -4px var(--tw-shadow-color, #0000001a);
-        box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
-      }
-    }
-
-    @media (hover:hover) {
       .hover\:ring-4:hover {
         --tw-ring-shadow: var(--tw-ring-inset, )0 0 0 calc(4px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
         box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
@@ -2786,6 +2959,11 @@
       color: var(--primary-foreground)
     }
 
+    .focus\:ring-0:focus {
+      --tw-ring-shadow: var(--tw-ring-inset, )0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
+    }
+
     .focus\:ring-2:focus {
       --tw-ring-shadow: var(--tw-ring-inset, )0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
@@ -2793,6 +2971,11 @@
 
     .focus\:ring-ring:focus {
       --tw-ring-color: var(--ring)
+    }
+
+    .focus\:ring-offset-0:focus {
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-shadow: var(--tw-ring-inset, )0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color)
     }
 
     .focus\:ring-offset-2:focus {
@@ -2815,9 +2998,13 @@
     .focus-visible\:z-10:focus-visible {
       z-index: 10
     }
-
     .focus-visible\:border-ring:focus-visible {
       border-color: var(--ring)
+    }
+
+    .focus-visible\:ring-0:focus-visible {
+      --tw-ring-shadow: var(--tw-ring-inset, )0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
     }
 
     .focus-visible\:ring-1:focus-visible {
@@ -2864,6 +3051,11 @@
       }
     }
 
+    .focus-visible\:ring-offset-0:focus-visible {
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-shadow: var(--tw-ring-inset, )0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color)
+    }
+
     .focus-visible\:ring-offset-1:focus-visible {
       --tw-ring-offset-width: 1px;
       --tw-ring-offset-shadow: var(--tw-ring-inset, )0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color)
@@ -2905,6 +3097,7 @@
     .disabled\:cursor-not-allowed:disabled {
       cursor: not-allowed
     }
+
     .disabled\:opacity-50:disabled {
       opacity: .5
     }
@@ -3302,7 +3495,6 @@
     :is(.\*\:data-\[slot\=select-value\]\:items-center>*)[data-slot="select-value"] {
       align-items: center
     }
-
     :is(.\*\:data-\[slot\=select-value\]\:gap-2>*)[data-slot="select-value"] {
       gap: calc(var(--spacing)*2)
     }
@@ -3638,6 +3830,18 @@
       border-bottom-width: 1px
     }
 
+    @supports ((-webkit-backdrop-filter:var(--tw)) or (backdrop-filter:var(--tw))) {
+      .supports-\[backdrop-filter\]\:bg-background\/60 {
+        background-color: var(--background)
+      }
+
+      @supports (color:color-mix(in lab, red, red)) {
+        .supports-\[backdrop-filter\]\:bg-background\/60 {
+          background-color: color-mix(in oklab, var(--background) 60%, transparent)
+        }
+      }
+    }
+
     @media (width>=40rem) {
       .sm\:block {
         display: block
@@ -3647,6 +3851,12 @@
     @media (width>=40rem) {
       .sm\:flex {
         display: flex
+      }
+    }
+
+    @media (width>=40rem) {
+      .sm\:w-auto {
+        width: auto
       }
     }
 
@@ -3665,6 +3875,12 @@
     @media (width>=40rem) {
       .sm\:flex-row {
         flex-direction: row
+      }
+    }
+
+    @media (width>=40rem) {
+      .sm\:items-center {
+        align-items: center
       }
     }
 
@@ -3703,6 +3919,7 @@
         max-width: var(--container-sm)
       }
     }
+
     @media (width>=40rem) {
       .data-\[vaul-drawer-direction\=right\]\:sm\:max-w-sm[data-vaul-drawer-direction="right"] {
         max-width: var(--container-sm)
@@ -3740,26 +3957,8 @@
     }
 
     @media (width>=48rem) {
-      .md\:grid-cols-2 {
-        grid-template-columns: repeat(2, minmax(0, 1fr))
-      }
-    }
-
-    @media (width>=48rem) {
       .md\:grid-cols-3 {
         grid-template-columns: repeat(3, minmax(0, 1fr))
-      }
-    }
-
-    @media (width>=48rem) {
-      .md\:flex-row {
-        flex-direction: row
-      }
-    }
-
-    @media (width>=48rem) {
-      .md\:items-start {
-        align-items: flex-start
       }
     }
 
@@ -3793,7 +3992,6 @@
         border-radius: calc(var(--radius) + 4px)
       }
     }
-
     @media (width>=48rem) {
       .md\:peer-data-\[variant\=inset\]\:shadow-sm:is(:where(.peer)[data-variant="inset"]~*) {
         --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, #0000001a), 0 1px 2px -1px var(--tw-shadow-color, #0000001a);
@@ -3811,12 +4009,6 @@
       .md\:after\:hidden:after {
         content: var(--tw-content);
         display: none
-      }
-    }
-
-    @media (width>=80rem) {
-      .xl\:grid-cols-3 {
-        grid-template-columns: repeat(3, minmax(0, 1fr))
       }
     }
 
@@ -4056,7 +4248,7 @@
       padding-inline: calc(var(--spacing)*2)
     }
 
-    .\[\&_\[cmdk-group\]\:not\(\[hidden\]\)\_\~\[cmdk-group\]\]\:pt-0 [cmdk-group]:not([hidden])~[cmdk-group] {
+    .\[\&_\[cmdk-group\]:not\(\[hidden\]\)_\~\[cmdk-group\]\]\:pt-0 [cmdk-group]:not([hidden])~[cmdk-group] {
       padding-top: calc(var(--spacing)*0)
     }
 
@@ -4290,7 +4482,6 @@
         background-color: var(--accent)
       }
     }
-
     @media (hover:hover) {
       a.\[a\&\]\:hover\:bg-destructive\/90:hover {
         background-color: var(--destructive)
@@ -4445,6 +4636,57 @@
     initial-value: solid
   }
 
+  @property --tw-gradient-position {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-gradient-from {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: #0000
+  }
+
+  @property --tw-gradient-via {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: #0000
+  }
+
+  @property --tw-gradient-to {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: #0000
+  }
+
+  @property --tw-gradient-stops {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-gradient-via-stops {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-gradient-from-position {
+    syntax: "<length-percentage>";
+    inherits: false;
+    initial-value: 0%
+  }
+
+  @property --tw-gradient-via-position {
+    syntax: "<length-percentage>";
+    inherits: false;
+    initial-value: 50%
+  }
+
+  @property --tw-gradient-to-position {
+    syntax: "<length-percentage>";
+    inherits: false;
+    initial-value: 100%
+  }
+
   @property --tw-leading {
     syntax: "*";
     inherits: false
@@ -4501,6 +4743,7 @@
     inherits: false;
     initial-value: 100%
   }
+
   @property --tw-inset-shadow {
     syntax: "*";
     inherits: false;
@@ -4635,6 +4878,51 @@
     inherits: false
   }
 
+  @property --tw-backdrop-blur {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-brightness {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-contrast {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-grayscale {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-hue-rotate {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-invert {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-opacity {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-saturate {
+    syntax: "*";
+    inherits: false
+  }
+
+  @property --tw-backdrop-sepia {
+    syntax: "*";
+    inherits: false
+  }
+
   @property --tw-duration {
     syntax: "*";
     inherits: false
@@ -4669,6 +4957,12 @@
     initial-value: 1
   }
 
+  @keyframes spin {
+    to {
+      transform: rotate(360deg)
+    }
+  }
+
   @keyframes pulse {
     50% {
       opacity: .5
@@ -4688,7 +4982,6 @@
       transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0))
     }
   }
-
   @keyframes accordion-down {
     from {
       height: 0
@@ -4724,9 +5017,7 @@
   }
 </style>
 <meta name=referrer content=no-referrer>
-
-<meta http-equiv=content-security-policy
-  content="default-src 'none'; font-src 'self' data:; img-src 'self' data: https:; style-src 'unsafe-inline'; media-src 'self' data:; script-src 'unsafe-inline' data:; object-src 'self' data:; frame-src 'self' data:;">
+{# デモ用の厳格CSPは外部画像読み込みを阻害するため削除 #}
 <noscript>
   <style>
     #container {
@@ -4736,18 +5027,20 @@
 <!-- SEO meta start -->
 <link rel="canonical" href="{{ request.url }}">
 
+{% set og_image = photos[0] if photos and photos|length > 0 else url_for('static', filename='images/ogp.png', _external=True) %}
+
 <meta property="og:site_name" content="maplink">
 <meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="{{ user.display_name or user.username }} | maplink">
-<meta property="og:description" content="{{ (user.bio or (user.username ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
-<meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+<meta property="og:title" content="{{ spot.name }} | {{ user.display_name or user.username }} | maplink">
+<meta property="og:description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
+<meta property="og:image" content="{{ og_image }}">
 <meta property="og:url" content="{{ request.url }}">
 <meta property="og:type" content="website">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ user.display_name or user.username }} | maplink">
-<meta name="twitter:description" content="{{ (user.bio or (user.username ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
-<meta name="twitter:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
+<meta name="twitter:title" content="{{ spot.name }} | {{ user.display_name or user.username }} | maplink">
+<meta name="twitter:description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
+<meta name="twitter:image" content="{{ og_image }}">
 
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
@@ -4755,311 +5048,514 @@
 </noscript></head>
 
 <body>
-
-
-
-
-
   <div id=container>
     <div>
       <div>
         <div class="tailwind css-myl2ny css-exq74d css-gs60ek">
           <div class="min-h-screen bg-background">
-            <div class="max-w-6xl mx-auto p-4 space-y-6">
-              <div data-slot=card class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border">
-                <div data-slot=card-content class="[&amp;:last-child]:pb-6 p-6">
-                  <div class="flex flex-col md:flex-row gap-6">
-                    <div class="flex flex-col items-center md:items-start gap-4"><span data-slot=avatar
-                        class="relative flex size-10 shrink-0 overflow-hidden rounded-full w-24 h-24"><img
-                          data-slot=avatar-image class="aspect-square size-full" alt="{{ user.username }}"
-                          src="{{ url_for('static', filename='images/default_profile.png') if not user.profile_pic_url else user.profile_pic_url }}"></span>
-                      <div class="flex gap-2">
-                        {% set ig = social_accounts.instagram if social_accounts else None %}
-                        {% if ig %}
-                        {% set ig_url = ig if ig.startswith('http') else 'https://www.instagram.com/' + ig.lstrip('@') %}
-                        <a data-slot=button href="{{ ig_url }}" target=_blank rel=noopener
-                          class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-9 rounded-md" aria-label="Instagram"><svg
-                            xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
-                            stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
-                            class="lucide lucide-instagram w-4 h-4" aria-hidden=true>
-                            <rect width=20 height=20 x=2 y=2 rx=5 ry=5></rect>
-                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                            <line x1=17.5 x2=17.51 y1=6.5 y2=6.5></line>
-                          </svg></a>
-                        {% endif %}
-                        {% set tk = social_accounts.tiktok if social_accounts else None %}
-                        {% if tk %}
-                        {% set tk_user = tk.lstrip('@') %}
-                        {% set tk_url = tk if tk.startswith('http') else 'https://www.tiktok.com/@' + tk_user %}
-                        <a data-slot=button href="{{ tk_url }}" target=_blank rel=noopener
-                          class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-9 rounded-md" aria-label="TikTok"><svg
-                            class="w-4 h-4" viewBox="0 0 24 24" fill=currentColor xmlns=http://www.w3.org/2000/svg>
-                            <path
-                              d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.04-.1z">
-                            </path>
-                          </svg></a>
-                        {% endif %}
-                        {% set yt = social_accounts.youtube if social_accounts else None %}
-                        {% if yt %}
-                        {% set yt_url = yt if yt.startswith('http') else 'https://www.youtube.com/' + yt %}
-                        <a data-slot=button href="{{ yt_url }}" target=_blank rel=noopener
-                          class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-9 rounded-md" aria-label="YouTube"><svg
-                            xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
-                            stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
-                            class="lucide lucide-youtube w-4 h-4" aria-hidden=true>
-                            <path
-                              d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17">
-                            </path>
-                            <path d="m10 15 5-3-5-3z"></path>
-                          </svg></a>
-                        {% endif %}
-                        {% set tw = social_accounts.twitter if social_accounts else None %}
-                        {% if tw %}
-                        {% set tw_url = tw if tw.startswith('http') else 'https://x.com/' + tw.lstrip('@') %}
-                        <a data-slot=button href="{{ tw_url }}" target=_blank rel=noopener
-                          class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-9 rounded-md" aria-label="X"><svg
-                            xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
-                            stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
-                            class="lucide lucide-x w-4 h-4" aria-hidden=true>
-                            <path d="M18 6 6 18"></path>
-                            <path d="m6 6 12 12"></path>
-                          </svg></a>
-                        {% endif %}
-                      </div>
-                    </div>
-                    <div class="flex-1 space-y-4">
-                      <div>
-                        <h1>{{ user.username }}</h1>
-                      </div>
-                      {% if user.bio %}
-                      <div class=space-y-2>
-                        <p class=whitespace-pre-line>{{ user.bio }}</p>
-                      </div>
-                      {% endif %}
-                    </div>
-                  </div>
-                </div>
+            <header
+              class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div class="container mx-auto px-4 h-14 flex items-center justify-between"><button data-slot=button id="back-button"
+                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 size-9 rounded-md"><svg
+                    xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                    stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                    class="lucide lucide-arrow-left w-5 h-5" aria-hidden=true>
+                    <path d="m12 19-7-7 7-7"></path>
+                    <path d="M19 12H5"></path>
+                  </svg></button>
+                <div class="flex items-center gap-2"><button data-slot=button style="display:none"
+                    class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 size-9 rounded-md"><svg
+                      xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                      stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                      class="lucide lucide-heart w-5 h-5" aria-hidden=true>
+                      <path
+                        d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5">
+                      </path>
+                    </svg></button><button data-slot=button id="share-button"
+                    class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 size-9 rounded-md"><svg
+                      xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                      stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                      class="lucide lucide-share2 lucide-share-2 w-5 h-5" aria-hidden=true>
+                      <circle cx=18 cy=5 r=3></circle>
+                      <circle cx=6 cy=12 r=3></circle>
+                      <circle cx=18 cy=19 r=3></circle>
+                      <line x1=8.59 x2=15.42 y1=13.51 y2=17.49></line>
+                      <line x1=15.41 x2=8.59 y1=6.51 y2=10.49></line>
+                    </svg></button></div>
               </div>
-              <div data-slot=card class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border">
-                <div data-slot=card-content class="px-4 pt-4 pb-2">
-                  <div class=space-y-4>
-                    <div class="flex gap-2">
-                      <div class="flex-1 relative"><svg xmlns=http://www.w3.org/2000/svg width=24 height=24
-                          viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round
-                          stroke-linejoin=round
-                          class="lucide lucide-search w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                          aria-hidden=true>
-                          <path d="m21 21-4.34-4.34"></path>
-                          <circle cx=11 cy=11 r=8></circle>
-                        </svg><input id=spot-search data-slot=input
-                          class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base bg-input-background transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive pl-10"
-                          placeholder=スポット名や場所で検索... value></div><button id=filters-toggle data-slot=button onclick="var p=document.getElementById('filters-panel'); if(p){p.style.display=(p.style.display==='none'||p.style.display==='')?'block':'none';}"
-                        class="justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 flex items-center gap-2"><svg
-                          xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
-                          stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
-                          class="lucide lucide-funnel w-4 h-4" aria-hidden=true>
-                          <path
-                            d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z">
-                          </path>
-                        </svg>フィルター</button>
-                    </div>
-                    <div id=filters-panel class="mt-4" style="display:none">
-                      <div class="pt-4 pb-4 border-t relative z-50">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div data-filter="category" class="relative z-40 overflow-visible">
-                          <label class="text-sm font-medium mb-2 block">カテゴリ</label>
-                          <button type=button data-filter-trigger class="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 border bg-input-background rounded-md px-3 py-2 text-sm w-full text-left flex items-center justify-between">
-                            <span data-current>すべて</span>
-                            <svg xmlns=http://www.w3.org/2000/svg width=20 height=20 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="opacity-60"><path d="m6 9 6 6 6-6"/></svg>
-                          </button>
-                          <input type=hidden id=category-filter value="">
-                          <ul data-filter-menu class="filter-menu absolute left-0 right-0 mt-2 bg-white border rounded-md shadow-lg max-h-60 overflow-auto hidden z-[1]" style="background-color:#ffffff; opacity:1; z-index:1;">
-                            <li data-value="" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">すべて</li>
-                            {% for c in filter_categories %}<li data-value="{{ c }}" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">{{ c }}</li>{% endfor %}
-                          </ul>
-                        </div>
-                        <div data-filter="location" class="relative z-40 overflow-visible">
-                          <label class="text-sm font-medium mb-2 block">場所</label>
-                          <button type=button data-filter-trigger class="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 border bg-input-background rounded-md px-3 py-2 text-sm w-full text-left flex items-center justify-between">
-                            <span data-current>すべて</span>
-                            <svg xmlns=http://www.w3.org/2000/svg width=20 height=20 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="opacity-60"><path d="m6 9 6 6 6-6"/></svg>
-                          </button>
-                          <input type=hidden id=location-filter value="">
-                          <ul data-filter-menu class="filter-menu absolute left-0 right-0 mt-2 bg-white border rounded-md shadow-lg max-h-60 overflow-auto hidden z-[1]" style="background-color:#ffffff; opacity:1; z-index:1;">
-                            <li data-value="" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">すべて</li>
-                            {% for l in filter_locations %}<li data-value="{{ l }}" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">{{ l }}</li>{% endfor %}
-                          </ul>
-                        </div>
-                        <div data-filter="price" class="relative z-40 overflow-visible">
-                          <label class="text-sm font-medium mb-2 block">価格帯</label>
-                          <button type=button data-filter-trigger class="border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 border bg-input-background rounded-md px-3 py-2 text-sm w-full text-left flex items-center justify-between">
-                            <span data-current>すべて</span>
-                            <svg xmlns=http://www.w3.org/2000/svg width=20 height=20 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="opacity-60"><path d="m6 9 6 6 6-6"/></svg>
-                          </button>
-                          <input type=hidden id=price-filter value="">
-                          <ul data-filter-menu class="filter-menu absolute left-0 right-0 mt-2 bg-white border rounded-md shadow-lg max-h-60 overflow-auto hidden z-[1]" style="background-color:#ffffff; opacity:1; z-index:1;">
-                            <li data-value="" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">すべて</li>
-                            {% for p in filter_prices %}<li data-value="{{ p }}" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">{{ p }}</li>{% endfor %}
-                          </ul>
-                        </div>
+            </header>
+            <main>
+              <div class="max-w-4xl mx-auto px-4 pt-4 pb-8 space-y-6">
+                <div class="relative spot-carousel">
+                  <div class="aspect-video w-full overflow-hidden rounded-lg">
+                    {% if photos and photos|length > 0 %}
+                    <div class="flex w-full h-full transition-transform duration-300 ease-in-out" style="transform: translateX(0%);">
+                      {% for photo_url in photos %}
+                      <div class="w-full h-full flex-shrink-0">
+                        <img src="{{ photo_url }}"
+                             alt="{{ spot.name }} - 画像 {{ loop.index }}"
+                             class="w-full h-full object-cover">
                       </div>
+                      {% endfor %}
                     </div>
-                        </div>
-                      </div>
+                    {% else %}
+                    <div class="w-full h-full flex-shrink-0">
+                      <img src="{{ url_for('static', filename='images/default_profile.png') }}" alt="{{ spot.name }} - 画像" class="w-full h-full object-cover">
+                    </div>
+                    {% endif %}
+
+                    {% if photos and photos|length > 1 %}
+                    <div class="absolute bottom-4 right-4 flex gap-1" data-dots>
+                      {% for _ in photos %}
+                      <button class="w-2 h-2 rounded-full transition-colors {{ 'bg-white' if loop.index0 == 0 else 'bg-white/50' }}" aria-label="画像 {{ loop.index }} に移動" data-dot></button>
+                      {% endfor %}
+                    </div>
+                    <button
+                      class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-colors"
+                      aria-label="前の画像" data-prev>‹</button>
+                    <button
+                      class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white transition-colors"
+                      aria-label="次の画像" data-next>›</button>
+                    {% endif %}
                   </div>
+                  {% if spot.category %}
+                  <div class="absolute bottom-4 left-4">
+                    <span data-slot=badge
+                      class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&_svg]:size-3 gap-1 [&_svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden border-transparent text-secondary-foreground [a&]:hover:bg-secondary/90 bg-white/90">{{ spot.category }}</span>
+                  </div>
+                  {% endif %}
                 </div>
                 <script>
-                  (function(){
-                    // Safari等で backdrop/filter が透過扱いになる場合のケア
-                    var style=document.createElement('style');
-                    style.textContent='ul.filter-menu{background:#ffffff!important} ul.filter-menu li{background:#ffffff!important}';
-                    document.head.appendChild(style);
-                    function applyFilters(){
-                      var cat=(document.getElementById('category-filter')||{}).value||'';
-                      var loc=(document.getElementById('location-filter')||{}).value||'';
-                      var pr=(document.getElementById('price-filter')||{}).value||'';
-                      var q=(document.getElementById('spot-search')||{}).value||''; q=q.trim().toLowerCase();
-                      var shown=0;
-                      document.querySelectorAll('[data-spot-card]')?.forEach(function(card){
-                        var c=card.getAttribute('data-category')||'';
-                        var l=card.getAttribute('data-location')||'';
-                        var p=card.getAttribute('data-price')||'';
-                        var n=card.getAttribute('data-name')||'';
-                        var d=card.getAttribute('data-desc')||'';
-                        var matchText=!q||n.toLowerCase().includes(q)||d.toLowerCase().includes(q)||l.toLowerCase().includes(q);
-                        var ok=matchText&&(!cat||c===cat)&&(!loc||l===loc)&&(!pr||p===pr);
-                        card.style.display=ok?"":"none";
-                        if(ok) shown++;
+                  (function() {
+                    // Header interactions
+                    const backBtn = document.getElementById('back-button');
+                    if (backBtn) {
+                      backBtn.addEventListener('click', function(){
+                        if (window.history.length > 1) { window.history.back(); }
+                        else { window.location.href = '/{{ user.display_name or user.username }}'; }
                       });
-                      var ctn=document.getElementById('spots-count');
-                      if(ctn){ ctn.textContent=String(shown); }
-                      return shown;
                     }
-                    function setupCustomSelect(root){
-                      var trigger=root.querySelector('[data-filter-trigger]');
-                      var menu=root.querySelector('[data-filter-menu]');
-                      var current=root.querySelector('[data-current]');
-                      var hidden=root.querySelector('input[type="hidden"]');
-                      if(!trigger||!menu||!current||!hidden) return;
-                      trigger.addEventListener('click', function(e){
-                        e.stopPropagation();
-                        menu.classList.toggle('hidden');
+                    const shareBtn = document.getElementById('share-button');
+                    if (shareBtn) {
+                      shareBtn.addEventListener('click', async function() {
+                        const url = window.location.href;
+                        try {
+                          if (navigator.share) { await navigator.share({ url }); return; }
+                          if (navigator.clipboard && window.isSecureContext) {
+                            await navigator.clipboard.writeText(url);
+                          } else {
+                            const ta = document.createElement('textarea');
+                            ta.value = url; document.body.appendChild(ta); ta.select();
+                            document.execCommand('copy'); document.body.removeChild(ta);
+                          }
+                          alert('URLをコピーしました');
+                        } catch(e) { console.error(e); }
                       });
-                      menu.querySelectorAll('li[data-value]').forEach(function(item){
-                        item.addEventListener('click', function(){
-                          hidden.value=item.getAttribute('data-value')||'';
-                          current.textContent=item.textContent||'すべて';
-                          menu.classList.add('hidden');
-                          applyFilters();
+                    }
+                    const root = document.querySelector('.spot-carousel');
+                    if (!root) return;
+                    const track = root.querySelector('.aspect-video > .flex');
+                    if (!track) return;
+
+                    const slides = Array.from(track.children);
+                    const dotsWrap = root.querySelector('[data-dots]');
+                    const dots = dotsWrap ? Array.from(dotsWrap.querySelectorAll('[data-dot]')) : [];
+                    const prevBtn = root.querySelector('[data-prev]');
+                    const nextBtn = root.querySelector('[data-next]');
+
+                    let index = 0;
+                    const total = slides.length;
+                    let startX = 0;
+                    let currentX = 0;
+                    let isDragging = false;
+
+                    function update() {
+                      const offset = -(index * 100);
+                      track.style.transform = `translateX(${offset}%)`;
+                      if (dots.length) {
+                        dots.forEach((d, i) => {
+                          d.classList.toggle('bg-white', i === index);
+                          d.classList.toggle('bg-white/50', i !== index);
                         });
-                      });
+                      }
                     }
-                    document.addEventListener('click', function(){
-                      document.querySelectorAll('[data-filter-menu]')?.forEach(function(m){ m.classList.add('hidden'); });
+
+                    function goTo(i) {
+                      index = (i + total) % total;
+                      update();
+                    }
+
+                    function next() { goTo(index + 1); }
+                    function prev() { goTo(index - 1); }
+
+                    if (nextBtn) nextBtn.addEventListener('click', next);
+                    if (prevBtn) prevBtn.addEventListener('click', prev);
+                    if (dots.length) dots.forEach((d, i) => d.addEventListener('click', () => goTo(i)));
+
+                    // Touch/drag
+                    track.addEventListener('touchstart', (e) => {
+                      isDragging = true;
+                      startX = e.touches[0].clientX;
+                    }, { passive: true });
+                    track.addEventListener('touchmove', (e) => {
+                      if (!isDragging) return;
+                      currentX = e.touches[0].clientX;
+                    }, { passive: true });
+                    track.addEventListener('touchend', () => {
+                      if (!isDragging) return;
+                      const delta = currentX - startX;
+                      if (Math.abs(delta) > 40) {
+                        if (delta < 0) next(); else prev();
+                      }
+                      isDragging = false;
+                      startX = 0; currentX = 0;
                     });
-                    document.addEventListener('DOMContentLoaded', function(){
-                      document.querySelectorAll('[data-filter]')?.forEach(setupCustomSelect);
-                      var s=document.getElementById('spot-search'); if(s){ s.addEventListener('input', applyFilters, {passive:true}); }
-                    }, {once:true});
+
+                    // Mouse drag (optional)
+                    let mouseDown = false;
+                    track.addEventListener('mousedown', (e) => { mouseDown = true; startX = e.clientX; });
+                    window.addEventListener('mousemove', (e) => { if (mouseDown) currentX = e.clientX; });
+                    window.addEventListener('mouseup', () => {
+                      if (!mouseDown) return;
+                      const delta = currentX - startX;
+                      if (Math.abs(delta) > 60) {
+                        if (delta < 0) next(); else prev();
+                      }
+                      mouseDown = false; startX = 0; currentX = 0;
+                    });
+
+                    update();
                   })();
                 </script>
-              <div class=space-y-4>
-                {% set ns = namespace(last_updated=None) %}
-                {% for spot in spots %}
-                  {% if spot.updated_at %}
-                    {% if not ns.last_updated or spot.updated_at > ns.last_updated %}{% set ns.last_updated = spot.updated_at %}{% endif %}
-                  {% elif spot.created_at %}
-                    {% if not ns.last_updated or spot.created_at > ns.last_updated %}{% set ns.last_updated = spot.created_at %}{% endif %}
-                  {% endif %}
-                {% endfor %}
-                <div class="flex items-center justify-between">
-                  <h2>おすすめスポット (<span id=spots-count>{{ spots|length }}</span>件)</h2>
-                  {% if spots and spots|length > 0 and ns.last_updated %}
-                  <div class="flex items-center gap-2 text-sm text-muted-foreground"><svg
-                            xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
-                            stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
-                      class="lucide lucide-calendar w-4 h-4" aria-hidden=true>
-                      <path d="M8 2v4"></path>
-                      <path d="M16 2v4"></path>
-                      <rect width=18 height=18 x=3 y=4 rx=2></rect>
-                      <path d="M3 10h18"></path>
-                    </svg>最終更新: {{ ns.last_updated[:10] }}</div>
-                  {% endif %}
-                      </div>
-                {% if spots and spots|length > 0 %}
-                <div id=spots-grid class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {% for spot in spots %}
-                  <div data-spot-card data-name="{{ spot.name }}" data-desc="{{ (spot.description or '')[:120] }}" data-category="{{ spot.category or '' }}" data-location="{{ spot.summary_location or spot.location or '' }}" data-price="{{ spot.price_range or '' }}"
-                    class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                    onclick="window.location.href='/{{ user.display_name or user.username }}/{{ spot.id }}'">
-                    <div class=relative>
-                      <div class="aspect-video overflow-hidden">
-                        {% if spot.photos and spot.photos|length > 0 %}
-                        <img src="{{ spot.photos[0].photo_url }}" alt="{{ spot.name }}"
-                          class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
-                        {% else %}
-                        <img src="{{ url_for('static', filename='images/default_profile.png') }}" alt="{{ spot.name }}"
-                          class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
-                        {% endif %}
-                      </div>
-                      {% if spot.category %}
-                      <div class="absolute bottom-3 left-3"><span data-slot=badge
-                          class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden border-transparent text-secondary-foreground [a&]:hover:bg-secondary/90 bg-white/90">{{
-                          spot.category }}</span>
-                      </div>
-                      {% endif %}
+                <div class=space-y-4>
+                  <div>
+                    <h1 class="text-3xl font-bold mb-2">{{ spot.name }}</h1>
+                    <div class="flex items-center gap-4 text-muted-foreground">
+                      <div class="flex items-center gap-1"><svg xmlns=http://www.w3.org/2000/svg width=24 height=24
+                          viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round
+                          stroke-linejoin=round class="lucide lucide-map-pin w-4 h-4" aria-hidden=true>
+                          <path
+                            d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0">
+                          </path>
+                          <circle cx=12 cy=10 r=3></circle>
+                        </svg><span>{{ spot.summary_location or spot.location }}</span></div><a data-slot=button
+                        href="https://www.google.com/maps/search/?api=1&query={{ spot.name|urlencode }}&query_place_id={{ spot.google_place_id or '' }}"
+                        target=_blank rel="noopener noreferrer"
+                        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background hover:bg-accent dark:bg-input/30 dark:border-input dark:hover:bg-input/50 rounded-md gap-1.5 has-[>svg]:px-2.5 h-auto px-3 py-1.5 text-muted-foreground hover:text-foreground border-border/60"><svg
+                          xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                          stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                          class="lucide lucide-navigation w-4 h-4 mr-1" aria-hidden=true>
+                          <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                        </svg>地図</a>
                     </div>
-                    <div data-slot=card-content class="[&:last-child]:pb-6 px-4 pt-2 pb-4 space-y-3">
-                      <div class=space-y-2>
-                        <h3 class="font-bold mb-1">{{ spot.name }}</h3>
-                        <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                          <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
-                            stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
-                            class="lucide lucide-map-pin w-4 h-4" aria-hidden=true>
-                            <path
-                              d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0">
-                            </path>
-                            <circle cx=12 cy=10 r=3></circle>
-                          </svg>
-                          {{ spot.summary_location or spot.location }}
-                        </div>
+                    {% if spot.review_summary %}
+                    <p class="mt-2 text-muted-foreground leading-relaxed">{{ spot.review_summary }}</p>
+                    {% endif %}
+                  </div>
+                  {% if not spot.review_summary and spot.description %}
+                  <p class="mt-2 text-muted-foreground leading-relaxed">{{ spot.description }}</p>
+                  {% endif %}
+                </div>
+                <div data-orientation=horizontal role=none data-slot=separator-root
+                  class="bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px">
+                </div>
+                <div data-slot=card class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border">
+                  <div data-slot=card-header
+                    class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 pt-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                    <h4 data-slot=card-title class="leading-none flex items-center gap-2"><svg
+                        xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                        stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                        class="lucide lucide-users w-5 h-5" aria-hidden=true>
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                        <path d="M16 3.128a4 4 0 0 1 0 7.744"></path>
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <circle cx=9 cy=7 r=4></circle>
+                      </svg>インフルエンサーのおすすめ</h4>
+                  </div>
+                  <div data-slot=card-content class="px-6 [&:last-child]:pb-6">
+                    <div class="flex items-start gap-4"><a href="/{{ user.display_name or user.username }}" class="inline-block" aria-label="プロフィールへ"><span data-slot=avatar
+                        class="relative flex size-10 shrink-0 overflow-hidden rounded-full w-12 h-12"><img
+                          data-slot=avatar-image class="aspect-square size-full"
+                          alt="{{ user.display_name or user.username }}"
+                          src="{{ user.profile_pic_url if user.profile_pic_url else url_for('static', filename='images/default_profile.png') }}"></span></a>
+                      <div class="flex-1 space-y-2">
                         <div class="flex items-center gap-2">
-                          {% if spot.rating %}
-                          <div class="flex items-center gap-1">
-                            <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
-                            stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
-                              class="lucide lucide-star w-4 h-4 fill-yellow-400 text-yellow-400" aria-hidden=true>
-                              <path
-                                d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z">
-                              </path>
-                            </svg>
-                            <span class=font-medium>{{ '%.1f'|format(spot.rating) }}</span>
+                          <a href="/{{ user.display_name or user.username }}" class="hover:underline"><h4>{{ user.display_name or user.username }}</h4></a>
                         </div>
+                        <div class="flex items-center gap-1">
+                          {% if spot.rating %}
+                            {% set full_stars = spot.rating | int %}
+                            {% set empty_stars = 5 - full_stars %}
+                            {% for i in range(full_stars) %}
+                              <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-star w-4 h-4 fill-yellow-400 text-yellow-400" aria-hidden=true><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg>
+                            {% endfor %}
+                            {% for i in range(empty_stars) %}
+                              <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-star w-4 h-4 text-muted-foreground" aria-hidden=true><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg>
+                            {% endfor %}
+                            <span class="ml-1 text-sm text-muted-foreground">{{ '%.1f'|format(spot.rating) }}</span>
                           {% else %}
-                          <span class="text-xs text-muted-foreground">-</span>
+                            <span class="text-sm text-muted-foreground">評価なし</span>
                           {% endif %}
-                      </div>
-                      {% if spot.review_summary %}
-                      <p class="text-sm text-muted-foreground line-clamp-2">{{ spot.review_summary }}</p>
-                      {% endif %}
+                        </div>
+                        {% if spot.description %}
+                        <p class=text-muted-foreground>
+                          {{ spot.description }}
+                        </p>
+                        {% endif %}
+                        {% if social_links %}
+                        <div class="mt-4 pt-4 border-t">
+                          <div class="flex items-center gap-3"><span class="text-sm text-muted-foreground">関連投稿:</span>
+                            <div class="flex gap-2">
+                              {# Instagram #}
+                              {% if social_links.instagram %}
+                                <a href="{{ social_links.instagram }}" target=_blank rel="noopener noreferrer" class="w-8 h-8 rounded-full flex items-center justify-center text-white hover:scale-110 transition-transform bg-gradient-to-r from-purple-500 to-pink-500" title=instagramで見る>
+                                  <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-instagram w-5 h-5" aria-hidden=true>
+                                    <rect width=20 height=20 x=2 y=2 rx=5 ry=5></rect>
+                                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                    <line x1=17.5 x2=17.51 y1=6.5 y2=6.5></line>
+                                  </svg>
+                                </a>
+                              {% else %}
+                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-white bg-gradient-to-r from-purple-500 to-pink-500 grayscale opacity-50 pointer-events-none cursor-default" aria-disabled="true" title=未設定>
+                                  <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-instagram w-5 h-5" aria-hidden=true>
+                                    <rect width=20 height=20 x=2 y=2 rx=5 ry=5></rect>
+                                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                    <line x1=17.5 x2=17.51 y1=6.5 y2=6.5></line>
+                                  </svg>
+                                </span>
+                              {% endif %}
+
+                              {# TikTok #}
+                              {% if social_links.tiktok %}
+                                <a href="{{ social_links.tiktok }}" target=_blank rel="noopener noreferrer" class="w-8 h-8 rounded-full flex items-center justify-center text-white hover:scale-110 transition-transform bg-black" title=tiktokで見る>
+                                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill=currentColor>
+                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"></path>
+                                  </svg>
+                                </a>
+                              {% else %}
+                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-white bg-black grayscale opacity-50 pointer-events-none cursor-default" aria-disabled="true" title=未設定>
+                                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill=currentColor>
+                                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"></path>
+                                  </svg>
+                                </span>
+                              {% endif %}
+
+                              {# YouTube #}
+                              {% if social_links.youtube %}
+                                <a href="{{ social_links.youtube }}" target=_blank rel="noopener noreferrer" class="w-8 h-8 rounded-full flex items-center justify-center text-white hover:scale-110 transition-transform bg-red-500" title=youtubeで見る>
+                                  <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-youtube w-5 h-5" aria-hidden=true>
+                                    <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"></path>
+                                    <path d="m10 15 5-3-5-3z"></path>
+                                  </svg>
+                                </a>
+                              {% else %}
+                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-white bg-red-500 grayscale opacity-50 pointer-events-none cursor-default" aria-disabled="true" title=未設定>
+                                  <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-youtube w-5 h-5" aria-hidden=true>
+                                    <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"></path>
+                                    <path d="m10 15 5-3-5-3z"></path>
+                                  </svg>
+                                </span>
+                              {% endif %}
+
+                              {# Twitter #}
+                              {% if social_links.twitter %}
+                                <a href="{{ social_links.twitter }}" target=_blank rel="noopener noreferrer" class="w-8 h-8 rounded-full flex items-center justify-center text-white hover:scale-110 transition-transform bg-black" title=Xで見る>
+                                  <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-x w-5 h-5" aria-hidden=true>
+                                    <line x1=4 y1=4 x2=20 y2=20></line>
+                                    <line x1=20 y1=4 x2=4 y2=20></line>
+                                  </svg>
+                                </a>
+                              {% else %}
+                                <span class="w-8 h-8 rounded-full flex items-center justify-center text-white bg-black opacity-50 pointer-events-none cursor-default" aria-disabled="true" title=未設定>
+                                  <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round class="lucide lucide-x w-5 h-5" aria-hidden=true>
+                                    <line x1=4 y1=4 x2=20 y2=20></line>
+                                    <line x1=20 y1=4 x2=4 y2=20></line>
+                                  </svg>
+                                </span>
+                              {% endif %}
+                            </div>
+                          </div>
+                        </div>
+                        {% endif %}
                       </div>
                     </div>
                   </div>
-                  {% endfor %}
-                      </div>
-                {% else %}
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  <div class="col-span-1 md:col-span-2 xl:col-span-3">
-                    <div class="no-spots-message flex items-center p-4 rounded-xl border bg-[var(--card-background)]">
-                      <div class="flex flex-col justify-center w-full text-center">
-                        <p class="text-[var(--text-secondary)]">まだスポットが追加されていません</p>
+                </div>
+                <div data-orientation=horizontal role=none data-slot=separator-root
+                  class="bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px">
+                </div>
+                <!-- 予約サイト価格比較（未実装のため一時非表示）
+                <div data-slot=card class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border">
+                  <div data-slot=card-header
+                    class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 pt-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6">
+                    <h4 data-slot=card-title class="leading-none flex items-center gap-2"><svg
+                        xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                        stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                        class="lucide lucide-calendar w-5 h-5" aria-hidden=true>
+                        <path d="M8 2v4"></path>
+                        <path d="M16 2v4"></path>
+                        <rect width=18 height=18 x=3 y=4 rx=2></rect>
+                        <path d="M3 10h18"></path>
+                      </svg>予約サイト価格比較</h4>
+                  </div>
+                  <div data-slot=card-content class="px-6 [&:last-child]:pb-6 space-y-6">
+                    <div class="bg-card border rounded-lg p-4 shadow-sm">
+                      <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                        <div class=flex-1>
+                          <div
+                            class="flex items-center gap-3 border rounded-lg px-3 py-2.5 bg-background hover:border-ring/40 transition-colors">
+                            <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                              stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                              class="lucide lucide-calendar w-4 h-4 text-muted-foreground flex-shrink-0"
+                              aria-hidden=true>
+                              <path d="M8 2v4"></path>
+                              <path d="M16 2v4"></path>
+                              <rect width=18 height=18 x=3 y=4 rx=2></rect>
+                              <path d="M3 10h18"></path>
+                            </svg>
+                            <div class="flex items-center gap-2 flex-1 min-w-0"><input type=date data-slot=input
+                                class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex w-full min-w-0 rounded-md transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border-0 p-0 h-auto text-sm focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                                min=2025-08-23 placeholder=チェックイン value>
+                              <div class="w-px h-4 bg-border"></div><input type=date data-slot=input
+                                class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex w-full min-w-0 rounded-md transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border-0 p-0 h-auto text-sm focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                                min=2025-08-23 placeholder=チェックアウト value>
+                            </div>
+                          </div>
+                        </div>
+                        <div class=sm:w-auto>
+                          <div
+                            class="flex items-center gap-3 border rounded-lg px-3 py-2.5 bg-background hover:border-ring/40 transition-colors">
+                            <svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                              stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                              class="lucide lucide-users w-4 h-4 text-muted-foreground flex-shrink-0" aria-hidden=true>
+                              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                              <path d="M16 3.128a4 4 0 0 1 0 7.744"></path>
+                              <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                              <circle cx=9 cy=7 r=4></circle>
+                            </svg><button type=button role=combobox aria-controls=radix-:r0: aria-expanded=false
+                              aria-autocomplete=none dir=ltr data-state=closed data-slot=select-trigger
+                              data-size=default
+                              class="border-input data-[placeholder]:text-muted-foreground [&:not([class*='text-']), &:not([class^='text-'])]:text-foreground [&_[svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex items-center justify-between gap-2 rounded-md text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-0 p-0 h-auto focus:ring-0 focus:ring-offset-0 w-12 bg-transparent"><span
+                                data-slot=select-value style=pointer-events:none>2名</span><svg
+                                xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                                stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                                class="lucide lucide-chevron-down size-4 opacity-50" aria-hidden=true>
+                                <path d="m6 9 6 6 6-6"></path>
+                              </svg></button></div>
+                        </div><button data-slot=button
+                          class="justify-center rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&:not([class*='text-']), &:not([class^='text-'])]:text-foreground [&_[svg:not([class*='text-'])]:text-foreground [&_[svg]:pointer-events-none [&_[svg:not([class*='size-'])]:size-4 shrink-0 [&_[svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-9 has-[>svg]:px-3 flex items-center gap-2 whitespace-nowrap px-6 py-2.5"
+                          disabled><svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24"
+                            fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                            class="lucide lucide-search w-4 h-4" aria-hidden=true>
+                            <path d="m21 21-4.34-4.34"></path>
+                            <circle cx=11 cy=11 r=8></circle>
+                          </svg>検索</button>
                       </div>
                     </div>
+                    <div class=space-y-3>
+                      <div class="flex items-center justify-between p-4 border rounded-lg border-green-500 bg-green-50">
+                        <div class="flex items-center gap-3">
+                          <div>
+                            <div class=font-medium>Booking.com</div><span data-slot=badge
+                              class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&:not([class*='text-']), &:not([class^='text-'])]:text-foreground [&_[svg]:size-3 [&_[svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden border-transparent [a&]:hover:bg-primary/90 bg-green-500 text-white">最安値</span>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                          <div class=text-right>
+                            <div class="text-sm line-through text-muted-foreground">¥52,000</div>
+                            <div class="text-xl font-bold">¥45,800</div>
+                            <div class="text-sm text-muted-foreground">1泊あたり</div>
+                          </div><button data-slot=button
+                            class="justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&:not([class*='text-']), &:not([class^='text-'])]:text-foreground [&_[svg]:pointer-events-none [&_[svg:not([class*='size-'])]:size-4 shrink-0 [&_[svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 flex items-center gap-2">予約する<svg
+                              xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                              stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                              class="lucide lucide-external-link w-4 h-4" aria-hidden=true>
+                              <path d="M15 3h6v6"></path>
+                              <path d="M10 14 21 3"></path>
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            </svg></button>
                         </div>
                       </div>
-                {% endif %}
+                      <div class="flex items-center justify-between p-4 border rounded-lg border-border">
+                        <div class="flex items-center gap-3">
+                          <div>
+                            <div class=font-medium>じゃらん</div>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                          <div class=text-right>
+                            <div class="text-xl font-bold">¥46,200</div>
+                            <div class="text-sm text-muted-foreground">1泊あたり</div>
+                          </div><button data-slot=button
+                            class="justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&:not([class*='text-']), &:not([class^='text-'])]:text-foreground [&_[svg]:pointer-events-none [&_[svg:not([class*='size-'])]:size-4 shrink-0 [&_[svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 flex items-center gap-2">予約する<svg
+                              xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                              stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                              class="lucide lucide-external-link w-4 h-4" aria-hidden=true>
+                              <path d="M15 3h6v6"></path>
+                              <path d="M10 14 21 3"></path>
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            </svg></button>
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between p-4 border rounded-lg border-border">
+                        <div class="flex items-center gap-3">
+                          <div>
+                            <div class=font-medium>Expedia</div>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                          <div class=text-right>
+                            <div class="text-xl font-bold">¥47,500</div>
+                            <div class="text-sm text-muted-foreground">1泊あたり</div>
+                          </div><button data-slot=button
+                            class="justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&:not([class*='text-']), &:not([class^='text-'])]:text-foreground [&_[svg]:pointer-events-none [&_[svg:not([class*='size-'])]:size-4 shrink-0 [&_[svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 flex items-center gap-2">予約する<svg
+                              xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24" fill=none
+                              stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                              class="lucide lucide-external-link w-4 h-4" aria-hidden=true>
+                              <path d="M15 3h6v6"></path>
+                              <path d="M10 14 21 3"></path>
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            </svg></button>
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between p-4 border rounded-lg border-border opacity-50">
+                        <div class="flex items-center gap-3">
+                          <div>
+                            <div class=font-medium>楽天トラベル</div>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                          <div class=text-right>
+                            <div class="text-xl font-bold">¥48,900</div>
+                            <div class="text-sm text-muted-foreground">1泊あたり</div>
+                          </div><button data-slot=button
+                            class="justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&:not([class*='text-']), &:not([class^='text-'])]:text-foreground [&_[svg]:pointer-events-none [&_[svg:not([class*='size-'])]:size-4 shrink-0 [&_[svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3 flex items-center gap-2"
+                            disabled>満室<svg xmlns=http://www.w3.org/2000/svg width=24 height=24 viewBox="0 0 24 24"
+                              fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round
+                              class="lucide lucide-external-link w-4 h-4" aria-hidden=true>
+                              <path d="M15 3h6v6"></path>
+                              <path d="M10 14 21 3"></path>
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            </svg></button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="p-4 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border border-pink-200/50">
+                      <div class="flex items-center gap-2 mb-2"><svg xmlns=http://www.w3.org/2000/svg width=24 height=24
+                          viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round
+                          stroke-linejoin=round class="lucide lucide-heart w-4 h-4 text-pink-500 fill-pink-500"
+                          aria-hidden=true>
+                          <path
+                            d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5">
+                          </path>
+                        </svg><span class="font-medium text-foreground">{{ (user.display_name or user.username) ~ 'さんを応援しよう！' }}</span></div>
+                      <p class="text-sm text-muted-foreground leading-relaxed">こちらのページから予約すると、{{ user.display_name or user.username }}さんの収益になります。</p>
+                    </div>
+                  </div>
+                </div>
+                -->
               </div>
-            </div>
+            </main>
           </div>
         </div>
       </div>
@@ -5082,6 +5578,7 @@
       </form>
     </main>
   </noscript>
+
   <deepl-input-controller translate=no><template shadowrootmode=open>
       <style>
         .dl-zendesk-icon.svelte-1tytp0d {
@@ -5109,7 +5606,7 @@
           transform: translate(-50%, 0)
         }
 
-        [data-tooltip]:not([data-tooltip=false]).multiline.svelte-1a71ske {
+        [data-tooltip]:not([data-tooltip=false]):hover.multiline.svelte-1a71ske {
           white-space: normal
         }
 
@@ -5135,7 +5632,7 @@
         }
 
         [data-tooltip]:not([data-tooltip=false]).showProShield.svelte-1a71ske:before {
-          content: url(../images/icons/shield-tooltip.svg)" " attr(data-tooltip)
+          content: url(../images/icons/shield-tooltip.svg)"  " attr(data-tooltip)
         }
 
         [data-tooltip]:not([data-tooltip=false]).isRTL.svelte-1a71ske:before,
@@ -5389,7 +5886,6 @@
         .dropdown__wrapper.dropdown__zendesk-top-icon.svelte-1h5ddvf button.svelte-1h5ddvf {
           border: 0
         }
-
         .dropdown__wrapper.dropdown__zendesk-top-icon.svelte-1h5ddvf ul.svelte-1h5ddvf {
           margin-top: 7px;
           margin-inline-start: -11px
@@ -5879,11 +6375,11 @@
           align-self: stretch;
           padding: 0px 32px 19px 0px
         }
+
         .container.svelte-1mvy8b2 .actions.small.svelte-1mvy8b2 {
           justify-content: flex-start;
           padding: 10px 0px 19px 20px
         }
-
         .container.svelte-1mvy8b2 .actions button.svelte-1mvy8b2 {
           border-radius: 6px;
           border: 1px solid var(--White, #fff);
@@ -6364,7 +6860,6 @@
           box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.37);
           border-radius: 6px
         }
-
         .language-selector.svelte-lgj77n select.svelte-lgj77n {
           height: 44px;
           border: 1px solid #dbe0e5;
@@ -6675,6 +7170,7 @@
           font-weight: 400;
           line-height: 21px
         }
+
         .dl-zendesk-top-icon.svelte-18o5g76.svelte-18o5g76 {
           height: 32px;
           width: 32px;
@@ -6858,7 +7354,6 @@
           margin-top: 4px;
           position: relative
         }
-
         .dropdown.svelte-18o5g76.svelte-18o5g76 {
           border: 1px solid #dae1e8;
           padding: 5px 10px;
@@ -7356,7 +7851,6 @@
           background-repeat: no-repeat;
           margin-inline-start: 8px
         }
-
         .icon-toggle-on.svelte-88cvri.svelte-88cvri {
           width: 50px;
           height: 16px;
@@ -7468,6 +7962,7 @@
         .dl-btn-active.svelte-sfmd6f .dl-icon-copy.svelte-sfmd6f {
           background-image: url(../images/buttons/copy-active.svg)
         }
+
         .listen-list.svelte-o3etn3.svelte-o3etn3 {
           z-index: 199999999999;
           position: absolute;
@@ -7856,12 +8351,7 @@
         .dl-toolbar.svelte-166oozy .dl-dictionary .img_arrow.shown-dict.svelte-166oozy.svelte-166oozy {
           background-image: url(../images/arrow-down-variant2-blue.svg)
         }
-
-        .dl-toolbar.svelte-166oozy .dl-dictionary.svelte-166oozy.svelte-166oozy:hover {
-          background-color: #f2f4f7
-        }
-
-        .dl-toolbar.svelte-166oozy .dl-dictionary.svelte-166oozy:hover~.tooltip-linguee.svelte-166oozy {
+        .dl-toolbar.svelte-166oozy .dl-dictionary.svelte-166oozy.svelte-166oozy:hover~.tooltip-linguee.svelte-166oozy {
           position: absolute;
           display: inline-block;
           top: 100%;
@@ -8265,6 +8755,7 @@
           height: 58px;
           right: 0
         }
+
         .tooltip-container.svelte-c2na4h.svelte-c2na4h {
           font-size: 14px;
           line-height: 1.4em;
@@ -8352,7 +8843,6 @@
           display: flex;
           flex-direction: row
         }
-
         .tooltip-wrapper.svelte-un7ezn .tooltip-drag-handle.svelte-un7ezn {
           width: 16px;
           background-color: #f1f1f1;
@@ -8849,7 +9339,6 @@
           user-select: none;
           cursor: pointer
         }
-
         .layout-container.svelte-186so6b .icon-container .dl-logo.svelte-186so6b {
           width: 19px;
           height: 19px;
@@ -9064,6 +9553,7 @@
           top: 5px;
           inset-inline-end: 5px
         }
+
         .container.svelte-np3z9s .header .dl-close-icon.svelte-np3z9s:hover {
           background-color: #f2f4f7
         }
@@ -9346,7 +9836,6 @@
           border-top-right-radius: 0px;
           border-bottom-right-radius: 0px
         }
-
         .split-language-button.svelte-1qr1d6c>button:nth-child(2) {
           border-radius: 8px;
           border-top-left-radius: 0px;
@@ -9843,7 +10332,6 @@
           line-height: 130%;
           color: #037171
         }
-
         .container.svelte-t50unb .show-alternatives.svelte-t50unb {
           margin-top: 8px;
           text-decoration-line: underline;
@@ -9857,6 +10345,7 @@
         .container.svelte-t50unb .show-alternatives.dark.svelte-t50unb {
           color: #42baf3
         }
+
         .container.svelte-t50unb button.svelte-t50unb {
           position: absolute;
           top: 0px;
@@ -10342,11 +10831,6 @@
         .dl-gslides-icon.svelte-1esuwx .dl-gslides-toolbar.svelte-1esuwx:dir(ltr) {
           right: 50px
         }
-
-        .dl-gslides-icon.svelte-1esuwx .dl-gslides-toolbar.svelte-1esuwx:dir(rtl) {
-          left: 50px
-        }
-
         .dl-gslides-top-icon.svelte-19uh4k2.svelte-19uh4k2 {
           cursor: pointer;
           background: none;
@@ -10652,6 +11136,7 @@
         .container.svelte-1f24nqv .buttons button i.icon-good.svelte-1f24nqv {
           background-image: url(../images/emoji-happy.svg)
         }
+
         .container.svelte-1f24nqv .buttons button.secondary.svelte-1f24nqv {
           color: white;
           background: none;
@@ -10837,7 +11322,6 @@
           background-color: #ffffff;
           box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.3) !important
         }
-
         .dl-input-icon.is-loading.svelte-1opaki9 .dl-loading.svelte-1opaki9 {
           opacity: 1;
           pointer-events: all;
@@ -11336,7 +11820,6 @@
         .alternatives-container.svelte-td4g2g.svelte-td4g2g {
           background-color: #fff
         }
-
         .alternatives-container.svelte-td4g2g .alternatives-list.svelte-td4g2g {
           display: flex;
           flex-direction: column;
@@ -11452,6 +11935,7 @@
         .dropdown__wrapper.svelte-mfqqj4 button.dropdown-label.svelte-mfqqj4:dir(rtl) {
           background-position: left 2px center
         }
+
         .dropdown__wrapper.svelte-mfqqj4 ul.svelte-mfqqj4 {
           overflow-y: auto;
           position: absolute;
@@ -11778,7 +12262,7 @@
           align-items: center;
           gap: 10px;
           border-radius: 4px;
-          border: 1px solid #dbe0e8;
+          border: 1px solid #dbe0e5;
           background: #fff;
           color: #242b34
         }
@@ -11825,7 +12309,6 @@
           font-weight: 600;
           line-height: 150%
         }
-
         .container.svelte-i0wtba .actions .apply.svelte-i0wtba {
           display: flex;
           padding: 8px 16px;
@@ -12246,6 +12729,7 @@
           border-radius: 10px !important;
           animation: svelte-eo75ae-cycleBackground 4s linear infinite alternate !important
         }
+
         @keyframes svelte-eo75ae-cycleBackground {
           0% {
             background-color: #006494
@@ -12323,7 +12807,6 @@
         .dl-gmail-email-toolbar.smallMode.svelte-1lme20r .right-side.svelte-1lme20r {
           margin-right: auto
         }
-
         .dl-gmail-email-toolbar.smallMode.svelte-1lme20r .translate-button .icon.svelte-1lme20r {
           display: inline
         }
@@ -12588,4 +13071,3 @@
   </style>
   <script
     data-template-shadow-root>(() => { document.currentScript.remove(); processNode(document); function processNode(node) { node.querySelectorAll("template[shadowrootmode]").forEach(element => { let shadowRoot = element.parentElement.shadowRoot; if (!shadowRoot) { try { shadowRoot = element.parentElement.attachShadow({ mode: element.getAttribute("shadowrootmode"), delegatesFocus: element.getAttribute("shadowrootdelegatesfocus") != null, clonable: element.getAttribute("shadowrootclonable") != null, serializable: element.getAttribute("shadowrootserializable") != null }); shadowRoot.innerHTML = element.innerHTML; element.remove() } catch (error) { } if (shadowRoot) { processNode(shadowRoot) } } }) } })()</script>
-  <!-- 動的リスト化に伴い不要になったクライアント画像差替え処理を削除しました -->
