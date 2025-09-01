@@ -61,6 +61,7 @@ cookies.txt
 
 # Scripts directory (for development/testing only)
 scripts/
+!scripts/backfill_spot_provider_ids.py
 
 # SSL/TLS証明書と鍵
 *.key
@@ -132,3 +133,4 @@ app/static/uploads/
 logs/
 *.rdb
 *.dump
+agoda_hotel_202508.csv
