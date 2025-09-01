@@ -2,8 +2,9 @@ import os
 import json
 import requests
 import logging
-from flask import jsonify, request, abort, Blueprint, current_app
-from app.models import Spot, Photo, AffiliateLink, SocialPost, ImportHistory, ImportProgress, User
+from flask import jsonify, request, abort, Blueprint, current_app, redirect
+from app.models import Spot, Photo, SocialPost, ImportHistory, ImportProgress, User
+from app.models import CreatorDaily, CreatorMonthly, PayoutLedger, PayoutTransaction
 from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required
 from sqlalchemy import distinct
@@ -108,7 +109,6 @@ def get_spot(spot_id):
     # スポットとそれに関連する写真、アフィリエイトリンク、SNS投稿を一度に取得
     spot = Spot.query.options(
         joinedload(Spot.photos),
-        joinedload(Spot.affiliate_links),
         joinedload(Spot.social_posts),
         joinedload(Spot.user)
     ).get_or_404(spot_id)
@@ -147,17 +147,10 @@ def get_spot(spot_id):
                 'photo_url': photo.photo_url
             } for photo in spot.photos
         ],
-        'affiliate_links': [
-            {
-                'id': link.id,
-                'platform': link.platform,
-                'url': link.url,
-                'title': link.title,
-                'description': link.description,
-                'logo_url': link.logo_url,
-                'icon_key': link.icon_key
-            } for link in spot.affiliate_links if link.is_active
-        ] if hasattr(spot, 'affiliate_links') else [],
+        'custom_link': {
+            'title': spot.custom_link_title,
+            'url': spot.custom_link_url,
+        } if (spot.custom_link_title or spot.custom_link_url) else None,
         'social_posts': [
             {
                 'id': post.id,
@@ -668,6 +661,170 @@ def get_google_maps_url(spot_id):
         url = f"https://www.google.com/maps/search/?api=1&query={spot.name}"
     
     return jsonify({'google_maps_url': url})
+
+
+# ============================
+# Wallet API
+# ============================
+
+def _month_start(d):
+    return d.replace(day=1)
+
+def _next_month_start(d):
+    if d.month == 12:
+        return d.replace(year=d.year+1, month=1, day=1)
+    return d.replace(month=d.month+1, day=1)
+
+
+@api_bp.route('/wallet/summary', methods=['GET'])
+@login_required
+def wallet_summary():
+    user_id = current_user.id
+
+    from datetime import datetime, timedelta, timezone
+    JST = timezone(timedelta(hours=9))
+    today_jst = datetime.now(JST).date()
+    this_month = _month_start(today_jst)
+    last_month = _month_start(this_month - timedelta(days=1))
+
+    # withdrawable_balance: 前月までの未払い合計
+    unpaid = db.session.query(db.func.coalesce(db.func.sum(PayoutLedger.unpaid_balance), 0)) \
+        .filter(PayoutLedger.user_id == user_id) \
+        .filter(PayoutLedger.month < this_month) \
+        .scalar() or 0
+
+    # this_month_estimated: 当月の Σ payout_day
+    estimated = db.session.query(db.func.coalesce(db.func.sum(CreatorDaily.payout_day), 0)) \
+        .filter(CreatorDaily.user_id == user_id) \
+        .filter(CreatorDaily.day >= this_month) \
+        .filter(CreatorDaily.day < _next_month_start(this_month)) \
+        .scalar() or 0
+
+    # next_payout_date: 翌月末（JST）
+    from calendar import monthrange
+    nm = _next_month_start(this_month)
+    last_day = monthrange(nm.year, nm.month)[1]
+    next_payout_date = nm.replace(day=last_day)
+
+    return jsonify({
+        'withdrawable_balance': round(float(unpaid), 0),
+        'this_month_estimated': round(float(estimated), 0),
+        'next_payout_date': next_payout_date.isoformat(),
+        'last_closed_month': this_month.isoformat()
+    })
+
+
+@api_bp.route('/wallet/current', methods=['GET'])
+@login_required
+def wallet_current():
+    user_id = current_user.id
+    from datetime import datetime, timedelta, timezone
+    JST = timezone(timedelta(hours=9))
+    today_jst = datetime.now(JST).date()
+    this_month = _month_start(today_jst)
+
+    q = db.session.query(
+        db.func.coalesce(db.func.sum(CreatorDaily.pv), 0),
+        db.func.coalesce(db.func.sum(CreatorDaily.clicks), 0),
+        db.func.coalesce(db.func.sum(CreatorDaily.payout_day), 0),
+        db.func.coalesce(db.func.avg(CreatorDaily.ctr), 0),
+        db.func.coalesce(db.func.avg(CreatorDaily.ecmp), 0),
+        db.func.percentile_cont(0.5).within_group(CreatorDaily.price_median)
+    ).filter(
+        CreatorDaily.user_id == user_id,
+        CreatorDaily.day >= this_month,
+        CreatorDaily.day < _next_month_start(this_month)
+    ).first()
+
+    pv, clicks, revenue, ctr, ecpm, price_median = q
+
+    # cpc_dynamic は代表値として直近日の平均（なければ0）
+    from sqlalchemy import desc
+    last_daily = CreatorDaily.query.filter_by(user_id=user_id) \
+        .order_by(desc(CreatorDaily.day)).first()
+    cpc_dynamic = float(last_daily.cpc_dynamic) if last_daily and last_daily.cpc_dynamic is not None else 0.0
+
+    return jsonify({
+        'month': this_month.isoformat(),
+        'pv': int(pv or 0),
+        'clicks': int(clicks or 0),
+        'estimated_revenue': round(float(revenue or 0), 0),
+        'ctr': float(ctr or 0),
+        'ecpm': round(float(ecpm or 0)),
+        'price_median': float(price_median or 0) if price_median is not None else 0,
+        'cpc_dynamic': cpc_dynamic
+    })
+
+
+@api_bp.route('/wallet/trends', methods=['GET'])
+@login_required
+def wallet_trends():
+    user_id = current_user.id
+    from datetime import datetime, timedelta, timezone
+    JST = timezone(timedelta(hours=9))
+    today_jst = datetime.now(JST).date()
+    this_month = _month_start(today_jst)
+    months_param = request.args.get('months', default=3, type=int)
+
+    months = []
+    pv_list, clicks_list, revenue_list = [], [], []
+
+    # 過去n-1か月: creator_monthly、当月: creator_daily
+    for i in range(months_param):
+        m_start = _month_start(this_month - timedelta(days=1)) if i == months_param - 1 else _month_start(this_month - timedelta(days=30*(months_param-1-i)))
+    
+    # 正確に直近nヶ月を生成
+    months_seq = []
+    cur = _month_start(this_month - timedelta(days=1))  # 前月初
+    for _ in range(months_param - 1):
+        months_seq.append(cur)
+        cur = _month_start(cur - timedelta(days=1))
+    months_seq = list(reversed(months_seq)) + [this_month]
+
+    for m in months_seq:
+        if m == this_month:
+            # 当月: daily 合算
+            q = db.session.query(
+                db.func.coalesce(db.func.sum(CreatorDaily.pv), 0),
+                db.func.coalesce(db.func.sum(CreatorDaily.clicks), 0),
+                db.func.coalesce(db.func.sum(CreatorDaily.payout_day), 0),
+            ).filter(
+                CreatorDaily.user_id == user_id,
+                CreatorDaily.day >= this_month,
+                CreatorDaily.day < _next_month_start(this_month)
+            ).first()
+            pv, clicks, revenue = q
+        else:
+            cm = CreatorMonthly.query.filter_by(user_id=user_id, month=m).first()
+            pv = int(cm.pv) if cm else 0
+            clicks = int(cm.clicks) if cm else 0
+            revenue = float(cm.payout_month) if cm else 0
+        months.append(m.isoformat())
+        pv_list.append(int(pv or 0))
+        clicks_list.append(int(clicks or 0))
+        revenue_list.append(round(float(revenue or 0), 0))
+
+    return jsonify({
+        'months': months,
+        'pv': pv_list,
+        'clicks': clicks_list,
+        'revenue': revenue_list
+    })
+
+
+@api_bp.route('/wallet/payouts', methods=['GET'])
+@login_required
+def wallet_payouts():
+    user_id = current_user.id
+    items = PayoutTransaction.query.filter_by(user_id=user_id).order_by(PayoutTransaction.paid_at.desc().nullslast()).all()
+    resp = []
+    for it in items:
+        resp.append({
+            'paid_at': it.paid_at.isoformat() if it.paid_at else None,
+            'amount': float(it.amount),
+            'month': None  # 将来: 紐づく締め月を保存する場合に設定
+        })
+    return jsonify({'items': resp})
 
 @api_bp.route('/import/instagram/fetch', methods=['POST'])
 def fetch_instagram_posts():
@@ -2096,3 +2253,151 @@ def manual_rakuten_search():
             'error': 'server_error',
             'message': '検索中にエラーが発生しました。しばらく時間をおいて再度お試しください。'
         }), 500
+
+@api_bp.route('/wallet/ingest/view', methods=['POST'])
+def ingest_view():
+    try:
+        data = request.get_json() or {}
+        user_id = int(data.get('user_id'))  # クリエイターID（公開ページ側で埋め込む）
+        page_id = int(data.get('page_id'))  # spot.id
+        client_id = data.get('client_id')   # 1st-party cookie（生）
+        session_id = data.get('session_id') # 30分スライディング
+        user_agent = request.headers.get('User-Agent', '')
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        referrer = request.referrer
+        dwell_ms = int(data.get('dwell_ms') or 0)
+        price_median = data.get('price_median')
+
+        # Bot簡易判定
+        ua = (user_agent or '').lower()
+        bot_keywords = ['bot', 'crawl', 'spider', 'headless', 'selenium', 'python', 'curl', 'wget']
+        is_bot = any(k in ua for k in bot_keywords) or 'headlesschrome' in ua
+        bot_reason = None
+        if is_bot:
+            bot_reason = 'ua'
+        if dwell_ms < 3000:
+            # viewとしては無効だが、生ログは残す
+            pass
+
+        # client_key = HMAC_SHA256(salt, client_id)（生は保存しない）
+        client_key = None
+        if client_id:
+            import hmac, hashlib
+            salt = current_app.config.get('SECRET_KEY', 'salt')
+            client_key = hmac.new(salt.encode('utf-8'), client_id.encode('utf-8'), hashlib.sha256).hexdigest()
+
+        from app.models import EventLog
+        from sqlalchemy.dialects.postgresql import INET
+        ev = EventLog(
+            user_id=user_id,
+            page_id=page_id,
+            event_type='view',
+            client_key=client_key,
+            session_id=session_id,
+            user_agent=user_agent,
+            ip=ip,
+            referrer=referrer,
+            dwell_ms=dwell_ms,
+            price_median=price_median,
+            is_bot=is_bot,
+            bot_reason=bot_reason,
+        )
+        db.session.add(ev)
+        db.session.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 400
+
+
+@api_bp.route('/wallet/ingest/click', methods=['POST'])
+def ingest_click():
+    try:
+        data = request.get_json() or {}
+        user_id = int(data.get('user_id'))
+        page_id = int(data.get('page_id'))
+        ota = data.get('ota')
+        client_id = data.get('client_id')
+        session_id = data.get('session_id')
+        user_agent = request.headers.get('User-Agent', '')
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        referrer = request.referrer
+
+        # client_key生成
+        client_key = None
+        if client_id:
+            import hmac, hashlib
+            salt = current_app.config.get('SECRET_KEY', 'salt')
+            client_key = hmac.new(salt.encode('utf-8'), client_id.encode('utf-8'), hashlib.sha256).hexdigest()
+
+        # Bot簡易判定
+        ua = (user_agent or '').lower()
+        bot_keywords = ['bot', 'crawl', 'spider', 'headless', 'selenium', 'python', 'curl', 'wget']
+        is_bot = any(k in ua for k in bot_keywords) or 'headlesschrome' in ua
+        bot_reason = 'ua' if is_bot else None
+
+        from app.models import EventLog
+        ev = EventLog(
+            user_id=user_id,
+            page_id=page_id,
+            ota=ota,
+            event_type='click',
+            client_key=client_key,
+            session_id=session_id,
+            user_agent=user_agent,
+            ip=ip,
+            referrer=referrer,
+            is_bot=is_bot,
+            bot_reason=bot_reason,
+        )
+        db.session.add(ev)
+        db.session.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 400
+
+
+@api_bp.route('/wallet/r/<string:ota>')
+def wallet_redirect(ota: str):
+    """クリック計測用リダイレクト。
+    クエリ: user_id, page_id, url (エンコード済み)
+    """
+    try:
+        user_id = int(request.args.get('user_id'))
+        page_id = int(request.args.get('page_id'))
+        dest = request.args.get('url')
+        session_id = request.args.get('sid')
+        client_id = request.args.get('cid')
+        user_agent = request.headers.get('User-Agent', '')
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        referrer = request.referrer
+
+        # client_key
+        client_key = None
+        if client_id:
+            import hmac, hashlib
+            salt = current_app.config.get('SECRET_KEY', 'salt')
+            client_key = hmac.new(salt.encode('utf-8'), client_id.encode('utf-8'), hashlib.sha256).hexdigest()
+
+        from app.models import EventLog
+        ev = EventLog(
+            user_id=user_id,
+            page_id=page_id,
+            ota=ota,
+            event_type='click',
+            client_key=client_key,
+            session_id=session_id,
+            user_agent=user_agent,
+            ip=ip,
+            referrer=referrer,
+        )
+        db.session.add(ev)
+        db.session.commit()
+
+        if not dest:
+            return jsonify({'ok': False, 'error': 'Missing url'}), 400
+        return redirect(dest, code=302)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 400

@@ -9,6 +9,12 @@ from flask_login import current_user
 
 # 新しいサービスをインポート
 from app.services.google_photos import get_google_photos_by_place_id
+from app.services.agoda import build_deeplink as build_agoda_deeplink
+from app.services.agoda import fetch_price as fetch_agoda_price_by_hotel
+from app.services.dataforseo import fetch_hotel_offers as dfs_fetch_hotel_offers
+from app.services.dataforseo import normalize_offers_from_hotel_info as dfs_normalize
+from app.services.rakuten_travel import build_offer_from_hotel_no as rakuten_build_offer
+from app.models.spot_provider_id import SpotProviderId
 
 public_bp = Blueprint('public', __name__)
 
@@ -88,6 +94,9 @@ def username_profile(username):
     prices = set()
     for spot in spots:
         d = spot.to_dict()
+        # external_id（provider_ids）があるスポットのみ価格取得対象にする
+        providers = [p.provider for p in getattr(spot, 'provider_ids', [])]
+        d['has_offers'] = any(p in ['dataforseo', 'rakuten', 'agoda'] for p in providers)
         spots_data.append(d)
         if d.get('category'):
             categories.add(d['category'])
@@ -243,39 +252,9 @@ def photo_proxy(photo_reference):
 
 @public_bp.route('/<displayname>/map')
 def displayname_map(displayname):
-    """ユーザーの新しいマップページを表示"""
-    # ユーザーをディスプレイ名またはユーザー名で取得
-    user = User.query.filter(
-        (User.display_name == displayname) | (User.username == displayname)
-    ).first_or_404()
-    
-    # アクティブなスポットを取得
-    spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
-    
-    # スポットをJSONシリアライズ可能な形式に変換
-    spots_data = []
-    for spot in spots:
-        spot_dict = {
-            'id': spot.id,
-            'name': spot.name,
-            'location': spot.location,
-            'latitude': spot.latitude,
-            'longitude': spot.longitude,
-            'category': spot.category,
-            'description': spot.description,
-            'user_id': spot.user_id,
-            'photos': [{'photo_url': photo.photo_url} for photo in spot.photos] if spot.photos else []
-        }
-        spots_data.append(spot_dict)
-    
-    # ソーシャルアカウント情報を取得
-    social_accounts = SocialAccount.query.filter_by(user_id=user.id).all()
-    
-    return render_template('public/new_map.html',
-                         user=user,
-                         spots=spots_data,
-                         social_accounts=social_accounts,
-                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
+    """旧 new_map.html は廃止済み。プロフィールにリダイレクト。"""
+    user = User.query.filter((User.display_name == displayname) | (User.username == displayname)).first_or_404()
+    return redirect(url_for('public.username_profile', username=user.username))
 
 @public_bp.route('/api/spots/<int:spot_id>')
 def spot_api(spot_id):
@@ -347,7 +326,7 @@ def user_spot_detail(displayname, spot_id):
     """ユーザーの公開スポット詳細ページを表示"""
     # ユーザーとスポットを取得（存在しない場合は404）
     user = User.query.filter((User.username == displayname) | (User.display_name == displayname)).first_or_404()
-    spot = Spot.query.options(joinedload(Spot.affiliate_links)).filter_by(id=spot_id, user_id=user.id, is_active=True).first_or_404()
+    spot = Spot.query.filter_by(id=spot_id, user_id=user.id, is_active=True).first_or_404()
 
     # ユーザーがアップロードした写真とGoogle Photosを結合
     # 1. ユーザーがアップロードした写真を取得
@@ -369,9 +348,137 @@ def user_spot_detail(displayname, spot_id):
     for post in social_posts:
         if post.platform in social_links:
             social_links[post.platform] = post.post_url
+
+    # 価格比較ブロックの表示可否（DataForSEO or 楽天 or AgodaのIDがあるときに表示）
+    has_offers = any((p.provider in ['dataforseo', 'rakuten', 'agoda']) for p in getattr(spot, 'provider_ids', []))
     
     return render_template('public/spot_detail.html', 
                           user=user, 
                           spot=spot, 
                           photos=all_photos,
-                          social_links=social_links)
+                          social_links=social_links,
+                          has_offers=has_offers)
+
+
+@public_bp.route('/public/api/spots/<int:spot_id>/hotel_offers')
+def public_spot_hotel_offers(spot_id: int):
+    """公開: スポットのホテル価格オファー取得API
+    クエリ: checkIn=YYYY-MM-DD, checkOut=YYYY-MM-DD, adults=2
+    デフォルト: 翌日チェックイン/1泊, 大人2名
+    """
+    spot = Spot.query.get_or_404(spot_id)
+    if not spot.is_active:
+        return jsonify({'error': 'スポットが見つかりません'}), 404
+
+    # 日付デフォルト: 翌日〜翌々日
+    from datetime import date, timedelta
+    check_in = request.args.get('checkIn')
+    check_out = request.args.get('checkOut')
+    adults = int(request.args.get('adults', '2'))
+
+    if not check_in or not check_out:
+        d1 = date.today() + timedelta(days=1)
+        d2 = d1 + timedelta(days=1)
+        check_in = d1.strftime('%Y-%m-%d')
+        check_out = d2.strftime('%Y-%m-%d')
+
+    offers = []
+
+    # DataForSEOがあれば最優先（メタサーチとして複数OTAの価格・リンクを取得）
+    dfs_map = SpotProviderId.query.filter_by(spot_id=spot.id, provider='dataforseo').first()
+    if dfs_map:
+        dfs_result = dfs_fetch_hotel_offers(
+            hotel_identifier=dfs_map.external_id,
+            language_code=os.environ.get('DATAFORSEO_DEFAULT_LANGUAGE', 'ja'),
+            location_name=os.environ.get('DATAFORSEO_DEFAULT_LOCATION', 'Japan'),
+            check_in=check_in,
+            check_out=check_out,
+            currency=os.environ.get('AGODA_CURRENCY', 'JPY'),
+            adults=adults,
+        )
+        offers.extend(dfs_normalize(dfs_result))
+
+    # 楽天トラベルIDがあれば個別で追加
+    rakuten_map = SpotProviderId.query.filter_by(spot_id=spot.id, provider='rakuten').first()
+    if rakuten_map:
+        rakuten_offer = rakuten_build_offer(rakuten_map.external_id, check_in, check_out, adults)
+        if rakuten_offer:
+            offers.append(rakuten_offer)
+
+    if offers:
+        # 価格が数値のものを優先し昇順ソートし、最安にマーキング
+        def price_value(o):
+            try:
+                return float(o['price']) if o.get('price') is not None else float('inf')
+            except Exception:
+                return float('inf')
+        offers.sort(key=price_value)
+        # 最安マーク
+        if offers and price_value(offers[0]) != float('inf'):
+            offers[0]['is_min_price'] = True
+        # 一覧向けのサマリー応答（最安のみ）
+        summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
+        if summary:
+            return jsonify({'min_offer': offers[0] if offers else None})
+        return jsonify({'offers': offers, 'min_offer': offers[0] if offers else None})
+
+    # Agodaフォールバック: DataForSEOマッピングが無い場合のみ
+    has_agoda_mapping = SpotProviderId.query.filter_by(spot_id=spot.id, provider='agoda').first() is not None
+    is_agoda = has_agoda_mapping
+
+    sub_id = f"spot_{spot.id}"
+
+    if is_agoda:
+        # Agoda: まずはMVPとしてdeeplinkのみ（価格なし）。hotel_provider_idがAgodaのhotelIdなら使用。
+        cid = os.environ.get('AGODA_PARTNER_ID')
+        campaign_id = os.environ.get('AGODA_CAMPAIGN_ID')
+        agoda_locale = os.environ.get('AGODA_LOCALE', 'ja-jp')
+        agoda_currency = os.environ.get('AGODA_CURRENCY', 'JPY')
+        # provider_id優先: SpotProviderId
+        agoda_map = SpotProviderId.query.filter_by(spot_id=spot.id, provider='agoda').first()
+        agoda_hotel_id = None
+        if agoda_map:
+            agoda_hotel_id = agoda_map.external_id
+
+        children = int(request.args.get('children', '0'))
+        deeplink = build_agoda_deeplink(
+            agoda_hotel_id=agoda_hotel_id,
+            check_in=check_in,
+            check_out=check_out,
+            adults=adults,
+            children=children,
+            cid=cid,
+            campaign_id=campaign_id,
+            locale=agoda_locale,
+            currency=agoda_currency,
+            sub_id=sub_id,
+        )
+        # 価格取得（利用可能な場合のみ）
+        price_info = None
+        if agoda_hotel_id:
+            price_info = fetch_agoda_price_by_hotel(
+                hotel_id=agoda_hotel_id,
+                check_in=check_in,
+                check_out=check_out,
+                adults=adults,
+                locale=agoda_locale,
+                currency=agoda_currency,
+                sub_id=sub_id,
+            )
+        offer = {
+            'provider': 'Agoda',
+            'price': price_info.get('price') if price_info else None,
+            'currency': price_info.get('currency') if price_info else agoda_currency,
+            'deeplink': price_info.get('deeplink') if price_info and price_info.get('deeplink') else deeplink,
+            'is_min_price': False,
+        }
+        summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
+        if summary:
+            return jsonify({'min_offer': offer})
+        return jsonify({'offers': [offer], 'min_offer': offer})
+    else:
+        # Hotellook分岐は廃止
+        summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
+        if summary:
+            return jsonify({'min_offer': None})
+        return jsonify({'offers': [], 'min_offer': None})

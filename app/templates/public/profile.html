@@ -1309,7 +1309,6 @@
     .grid-cols-1 {
       grid-template-columns: repeat(1, minmax(0, 1fr))
     }
-
     .grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr))
     }
@@ -2109,12 +2108,6 @@
       --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, #0000001a), 0 4px 6px -4px var(--tw-shadow-color, #0000001a);
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
     }
-
-    .shadow-md {
-      --tw-shadow: 0 4px 6px -1px var(--tw-shadow-color, #0000001a), 0 2px 4px -2px var(--tw-shadow-color, #0000001a);
-      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
-    }
-
     .shadow-none {
       --tw-shadow: 0 0#0000;
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)
@@ -2908,11 +2901,6 @@
     .disabled\:opacity-50:disabled {
       opacity: .5
     }
-
-    :where([data-side="left"]) .in-data-\[side\=left\]\:cursor-w-resize {
-      cursor: w-resize
-    }
-
     :where([data-side="right"]) .in-data-\[side\=right\]\:cursor-e-resize {
       cursor: e-resize
     }
@@ -3708,7 +3696,6 @@
         max-width: var(--container-sm)
       }
     }
-
     @media (width>=48rem) {
       .md\:absolute {
         position: absolute
@@ -4506,7 +4493,6 @@
     inherits: false;
     initial-value: 0 0#0000
   }
-
   @property --tw-inset-shadow-color {
     syntax: "*";
     inherits: false
@@ -4730,7 +4716,7 @@
  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
 
 <meta http-equiv=content-security-policy
-  content="default-src 'none'; font-src 'self' data:; img-src 'self' data: https:; style-src 'unsafe-inline'; media-src 'self' data:; script-src 'unsafe-inline' data:; object-src 'self' data:; frame-src 'self' data:;">
+  content="default-src 'none'; connect-src 'self'; font-src 'self' data:; img-src 'self' data: https:; style-src 'unsafe-inline'; media-src 'self' data:; script-src 'unsafe-inline' data:; object-src 'self' data:; frame-src 'self' data:;">
 <noscript>
   <style>
     #container {
@@ -4903,7 +4889,11 @@
                           <input type=hidden id=price-filter value="">
                           <ul data-filter-menu class="filter-menu absolute left-0 right-0 mt-2 bg-white border rounded-md shadow-lg max-h-60 overflow-auto hidden z-[1]" style="background-color:#ffffff; opacity:1; z-index:1;">
                             <li data-value="" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">すべて</li>
-                            {% for p in filter_prices %}<li data-value="{{ p }}" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">{{ p }}</li>{% endfor %}
+                            <li data-value="0-10000" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">〜¥10,000</li>
+                            <li data-value="10000-20000" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">¥10,000〜¥20,000</li>
+                            <li data-value="20000-40000" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">¥20,000〜¥40,000</li>
+                            <li data-value="40000-" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">¥40,000〜</li>
+                            <li data-value="none" class="px-3 py-2 cursor-pointer bg-white hover:bg-gray-50">価格情報なし</li>
                           </ul>
                         </div>
                       </div>
@@ -4918,20 +4908,43 @@
                     var style=document.createElement('style');
                     style.textContent='ul.filter-menu{background:#ffffff!important} ul.filter-menu li{background:#ffffff!important}';
                     document.head.appendChild(style);
+                    function parseRange(v){
+                      if(!v) return null; // no filter
+                      if(v==='none') return 'none';
+                      var parts=v.split('-');
+                      var lo=parts[0]!==''? parseFloat(parts[0]): null;
+                      var hi=parts[1]!==''? parseFloat(parts[1]): null;
+                      return {lo: isFinite(lo)? lo: null, hi: isFinite(hi)? hi: null};
+                    }
                     function applyFilters(){
                       var cat=(document.getElementById('category-filter')||{}).value||'';
                       var loc=(document.getElementById('location-filter')||{}).value||'';
                       var pr=(document.getElementById('price-filter')||{}).value||'';
                       var q=(document.getElementById('spot-search')||{}).value||''; q=q.trim().toLowerCase();
+                      var prRange=parseRange(pr);
                       var shown=0;
                       document.querySelectorAll('[data-spot-card]')?.forEach(function(card){
                         var c=card.getAttribute('data-category')||'';
                         var l=card.getAttribute('data-location')||'';
-                        var p=card.getAttribute('data-price')||'';
+                        var p=card.getAttribute('data-price')||''; // legacy static
+                        var badge=card.querySelector('[data-price-text]');
+                        var minPrice=null;
+                        if (badge && badge.textContent && /\d/.test(badge.textContent)) {
+                          var digits = badge.textContent.replace(/[^0-9]/g,'');
+                          if (digits) { try { minPrice = parseFloat(digits); } catch(_){} }
+                        }
                         var n=card.getAttribute('data-name')||'';
                         var d=card.getAttribute('data-desc')||'';
                         var matchText=!q||n.toLowerCase().includes(q)||d.toLowerCase().includes(q)||l.toLowerCase().includes(q);
-                        var ok=matchText&&(!cat||c===cat)&&(!loc||l===loc)&&(!pr||p===pr);
+                        var matchPrice=true;
+                        if (prRange==='none') {
+                          matchPrice = (minPrice===null || !isFinite(minPrice));
+                        } else if (prRange) {
+                          if (minPrice===null || !isFinite(minPrice)) matchPrice=false;
+                          if (matchPrice && prRange.lo!==null && !(minPrice >= prRange.lo)) matchPrice=false;
+                          if (matchPrice && prRange.hi!==null && !(minPrice < prRange.hi)) matchPrice=false;
+                        }
+                        var ok=matchText&&(!cat||c===cat)&&(!loc||l===loc)&&matchPrice;
                         card.style.display=ok?"":"none";
                         if(ok) shown++;
                       });
@@ -4993,7 +5006,7 @@
                 {% if spots and spots|length > 0 %}
                 <div id=spots-grid class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {% for spot in spots %}
-                  <div data-spot-card data-name="{{ spot.name }}" data-desc="{{ (spot.description or '')[:120] }}" data-category="{{ spot.category or '' }}" data-location="{{ spot.summary_location or spot.location or '' }}" data-price="{{ spot.price_range or '' }}"
+                  <div data-spot-card data-has-offers="{{ '1' if spot.has_offers else '0' }}" data-spot-id="{{ spot.id }}" data-name="{{ spot.name }}" data-desc="{{ (spot.description or '')[:120] }}" data-category="{{ spot.category or '' }}" data-location="{{ spot.summary_location or spot.location or '' }}" data-price="{{ spot.price_range or '' }}"
                     class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
                     onclick="window.location.href='/{{ user.display_name or user.username }}/{{ spot.id }}'">
                     <div class=relative>
@@ -5043,8 +5056,24 @@
                           <span class="text-xs text-muted-foreground">-</span>
                           {% endif %}
                       </div>
+                      
                       {% if spot.review_summary %}
                       <p class="text-sm text-muted-foreground line-clamp-2">{{ spot.review_summary }}</p>
+                      {% endif %}
+                      {% if spot.has_offers %}
+                      <div data-price-section class="flex items-center justify-between pt-2">
+                        <div>
+                          <div class="font-bold"><span data-price-text>価格取得中…</span></div>
+                          <div class="text-xs text-muted-foreground"><span data-price-sub class="hidden"></span></div>
+                          <div data-skeleton class="price-skeleton mt-1">
+                            <div class="skeleton-row skeleton-price"></div>
+                            <div class="skeleton-row skeleton-sub"></div>
+                          </div>
+                        </div>
+                        <button data-slot=button
+                          onclick="event.stopPropagation(); window.location.href='/{{ user.display_name or user.username }}/{{ spot.id }}'"
+                          class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5">詳細を見る</button>
+                      </div>
                       {% endif %}
                       </div>
                     </div>
@@ -5086,6 +5115,142 @@
       </form>
     </main>
   </noscript>
+  <script>
+  (function(){
+    const MAX_CONCURRENCY = 3;
+    let running = 0;
+    const queue = [];
+    function run(task){
+      if(running < MAX_CONCURRENCY){
+        running++;
+        task().finally(()=>{ running--; pump(); });
+      }else{
+        queue.push(task);
+      }
+    }
+    function pump(){
+      while(running < MAX_CONCURRENCY && queue.length){
+        const t = queue.shift();
+        running++;
+        t().finally(()=>{ running--; pump(); });
+      }
+    }
+    function fmtJPY(n){
+      try{ return new Intl.NumberFormat('ja-JP', { style:'currency', currency:'JPY', maximumFractionDigits:0 }).format(n); }catch(e){ return '¥'+Math.round(n); }
+    }
+    function buildDefaultParams(){
+      const today = new Date();
+      const d1 = new Date(today.getFullYear(), today.getMonth(), today.getDate()+7);
+      const d2 = new Date(today.getFullYear(), today.getMonth(), today.getDate()+8);
+      const toISO=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const params = new URLSearchParams();
+      params.set('checkIn', toISO(d1));
+      params.set('checkOut', toISO(d2));
+      params.set('adults', '2');
+      return params;
+    }
+    async function fetchMinPrice(spotId){
+      const params = buildDefaultParams();
+      params.set('summary','1');
+      const controller = new AbortController();
+      const to = setTimeout(()=>controller.abort(), 12000);
+      try{
+        console.debug('[offers] fetch start', spotId);
+        const res = await fetch(`/public/api/spots/${spotId}/hotel_offers?${params.toString()}`,{ signal: controller.signal });
+        console.debug('[offers] status', spotId, res.status);
+        if(!res.ok){
+          return null;
+        }
+        let data = null;
+        try{
+          data = await res.json();
+        }catch(parseErr){
+          console.warn('[offers] json parse error', spotId, parseErr);
+          return null;
+        }
+        const first = data && data.min_offer ? data.min_offer : null;
+        if(!first) return null;
+        const price = parseFloat(first.price);
+        if(!isFinite(price)) return null;
+        return { price, currency: first.currency || 'JPY', provider: first.provider || '' };
+      } finally {
+        clearTimeout(to);
+      }
+    }
+    function initObserver(){
+      const cards = document.querySelectorAll('[data-spot-card][data-has-offers="1"]');
+      if(cards.length===0) return;
+      const rootEl = null; // ビューポート基準
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(async (entry)=>{
+          if(!entry.isIntersecting) return;
+          const card = entry.target;
+          io.unobserve(card);
+          const spotId = card.getAttribute('data-spot-id');
+          const priceText = card.querySelector('[data-price-text]');
+          const priceSub = card.querySelector('[data-price-sub]');
+          const skeleton = card.querySelector('[data-skeleton]');
+          if(!spotId || !priceText) return;
+          run(async ()=>{
+            try{
+              const result = await fetchMinPrice(spotId);
+              if(result){
+                priceText.textContent = `${fmtJPY(result.price)}〜`;
+                // サブライン（人数・泊数）
+                try{
+                  const ci = localStorage.getItem('hotel_check_in');
+                  const co = localStorage.getItem('hotel_check_out');
+                  const ad = localStorage.getItem('hotel_adults_total') || '2';
+                  const ch = localStorage.getItem('hotel_children_total') || '0';
+                  let nights = '';
+                  if (ci && co) {
+                    const d1 = new Date(ci);
+                    const d2 = new Date(co);
+                    const diff = Math.max(1, Math.round((d2 - d1) / 86400000));
+                    nights = `${diff}泊`;
+                  }
+                  const guests = `${parseInt(ad,10) + parseInt(ch,10)}名`;
+                  if (priceSub) { priceSub.textContent = `最安値から（${guests}${nights? '・'+nights: ''}）`; priceSub.classList.remove('hidden'); }
+                }catch(_){}
+              }else{
+                priceText.textContent = '価格情報なし';
+              }
+            }catch(e){
+              console.warn('[offers] fetch failed', spotId, e);
+              priceText.textContent = '価格取得失敗';
+            }
+            if(skeleton) skeleton.remove();
+          });
+        });
+      }, { root: rootEl, rootMargin:'0px 0px 200px 0px', threshold:0.01 });
+      cards.forEach(c=>io.observe(c));
+    }
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded', initObserver);
+    }else{
+      initObserver();
+    }
+  })();
+  </script>
+  <style>
+    @keyframes pulse-bg { 0% { opacity: 1; } 100% { opacity: .5; } }
+    [data-skeleton] { animation: pulse-bg 1s linear infinite alternate; }
+    /* 詳細ページ風の横シャマー */
+    @keyframes shimmer {
+      0% { background-position: -200px 0; }
+      100% { background-position: calc(200px + 100%) 0; }
+    }
+    .price-skeleton { width: 140px; }
+    .price-skeleton .skeleton-row {
+      height: 10px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #eee 25%, #f5f5f5 37%, #eee 63%);
+      background-size: 200px 100%;
+      animation: shimmer 1.2s infinite linear;
+    }
+    .price-skeleton .skeleton-price { height: 14px; margin-bottom: 6px; }
+    .price-skeleton .skeleton-sub { width: 70%; }
+  </style>
   <deepl-input-controller translate=no><template shadowrootmode=open>
       <style>
         .dl-zendesk-icon.svelte-1tytp0d {
@@ -5887,7 +6052,6 @@
           justify-content: flex-start;
           padding: 10px 0px 19px 20px
         }
-
         .container.svelte-1mvy8b2 .actions button.svelte-1mvy8b2 {
           border-radius: 6px;
           border: 1px solid var(--White, #fff);
@@ -10661,7 +10825,6 @@
           background: none;
           border: 1px solid white
         }
-
         .dl-input-icon.svelte-1opaki9.svelte-1opaki9 {
           display: flex;
           align-items: center;

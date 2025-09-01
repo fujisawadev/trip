@@ -432,62 +432,24 @@
                   {% endfor %}
                 </div>
                 
-                <!-- Custom Links Data (隠し要素) -->
-                <script type="application/json" id="custom-links-data">
-{{ custom_links|tojson|safe if is_edit else '[]' }}
-                </script>
-                
-                <!-- その他のリンク（アフィリエイト関連は一時非表示） -->
-                <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl"
-                     x-data="{
-                       otherLinks: (() => {
-                         try {
-                           const dataElement = document.getElementById('custom-links-data');
-                           return dataElement ? JSON.parse(dataElement.textContent) : [];
-                         } catch (error) {
-                           console.error('Custom links data parse error:', error);
-                           return [];
-                         }
-                       })(),
-                       addLink() { this.otherLinks.push({ id: null, title: '', url: '' }); },
-                       removeLink(index) { this.otherLinks.splice(index, 1); }
-                     }">
+                <!-- その他のリンク（新仕様: 1件のみ） -->
+                <div class="flex flex-col gap-4 w-full p-4 bg-slate-50 rounded-xl">
                   <h3 class="text-sm font-bold text-neutral-900">その他のリンク</h3>
-
-                  <div class="flex flex-col gap-4">
-                    <template x-for="(link, index) in otherLinks" :key="index">
-                      <div class="flex flex-col gap-3 p-3 bg-white rounded-lg border border-slate-200">
-                        <input type="hidden" :name="'other_links[' + index + '][id]'" x-model="link.id">
-                        <div class="flex flex-col gap-1.5">
-                          <label :for="'other_link_title_' + index" class="text-sm font-medium text-neutral-600">サイト名</label>
-                          <input type="text" :id="'other_link_title_' + index" :name="'other_links[' + index + '][title]'" x-model="link.title" placeholder="例: 公式サイト" class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div class="flex flex-col gap-1.5">
-                          <label :for="'other_link_url_' + index" class="text-sm font-medium text-neutral-600">URL</label>
-                          <div class="relative">
-                            <input type="url" :id="'other_link_url_' + index" :name="'other_links[' + index + '][url]'" x-model="link.url" placeholder="https://..." class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <button
-                              type="button"
-                              class="link-preview-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors"
-                              x-show="link.url && link.url.trim() !== ''"
-                              @click="window.open(link.url, '_blank')"
-                              title="リンクを開く"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                        <button type="button" @click="removeLink(index)" class="text-sm text-red-500 hover:text-red-700 self-end">削除</button>
+                  <div class="flex flex-col gap-3 p-3 bg-white rounded-lg border border-slate-200">
+                    <div class="flex flex-col gap-1.5">
+                      <label for="other_link_title" class="text-sm font-medium text-neutral-600">サイト名</label>
+                      <input type="text" id="other_link_title" name="other_link_title" value="{{ spot.custom_link_title if is_edit else '' }}" placeholder="例: 公式サイト" class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                      <label for="other_link_url" class="text-sm font-medium text-neutral-600">URL</label>
+                      <div class="relative">
+                        <input type="url" id="other_link_url" name="other_link_url" value="{{ spot.custom_link_url if is_edit else '' }}" placeholder="https://..." class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="button" class="link-preview-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors" onclick="(function(){ var v=document.getElementById('other_link_url').value.trim(); if(v){ window.open(v, '_blank'); } })()" title="リンクを開く">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                        </button>
                       </div>
-                    </template>
+                    </div>
                   </div>
-                  <button type="button" @click="addLink()" class="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                    リンクを追加
-                  </button>
-
                 </div>
               </div>
             </div>

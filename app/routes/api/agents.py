@@ -14,7 +14,6 @@ from app.services.agents.manager_v3 import AgentManagerV3
 from app.models.spot import Spot
 from app.models.user import User
 from app.models.photo import Photo
-from app.models.affiliate_link import AffiliateLink
 from app import db
 
 logger = logging.getLogger(__name__)

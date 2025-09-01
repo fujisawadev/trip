@@ -1367,6 +1367,9 @@ def display_name_profile(display_name):
         # ユーザー写真とGoogle写真を結合
         all_photos = user_photo_list + google_photo_list
 
+        providers = [p.provider for p in getattr(spot, 'provider_ids', [])]
+        has_offers = any(p in ['dataforseo', 'rakuten', 'agoda'] for p in providers)
+
         spot_dict = {
             'id': spot.id,
             'name': spot.name,
@@ -1381,7 +1384,8 @@ def display_name_profile(display_name):
             'created_at': spot.created_at.isoformat() if getattr(spot, 'created_at', None) else None,
             'updated_at': spot.updated_at.isoformat() if getattr(spot, 'updated_at', None) else None,
             'price_range': getattr(spot, 'price_range', None),
-            'photos': all_photos
+            'photos': all_photos,
+            'has_offers': has_offers,
         }
         spots_data.append(spot_dict)
         if spot_dict.get('category'):
@@ -1461,11 +1465,8 @@ def display_name_map(display_name):
     # Google Maps API Keyをconfigとして渡す
     from app.routes.public import GOOGLE_MAPS_API_KEY
     
-    return render_template('public/new_map.html',
-                         user=user,
-                         spots=spots_data,
-                         social_accounts=social_accounts,
-                         config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
+    # 旧 new_map.html は廃止: プロフィールにリダイレクト
+    return redirect(url_for('public.username_profile', username=user.username))
 
 @bp.route('/settings/affiliate')
 @login_required

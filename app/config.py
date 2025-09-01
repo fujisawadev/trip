@@ -80,6 +80,43 @@ class Config:
     # マスターパスワード設定
     MASTER_PASSWORD = os.environ.get('MASTER_PASSWORD')
     ENABLE_MASTER_LOGIN = os.environ.get('ENABLE_MASTER_LOGIN', 'false').lower() in ['true', 'on', '1']
+
+    # Travelpayouts 設定（廃止）: 参照していないため削除済み
+
+    # Agoda アフィリエイト設定（deeplink用）
+    AGODA_PARTNER_ID = os.environ.get('AGODA_PARTNER_ID')  # 通常 'cid'
+    AGODA_CAMPAIGN_ID = os.environ.get('AGODA_CAMPAIGN_ID')  # 任意: サブキャンペーン
+    AGODA_LOCALE = os.environ.get('AGODA_LOCALE', 'ja-jp')
+    AGODA_CURRENCY = os.environ.get('AGODA_CURRENCY', 'JPY')
+    # Agoda Search API 用プレースホルダ（承認・仕様に応じて利用）
+    AGODA_API_BASE = os.environ.get('AGODA_API_BASE', 'https://partners.agoda.com')
+    AGODA_API_KEY = os.environ.get('AGODA_API_KEY')
+    AGODA_API_TOKEN = os.environ.get('AGODA_API_TOKEN')
+    AGODA_SITE_ID = os.environ.get('AGODA_SITE_ID')
+    AGODA_AFFILIATE_LITE_URL = os.environ.get('AGODA_AFFILIATE_LITE_URL')
+    
+    # DataForSEO（Google Hotelsのメタサーチ相当）
+    DATAFORSEO_BASE_URL = os.environ.get('DATAFORSEO_BASE_URL', 'https://api.dataforseo.com')
+    DATAFORSEO_LOGIN = os.environ.get('DATAFORSEO_LOGIN')
+    DATAFORSEO_PASSWORD = os.environ.get('DATAFORSEO_PASSWORD')
+    DATAFORSEO_DEFAULT_LOCATION = os.environ.get('DATAFORSEO_DEFAULT_LOCATION', 'Japan')
+    DATAFORSEO_DEFAULT_LANGUAGE = os.environ.get('DATAFORSEO_DEFAULT_LANGUAGE', 'ja')
+
+    # 楽天トラベル
+    RAKUTEN_AFFILIATE_ID = os.environ.get('RAKUTEN_AFFILIATE_ID')
+    
+    # Wallet/Analytics 設定
+    WALLET_TZ = os.environ.get('WALLET_TZ', 'Asia/Tokyo')
+    WALLET_PPV_FLOOR = float(os.environ.get('WALLET_PPV_FLOOR', '0.01'))
+    WALLET_CPC_BASE = float(os.environ.get('WALLET_CPC_BASE', '3.0'))
+    WALLET_PPV_CAP = float(os.environ.get('WALLET_PPV_CAP', '0.10'))
+    WALLET_PPV_CAP_NEWBIE = float(os.environ.get('WALLET_PPV_CAP_NEWBIE', '0.07'))
+    WALLET_CPC_MIN = float(os.environ.get('WALLET_CPC_MIN', '2.0'))
+    WALLET_CPC_MAX = float(os.environ.get('WALLET_CPC_MAX', '5.0'))
+    WALLET_GLOBAL_DAILY_BUDGET = float(os.environ.get('WALLET_GLOBAL_DAILY_BUDGET', '500000'))
+    WALLET_CREATOR_DAILY_CAP = float(os.environ.get('WALLET_CREATOR_DAILY_CAP', '20000'))
+    WALLET_BURST_FACTOR = float(os.environ.get('WALLET_BURST_FACTOR', '3.0'))
+    WALLET_BURST_CAP_REDUCTION = float(os.environ.get('WALLET_BURST_CAP_REDUCTION', '0.20'))  # 20%
     
     @staticmethod
     def init_app(app):

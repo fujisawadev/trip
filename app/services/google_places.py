@@ -56,3 +56,31 @@ def get_place_review_summary(place_id: str, timeout_seconds: int = 5) -> Optiona
 
 
 
+def get_place_name(place_id: str, language_code: str = "en", timeout_seconds: int = 5) -> Optional[str]:
+    """指定の Place ID の表示名（指定言語）を返す。"""
+    if not GOOGLE_MAPS_API_KEY or not place_id:
+        return None
+    try:
+        base_url = f"https://places.googleapis.com/v1/places/{place_id}"
+        resp = requests.get(
+            base_url,
+            params={
+                "fields": "displayName",
+                "languageCode": language_code,
+                "key": GOOGLE_MAPS_API_KEY,
+            },
+            timeout=timeout_seconds,
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json() if resp.content else {}
+        dn = data.get("displayName")
+        if isinstance(dn, dict):
+            txt = dn.get("text")
+            if isinstance(txt, str) and txt.strip():
+                return txt.strip()
+        return None
+    except Exception:
+        return None
+
+

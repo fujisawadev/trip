@@ -2,10 +2,36 @@ import os
 import traceback
 import logging
 from app import create_app, db
+from flask.cli import with_appcontext
+import click
 
 try:
     app = create_app()
-    
+
+    # CLI: wallet aggregations (Flask CLI登録はimport時に実行される必要がある)
+    @click.command('wallet-daily')
+    @click.option('--day', default=None, help='YYYY-MM-DD（省略時は前日）')
+    @with_appcontext
+    def wallet_daily(day):
+        from app.tasks import run_daily_wallet_aggregation
+        from datetime import datetime as _dt
+        target = _dt.strptime(day, '%Y-%m-%d').date() if day else None
+        run_daily_wallet_aggregation(target)
+        click.echo('daily aggregation done')
+
+    @click.command('wallet-monthly')
+    @click.option('--month', default=None, help='YYYY-MM-01（省略時は前月）')
+    @with_appcontext
+    def wallet_monthly(month):
+        from app.tasks import run_monthly_wallet_close
+        from datetime import datetime as _dt
+        target = _dt.strptime(month, '%Y-%m-%d').date() if month else None
+        run_monthly_wallet_close(target)
+        click.echo('monthly close done')
+
+    app.cli.add_command(wallet_daily)
+    app.cli.add_command(wallet_monthly)
+
     # ログ設定を強化
     logging.basicConfig(level=logging.DEBUG)
     

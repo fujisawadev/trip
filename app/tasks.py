@@ -1,14 +1,20 @@
 import os
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone, date
 import logging
 import requests
 import traceback
 
 from app import db
-from app.models import ImportProgress, User, Spot, SocialPost, ImportHistory, AffiliateLink
-from app.utils.rakuten_api import safe_decode_text
+from app.models import ImportProgress, User, Spot, SocialPost, ImportHistory
+from app.models import CreatorDaily, CreatorMonthly, PayoutLedger, RateOverride
+from sqlalchemy import text
+from app.models.spot_provider_id import SpotProviderId
+from app.services.dataforseo import search_hotels as dfs_search_hotels
+from app.utils.rakuten_api import safe_decode_text, search_hotel as rakuten_search
+from app.services.rakuten_travel import fetch_detail_by_hotel_no as rakuten_fetch_detail
+from app.services.rakuten_travel import simple_hotel_search_by_geo as rakuten_simple_geo
 from app.services.google_places import get_place_review_summary
 
 # ロガーの設定
@@ -642,15 +648,82 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
                 except Exception as e:
                     logger.error(f"[SaveJob {save_job_id}] searchText API呼び出しエラー: {str(e)}")
             
-            # レビュー要約（editorialSummary → reviewSummary 優先、languageCode=ja）を取得
+            # レビュー要約取得 & DataForSEO hotel_identifier（宿泊系 & 100m以内のみ）
             try:
+                # 宿泊系判定
+                def is_lodging_category(cat: str) -> bool:
+                    if not cat:
+                        return False
+                    cat_l = cat.lower()
+                    return any(k in cat_l for k in ['hotel','hostel','inn','lodging']) or any(k in cat for k in ['旅館','ホテル'])
+
+                lodging_ok = False
+                if spot.category and is_lodging_category(spot.category):
+                    lodging_ok = True
+                else:
+                    tval = spot.types
+                    try:
+                        import json as _json
+                        types_list = _json.loads(tval) if tval else []
+                    except Exception:
+                        types_list = [s.strip() for s in tval.split(',')] if tval else []
+                    for t in types_list:
+                        if is_lodging_category(str(t)):
+                            lodging_ok = True
+                            break
+
+                if lodging_ok:
+                    keyword = spot.name
+                    location_name = os.environ.get('DATAFORSEO_DEFAULT_LOCATION', 'Japan')
+                    language_code = os.environ.get('DATAFORSEO_DEFAULT_LANGUAGE', 'ja')
+                    items = dfs_search_hotels(
+                        keyword=keyword,
+                        location_name=location_name,
+                        language_code=language_code,
+                        currency=os.environ.get('AGODA_CURRENCY', 'JPY'),
+                        adults=2,
+                    )
+                    chosen = None
+                    best_dist_m = None
+                    if items and spot.latitude and spot.longitude:
+                        import math
+                        def haversine_m(lat1, lon1, lat2, lon2):
+                            R = 6371000.0
+                            phi1 = math.radians(lat1)
+                            phi2 = math.radians(lat2)
+                            dphi = math.radians((lat2 - lat1))
+                            dlambda = math.radians((lon2 - lon1))
+                            a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+                            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                            return R * c
+                        for it in items:
+                            loc = (it.get('location') or {})
+                            lat = loc.get('latitude')
+                            lng = loc.get('longitude')
+                            if lat is None or lng is None:
+                                continue
+                            d_m = haversine_m(spot.latitude, spot.longitude, float(lat), float(lng))
+                            if best_dist_m is None or d_m < best_dist_m:
+                                best_dist_m = d_m
+                                chosen = it
+                    if chosen and best_dist_m is not None and best_dist_m <= 100 and chosen.get('hotel_identifier'):
+                        exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='dataforseo').first()
+                        if not exists:
+                            mapping = SpotProviderId(
+                                spot_id=spot.id,
+                                provider='dataforseo',
+                                external_id=chosen['hotel_identifier']
+                            )
+                            db.session.add(mapping)
+
+                # review_summary のフォールバック取得
                 if spot.google_place_id and (not getattr(spot, 'review_summary', None) or not spot.review_summary):
                     fetched_summary = get_place_review_summary(spot.google_place_id)
                     if fetched_summary:
                         spot.review_summary = fetched_summary
                         logger.info(f"[SaveJob {save_job_id}] review_summary を設定しました（{len(fetched_summary)} 文字）")
             except Exception as e:
-                logger.warning(f"[SaveJob {save_job_id}] review_summary取得エラー（続行）: {str(e)}")
+                logger.warning(f"[SaveJob {save_job_id}] mapping/summary step skipped: {e}")
 
             logger.info(f"[SaveJob {save_job_id}] スポットをデータベースに追加")
             spot_info = {
@@ -703,7 +776,78 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
                 except Exception as e:
                     logger.error(f"[SaveJob {save_job_id}] インポート履歴保存エラー: {str(e)}")
             
-            # 楽天トラベルアフィリエイトリンクの自動生成（仕様変更のため一時停止）
+            # 楽天トラベル: 宿泊系 & 100m以内のとき hotelNo を保存
+            try:
+                def is_lodging_category(cat: str) -> bool:
+                    if not cat:
+                        return False
+                    cat_l = cat.lower()
+                    return any(k in cat_l for k in ['hotel','hostel','inn','lodging']) or any(k in cat for k in ['旅館','ホテル'])
+
+                lodging_ok = False
+                if spot.category and is_lodging_category(spot.category):
+                    lodging_ok = True
+                else:
+                    tval = spot.types
+                    try:
+                        import json as _json
+                        types_list = _json.loads(tval) if tval else []
+                    except Exception:
+                        types_list = [s.strip() for s in tval.split(',')] if tval else []
+                    for t in types_list:
+                        if is_lodging_category(str(t)):
+                            lodging_ok = True
+                            break
+
+                if lodging_ok:
+                    hotels = []
+                    if spot.latitude and spot.longitude:
+                        geo_res = rakuten_simple_geo(spot.name, float(spot.latitude), float(spot.longitude), hits=5)
+                        if geo_res and isinstance(geo_res, dict):
+                            hotels = geo_res.get('hotels') or []
+                            hotels = [ {'hotel':[h[0]]} for h in hotels if isinstance(h, list) and h ]
+                    if not hotels:
+                        res = rakuten_search(spot.name, affiliate_id=os.environ.get('RAKUTEN_AFFILIATE_ID'), hits=3)
+                        hotels = res.get('hotels') if isinstance(res, dict) else []
+                    import math
+                    def haversine_m(lat1, lon1, lat2, lon2):
+                        R = 6371000.0
+                        phi1 = math.radians(lat1)
+                        phi2 = math.radians(lat2)
+                        dphi = math.radians((lat2 - lat1))
+                        dlambda = math.radians((lon2 - lon1))
+                        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+                        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                        return R * c
+                    best = None
+                    best_d = None
+                    for h in hotels:
+                        try:
+                            basic = h['hotel'][0]['hotelBasicInfo'] if 'hotel' in h and h['hotel'] else {}
+                            hlat = basic.get('latitude')
+                            hlng = basic.get('longitude')
+                            if (hlat is None or hlng is None) and basic.get('hotelNo'):
+                                detail = rakuten_fetch_detail(str(basic.get('hotelNo')))
+                                if detail and isinstance(detail, dict):
+                                    dhs = detail.get('hotels') or []
+                                    if dhs and isinstance(dhs[0], dict) and dhs[0].get('hotel'):
+                                        dinfo = dhs[0]['hotel'][0].get('hotelBasicInfo', {})
+                                        hlat = dinfo.get('latitude') or hlat
+                                        hlng = dinfo.get('longitude') or hlng
+                            if hlat is None or hlng is None or not spot.latitude or not spot.longitude:
+                                continue
+                            d = haversine_m(float(spot.latitude), float(spot.longitude), float(hlat), float(hlng))
+                            if best_d is None or d < best_d:
+                                best_d = d
+                                best = basic
+                        except Exception:
+                            continue
+                    if best and best_d is not None and best_d <= 100 and best.get('hotelNo'):
+                        exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='rakuten').first()
+                        if not exists:
+                            db.session.add(SpotProviderId(spot_id=spot.id, provider='rakuten', external_id=str(best['hotelNo'])))
+            except Exception:
+                pass
             # if user.rakuten_affiliate_id and spot.name:
             #     try:
             #         logger.info(f"[SaveJob {save_job_id}] 楽天トラベルAPI検索: {spot.name}")
@@ -780,3 +924,242 @@ def _is_japanese(text):
     # ひらがな、カタカナ、漢字の範囲
     japanese_pattern = re.compile(r'[ひらがなカタカナ漢字\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+')
     return bool(japanese_pattern.search(text)) 
+
+
+# ============================
+# Wallet Aggregations (Daily / Monthly)
+# ============================
+
+JST = timezone(timedelta(hours=9))
+
+
+def _month_start(d: date) -> date:
+    return date(d.year, d.month, 1)
+
+
+def _next_month_start(d: date) -> date:
+    if d.month == 12:
+        return date(d.year + 1, 1, 1)
+    return date(d.year, d.month + 1, 1)
+
+
+def _month_end(d: date) -> date:
+    return _next_month_start(d) - timedelta(days=1)
+
+
+def run_daily_wallet_aggregation(target_day: date | None = None) -> None:
+    """前日分のイベントから creator_daily を集計してUPSERTする。
+    - JSTでの1日区切り
+    - PV: dwell_ms >= 3000, is_bot除外
+    - Click: DISTINCT ON (user_id, page_id, ota, session_or_client, JST日)
+    - m_price: price_median のビン
+    - cpc_dynamic: CPC_base * m_price * m_quality * m_trust を [CPC_MIN, CPC_MAX] でクリップ
+    - ppv: min(PPV_floor + CTR*cpc_dynamic, PPV_cap) with バースト/新規制限
+    - payout_day: pv * ppv
+    - クリエイター日次上限 / グローバル日次上限の適用
+    """
+    from flask import current_app
+
+    cfg = current_app.config
+    tz_name = cfg.get('WALLET_TZ', 'Asia/Tokyo')
+    ppv_floor = cfg.get('WALLET_PPV_FLOOR', 0.01)
+    cpc_base = cfg.get('WALLET_CPC_BASE', 3.0)
+    ppv_cap_default = cfg.get('WALLET_PPV_CAP', 0.10)
+    ppv_cap_newbie = cfg.get('WALLET_PPV_CAP_NEWBIE', 0.07)
+    cpc_min = cfg.get('WALLET_CPC_MIN', 2.0)
+    cpc_max = cfg.get('WALLET_CPC_MAX', 5.0)
+    burst_factor = cfg.get('WALLET_BURST_FACTOR', 3.0)
+    burst_cap_reduction = cfg.get('WALLET_BURST_CAP_REDUCTION', 0.20)
+    creator_daily_cap = cfg.get('WALLET_CREATOR_DAILY_CAP', 20000.0)
+    global_daily_budget = cfg.get('WALLET_GLOBAL_DAILY_BUDGET', 500000.0)
+
+    now_jst = datetime.now(JST)
+    if target_day is None:
+        target_day = (now_jst - timedelta(days=1)).date()
+
+    # SQL: 日次基礎集計（events）→ レート適用（rates）→ 係数とPPV計算（calc）
+    # 注意: session_idがNULLの場合はclient_keyで代用
+    sql = text(
+        """
+        WITH base AS (
+            SELECT
+                e.user_id,
+                (e.created_at AT TIME ZONE :tz)::date AS day,
+                SUM(CASE WHEN e.event_type='view' AND COALESCE(e.is_bot, false)=false AND COALESCE(e.dwell_ms,0) >= 3000 THEN 1 ELSE 0 END) AS pv,
+                COUNT(DISTINCT CASE WHEN e.event_type='click' AND COALESCE(e.is_bot, false)=false THEN concat_ws('#', e.user_id::text, e.page_id::text, COALESCE(e.ota,''), COALESCE(NULLIF(e.session_id,''), COALESCE(NULLIF(e.client_key,''), 'anon')), ((e.created_at AT TIME ZONE :tz)::date)::text) END) AS clicks,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY e.price_median) AS price_median
+            FROM event_log e
+            WHERE (e.created_at AT TIME ZONE :tz)::date = :target_day
+            GROUP BY 1,2
+        ),
+        avg7 AS (
+            SELECT user_id,
+                   AVG(pv) AS pv_avg7
+            FROM creator_daily
+            WHERE day >= :d7_start AND day <= :d7_end
+            GROUP BY 1
+        ),
+        newbie AS (
+            SELECT id AS user_id,
+                   CASE WHEN (NOW() AT TIME ZONE 'UTC') < (created_at + interval '7 day') THEN TRUE ELSE FALSE END AS is_newbie
+            FROM users
+        ),
+        overrides AS (
+            SELECT user_id, m_quality, m_trust FROM rate_overrides
+        ),
+        rates AS (
+            SELECT b.user_id, b.day, b.pv, b.clicks, b.price_median,
+                   CASE
+                     WHEN b.price_median IS NULL THEN 1.0
+                     WHEN b.price_median <  8000 THEN 0.8
+                     WHEN b.price_median < 15000 THEN 1.0
+                     WHEN b.price_median < 25000 THEN 1.3
+                     ELSE 1.6
+                   END AS m_price,
+                   COALESCE(o.m_quality, 1.0) AS m_quality,
+                   COALESCE(o.m_trust,   1.0) AS m_trust,
+                   COALESCE(a.pv_avg7, 0) AS pv_avg7,
+                   COALESCE(n.is_newbie, FALSE) AS is_newbie
+            FROM base b
+            LEFT JOIN avg7 a ON a.user_id = b.user_id
+            LEFT JOIN newbie n ON n.user_id = b.user_id
+            LEFT JOIN overrides o ON o.user_id = b.user_id
+        ),
+        calc AS (
+            SELECT r.user_id, r.day, r.pv, r.clicks, r.price_median,
+                   (r.clicks::numeric / GREATEST(r.pv,1)) AS ctr,
+                   LEAST(GREATEST(:cpc_base * r.m_price * r.m_quality * r.m_trust, :cpc_min), :cpc_max) AS cpc_dynamic,
+                   CASE
+                       WHEN r.pv > (COALESCE(r.pv_avg7,0) * :burst_factor) THEN (:ppv_cap_default * (1 - :burst_cap_reduction))
+                       ELSE :ppv_cap_default
+                   END AS ppv_cap_burst,
+                   r.is_newbie
+            FROM rates r
+        ),
+        final AS (
+            SELECT c.user_id, c.day, c.pv, c.clicks, c.price_median, c.ctr, c.cpc_dynamic,
+                   LEAST(:ppv_floor + c.ctr * c.cpc_dynamic, CASE WHEN c.is_newbie THEN :ppv_cap_newbie ELSE c.ppv_cap_burst END) AS ppv,
+                   (1000 * LEAST(:ppv_floor + c.ctr * c.cpc_dynamic, CASE WHEN c.is_newbie THEN :ppv_cap_newbie ELSE c.ppv_cap_burst END)) AS ecmp,
+                   (c.pv::numeric) * LEAST(:ppv_floor + c.ctr * c.cpc_dynamic, CASE WHEN c.is_newbie THEN :ppv_cap_newbie ELSE c.ppv_cap_burst END) AS payout_day
+            FROM calc c
+        )
+        INSERT INTO creator_daily AS d (day, user_id, pv, clicks, ctr, price_median, cpc_dynamic, ppv, ecmp, payout_day)
+        SELECT day, user_id, pv, clicks, ctr, price_median, cpc_dynamic, ppv, ecmp, payout_day
+        FROM final
+        ON CONFLICT (day, user_id) DO UPDATE
+          SET pv=EXCLUDED.pv,
+              clicks=EXCLUDED.clicks,
+              ctr=EXCLUDED.ctr,
+              price_median=EXCLUDED.price_median,
+              cpc_dynamic=EXCLUDED.cpc_dynamic,
+              ppv=EXCLUDED.ppv,
+              ecmp=EXCLUDED.ecmp,
+              payout_day=EXCLUDED.payout_day,
+              created_at=NOW();
+        """
+    )
+
+    d7_end = target_day - timedelta(days=1)
+    d7_start = target_day - timedelta(days=7)
+
+    db.session.execute(
+        sql,
+        {
+            'tz': tz_name,
+            'target_day': target_day,
+            'd7_start': d7_start,
+            'd7_end': d7_end,
+            'cpc_base': cpc_base,
+            'cpc_min': cpc_min,
+            'cpc_max': cpc_max,
+            'burst_factor': burst_factor,
+            'burst_cap_reduction': burst_cap_reduction,
+            'ppv_floor': ppv_floor,
+            'ppv_cap_default': ppv_cap_default,
+            'ppv_cap_newbie': ppv_cap_newbie,
+        },
+    )
+
+    # クリエイター日次上限の適用
+    db.session.execute(
+        text("""
+            UPDATE creator_daily
+            SET payout_day = LEAST(payout_day, :creator_cap)
+            WHERE day = :day
+        """),
+        {'creator_cap': creator_daily_cap, 'day': target_day},
+    )
+
+    # グローバル日次予算の適用（比例配分でスケール）
+    total = db.session.execute(
+        text("SELECT COALESCE(SUM(payout_day), 0) FROM creator_daily WHERE day = :day"),
+        {'day': target_day},
+    ).scalar() or 0
+
+    if total > 0 and total > global_daily_budget:
+        ratio = float(global_daily_budget) / float(total)
+        db.session.execute(
+            text("""
+                UPDATE creator_daily
+                SET payout_day = ROUND(payout_day * :ratio, 2),
+                    ecmp = ROUND(ppv * 1000, 2)
+                WHERE day = :day
+            """),
+            {'ratio': ratio, 'day': target_day},
+        )
+
+    db.session.commit()
+
+
+def run_monthly_wallet_close(target_month_start: date | None = None) -> None:
+    """前月の creator_daily を集計して creator_monthly / payout_ledger を更新する。"""
+    from flask import current_app
+
+    cfg = current_app.config
+    tz_name = cfg.get('WALLET_TZ', 'Asia/Tokyo')
+
+    now_jst = datetime.now(JST).date()
+    if target_month_start is None:
+        # 基本は前月
+        this_month = _month_start(now_jst)
+        target_month_start = _month_start(this_month - timedelta(days=1))
+
+    next_month = _next_month_start(target_month_start)
+
+    sql_monthly = text(
+        """
+        WITH m AS (
+          SELECT date_trunc('month', day)::date AS month, user_id,
+                 SUM(pv) AS pv, SUM(clicks) AS clicks, SUM(payout_day) AS payout_month
+          FROM creator_daily
+          WHERE day >= :m_start AND day < :m_next
+          GROUP BY 1,2
+        )
+        INSERT INTO creator_monthly AS cm (month, user_id, pv, clicks, payout_month, closed_at)
+        SELECT month, user_id, pv, clicks, payout_month, NOW()
+        FROM m
+        ON CONFLICT (month, user_id) DO UPDATE
+          SET pv=EXCLUDED.pv,
+              clicks=EXCLUDED.clicks,
+              payout_month=EXCLUDED.payout_month,
+              closed_at=NOW();
+        """
+    )
+
+    db.session.execute(sql_monthly, {'m_start': target_month_start, 'm_next': next_month, 'tz': tz_name})
+
+    # レッジャー更新
+    sql_ledger = text(
+        """
+        INSERT INTO payout_ledger (user_id, month, confirmed_amount, paid_amount, unpaid_balance, status, updated_at)
+        SELECT user_id, :m_start AS month, payout_month, 0, payout_month, 'unpaid', NOW()
+        FROM creator_monthly
+        WHERE month = :m_start
+        ON CONFLICT (user_id, month) DO UPDATE
+          SET confirmed_amount = EXCLUDED.confirmed_amount,
+              unpaid_balance = payout_ledger.unpaid_balance + EXCLUDED.confirmed_amount - payout_ledger.paid_amount,
+              updated_at = NOW();
+        """
+    )
+    db.session.execute(sql_ledger, {'m_start': target_month_start})
+    db.session.commit()

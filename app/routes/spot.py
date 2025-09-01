@@ -16,6 +16,11 @@ from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url
 from sqlalchemy.orm import joinedload
 from app.services.google_photos import get_google_photos_by_place_id
 from app.services.google_places import get_place_review_summary
+from app.models.spot_provider_id import SpotProviderId
+from app.services.dataforseo import search_hotels as dfs_search_hotels
+from app.utils.rakuten_api import search_hotel as rakuten_search
+from app.services.rakuten_travel import fetch_detail_by_hotel_no as rakuten_fetch_detail
+from app.services.rakuten_travel import simple_hotel_search_by_geo as rakuten_simple_geo
 
 bp = Blueprint('spot', __name__)
 
@@ -62,66 +67,14 @@ def _update_social_links(spot_id, form_data):
             db.session.delete(existing_post)
 
 def _update_other_links(spot_id, form_data):
-    """任意追加された「その他のリンク」を更新するヘルパー関数"""
-    # フォームから送信されたリンクを解析
-    submitted_links = []
-    index = 0
-    while True:
-        title_key = f'other_links[{index}][title]'
-        url_key = f'other_links[{index}][url]'
-        if title_key not in form_data and url_key not in form_data:
-            break
-
-        link_id_str = form_data.get(f'other_links[{index}][id]')
-        title = form_data.get(title_key, '').strip()
-        url = form_data.get(url_key, '').strip()
-        
-        # IDを整数に変換（'null'や空文字の場合も考慮）
-        link_id = int(link_id_str) if link_id_str and link_id_str != 'null' else None
-        
-        submitted_links.append({'id': link_id, 'title': title, 'url': url})
-        index += 1
-
-    # 既存のカスタムリンクを取得
-    existing_links = AffiliateLink.query.filter_by(spot_id=spot_id, platform='custom').all()
-    existing_link_map = {link.id: link for link in existing_links}
-    
-    submitted_ids = set()
-
-    # 送信されたリンクを処理 (更新または追加)
-    for link_data in submitted_links:
-        link_id = link_data.get('id')
-        title = link_data.get('title')
-        url = link_data.get('url')
-
-        if not title or not url:
-            continue
-
-        if link_id and link_id in existing_link_map:
-            # 既存リンクを更新
-            link_to_update = existing_link_map[link_id]
-            link_to_update.title = title
-            link_to_update.url = url
-            submitted_ids.add(link_id)
-        else:
-            # 新規リンクを追加
-            new_link = AffiliateLink(
-                spot_id=spot_id,
-                platform='custom',
-                title=title,
-                url=url,
-                description='外部サイトで詳細を確認 (PRを含む)',
-                icon_key='link', # 汎用アイコンキー
-                is_active=True
-            )
-            db.session.add(new_link)
-
-    # フォームから削除されたリンクをDBから削除
-    for link_id, link in existing_link_map.items():
-        if link_id not in submitted_ids:
-            # フォームに存在しなかった既存のリンクは削除
-            if not any(sl['id'] is None and sl['title'] == link.title and sl['url'] == link.url for sl in submitted_links):
-                 db.session.delete(link)
+    """任意リンクをSpotの単一フィールドへ保存する（新仕様）"""
+    title = (form_data.get('other_link_title') or '').strip()
+    url = (form_data.get('other_link_url') or '').strip()
+    spot = Spot.query.get(spot_id)
+    if not spot:
+        return
+    spot.custom_link_title = title if title else None
+    spot.custom_link_url = url if url else None
 
 @bp.route('/add-spot', methods=['GET', 'POST'])
 @login_required
@@ -175,6 +128,171 @@ def add_spot():
         )
         db.session.add(spot)
         db.session.flush()  # IDを確定するためにflush
+
+        # DataForSEO: 宿泊系のみ・100m以内のときだけhotel_identifierを保存
+        try:
+            # 1) 宿泊系判定: spot.category / spot.types から判断
+            def is_lodging_category(cat: str) -> bool:
+                if not cat:
+                    return False
+                cat_l = cat.lower()
+                keywords = ['hotel', 'hostel', 'inn', 'ryokan', 'lodging', '旅館', 'ホテル']
+                return any(k in cat_l for k in ['hotel','hostel','inn','lodging']) or any(k in cat for k in ['旅館','ホテル'])
+
+            lodging_ok = False
+            if spot.category and is_lodging_category(spot.category):
+                lodging_ok = True
+            else:
+                # types はJSON文字列またはカンマ区切りの可能性
+                tval = spot.types
+                try:
+                    import json as _json
+                    types_list = _json.loads(tval) if tval else []
+                except Exception:
+                    types_list = [s.strip() for s in tval.split(',')] if tval else []
+                for t in types_list:
+                    if is_lodging_category(str(t)):
+                        lodging_ok = True
+                        break
+
+            if not lodging_ok:
+                raise Exception('not lodging category')
+
+            keyword = spot.name
+            location_name = current_app.config.get('DATAFORSEO_DEFAULT_LOCATION', 'Japan')
+            language_code = current_app.config.get('DATAFORSEO_DEFAULT_LANGUAGE', 'ja')
+            items = dfs_search_hotels(
+                keyword=keyword,
+                location_name=location_name,
+                language_code=language_code,
+                currency=current_app.config.get('AGODA_CURRENCY', 'JPY'),
+                adults=2,
+            )
+            chosen = None
+            best_dist_m = None
+            if items and spot.latitude and spot.longitude:
+                import math
+                def haversine_m(lat1, lon1, lat2, lon2):
+                    R = 6371000.0
+                    phi1 = math.radians(lat1)
+                    phi2 = math.radians(lat2)
+                    dphi = math.radians((lat2 - lat1))
+                    dlambda = math.radians((lon2 - lon1))
+                    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                    return R * c
+                for it in items:
+                    loc = (it.get('location') or {})
+                    lat = loc.get('latitude')
+                    lng = loc.get('longitude')
+                    if lat is None or lng is None:
+                        continue
+                    d_m = haversine_m(spot.latitude, spot.longitude, float(lat), float(lng))
+                    if best_dist_m is None or d_m < best_dist_m:
+                        best_dist_m = d_m
+                        chosen = it
+            # 100m以内のみ採用
+            if chosen and best_dist_m is not None and best_dist_m <= 100 and chosen.get('hotel_identifier'):
+                exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='dataforseo').first()
+                if not exists:
+                    mapping = SpotProviderId(
+                        spot_id=spot.id,
+                        provider='dataforseo',
+                        external_id=chosen['hotel_identifier']
+                    )
+                    db.session.add(mapping)
+        except Exception:
+            # 宿泊系でない、または条件不一致は黙ってスキップ
+            pass
+
+        # 楽天トラベル: 宿泊系のみ・100m以内で hotelNo を保存
+        try:
+            def is_lodging_category(cat: str) -> bool:
+                if not cat:
+                    return False
+                cat_l = cat.lower()
+                keywords = ['hotel', 'hostel', 'inn', 'ryokan', 'lodging', '旅館', 'ホテル']
+                return any(k in cat_l for k in ['hotel','hostel','inn','lodging']) or any(k in cat for k in ['旅館','ホテル'])
+
+            lodging_ok = False
+            if spot.category and is_lodging_category(spot.category):
+                lodging_ok = True
+            else:
+                tval = spot.types
+                try:
+                    import json as _json
+                    types_list = _json.loads(tval) if tval else []
+                except Exception:
+                    types_list = [s.strip() for s in tval.split(',')] if tval else []
+                for t in types_list:
+                    if is_lodging_category(str(t)):
+                        lodging_ok = True
+                        break
+            # 施設名にもホテル系キーワードが含まれていれば許可
+            if not lodging_ok and spot.name:
+                name_l = spot.name.lower()
+                if any(k in name_l for k in ['hotel','hostel','inn']) or ('ホテル' in spot.name or '旅館' in spot.name):
+                    lodging_ok = True
+
+            if not lodging_ok:
+                raise Exception('not lodging category')
+
+            hotels = []
+            # 1) 緯度経度があれば SimpleHotelSearch を優先
+            if spot.latitude and spot.longitude:
+                geo_res = rakuten_simple_geo(spot.name, float(spot.latitude), float(spot.longitude), hits=5)
+                if geo_res and isinstance(geo_res, dict):
+                    # formatVersion 2 は二重配列
+                    hotels = geo_res.get('hotels') or []
+                    # 正規化: [{'hotel':[{'hotelBasicInfo':...}]}] 形式に合わせる
+                    hotels = [ {'hotel':[h[0]]} for h in hotels if isinstance(h, list) and h ]
+            # 2) フォールバックとしてキーワード検索
+            if not hotels:
+                rakuten_res = rakuten_search(spot.name, affiliate_id=current_app.config.get('RAKUTEN_AFFILIATE_ID'), hits=3)
+                hotels = rakuten_res.get('hotels') if isinstance(rakuten_res, dict) else []
+            if not hotels:
+                raise Exception('no rakuten hotels')
+            # 距離最小（100m以内）
+            import math
+            def haversine_m(lat1, lon1, lat2, lon2):
+                R = 6371000.0
+                phi1 = math.radians(lat1)
+                phi2 = math.radians(lat2)
+                dphi = math.radians((lat2 - lat1))
+                dlambda = math.radians((lon2 - lon1))
+                a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+                c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                return R * c
+            best = None
+            best_d = None
+            for h in hotels:
+                try:
+                    basic = h['hotel'][0]['hotelBasicInfo'] if 'hotel' in h and h['hotel'] else {}
+                    hlat = basic.get('latitude')
+                    hlng = basic.get('longitude')
+                    # 緯度経度が無い場合は詳細APIで補完
+                    if (hlat is None or hlng is None) and basic.get('hotelNo'):
+                        detail = rakuten_fetch_detail(str(basic.get('hotelNo')))
+                        if detail and isinstance(detail, dict):
+                            dhs = detail.get('hotels') or []
+                            if dhs and isinstance(dhs[0], dict) and dhs[0].get('hotel'):
+                                dinfo = dhs[0]['hotel'][0].get('hotelBasicInfo', {})
+                                hlat = dinfo.get('latitude') or hlat
+                                hlng = dinfo.get('longitude') or hlng
+                    if hlat is None or hlng is None or not spot.latitude or not spot.longitude:
+                        continue
+                    d = haversine_m(float(spot.latitude), float(spot.longitude), float(hlat), float(hlng))
+                    if best_d is None or d < best_d:
+                        best_d = d
+                        best = basic
+                except Exception:
+                    continue
+            if best and best_d is not None and best_d <= 100 and best.get('hotelNo'):
+                exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='rakuten').first()
+                if not exists:
+                    db.session.add(SpotProviderId(spot_id=spot.id, provider='rakuten', external_id=str(best['hotelNo'])))
+        except Exception:
+            pass
 
         # サーバ側フォールバック: hiddenが空で、place_id があればAPIから取得
         try:
@@ -234,21 +352,7 @@ def add_spot():
                     )
                     db.session.add(photo_obj)
         
-        # --- 楽天トラベル アフィリエイトリンク処理（仕様変更のため一時停止） ---
-        # rakuten_url = request.form.get('rakuten_url', '').strip()
-        # if rakuten_url:
-        #     affiliate_link = AffiliateLink(
-        #         spot_id=spot.id,
-        #         platform='rakuten',
-        #         url=rakuten_url,
-        #         title='楽天トラベル',
-        #         description='楽天トラベルで予約 (PRを含む)',
-        #         icon_key='rakuten-travel',
-        #         is_active=True
-        #     )
-        #     db.session.add(affiliate_link)
-        #     print(f"手動で楽天トラベルリンクを追加: {rakuten_url}")
-        
+        # 旧: 手動楽天アフィリエイトリンクは廃止
 
         # SNSリンクの更新
         _update_social_links(spot.id, request.form)
@@ -260,7 +364,7 @@ def add_spot():
         flash('スポットを追加しました。', 'success')
         return redirect(url_for('profile.mypage'))
     
-    return render_template('spot_form.html', is_edit=False, rakuten_link=None, custom_links=[])
+    return render_template('spot_form.html', is_edit=False, custom_links=[])
 
 @bp.route('/edit-spot/<int:spot_id>', methods=['GET', 'POST'])
 @login_required
@@ -269,9 +373,7 @@ def edit_spot(spot_id):
     # アフィリエイトリンクを積極的に読み込む
     spot = Spot.query.options(joinedload(Spot.affiliate_links)).filter_by(id=spot_id, user_id=current_user.id).first_or_404()
     
-    # デバッグログの追加
-    rakuten_links = [link for link in spot.affiliate_links if link.platform == 'rakuten']
-    print(f"編集前の楽天アフィリエイトリンク: {[(link.id, link.url) for link in rakuten_links]}")
+    # 旧: 手動楽天リンクのデバッグ表示は廃止
     
     if request.method == 'POST':
         spot.name = request.form.get('spotName')
@@ -376,32 +478,7 @@ def edit_spot(spot_id):
                     )
                     db.session.add(photo_obj)
         
-        # --- 楽天トラベル アフィリエイトリンク処理（仕様変更のため一時停止） ---
-        # rakuten_url = request.form.get('rakuten_url', '').strip()
-        # existing_link = AffiliateLink.query.filter_by(
-        #     spot_id=spot.id,
-        #     platform='rakuten'
-        # ).first()
-        # if rakuten_url:
-        #     if existing_link:
-        #         existing_link.url = rakuten_url
-        #         existing_link.is_active = True
-        #         print(f"楽天トラベルリンクを更新: {rakuten_url}")
-        #     else:
-        #         new_link = AffiliateLink(
-        #             spot_id=spot.id,
-        #             platform='rakuten',
-        #             url=rakuten_url,
-        #             title='楽天トラベル',
-        #             description='楽天トラベルで予約 (PRを含む)',
-        #             icon_key='rakuten-travel',
-        #             is_active=True
-        #         )
-        #         db.session.add(new_link)
-        #         print(f"楽天トラベルリンクを新規作成: {rakuten_url}")
-        # elif existing_link:
-        #     db.session.delete(existing_link)
-        #     print(f"楽天トラベルリンクを削除: ID={existing_link.id}")
+        # 旧: 手動楽天アフィリエイトリンクの更新/削除は廃止
 
         # SNSリンクの更新
         _update_social_links(spot.id, request.form)
@@ -416,19 +493,10 @@ def edit_spot(spot_id):
     # ユーザーがアップロードした写真のみを取得（Google写真は除外）
     photos = Photo.query.filter_by(spot_id=spot_id, is_google_photo=False).all()
 
-    # 楽天アフィリエイトリンクを明示的に取得
-    rakuten_link = next((link for link in spot.affiliate_links if link.platform == 'rakuten'), None)
-
     # カスタムプラットフォームのアフィリエイトリンクを辞書形式で取得
     custom_links = [link.to_dict() for link in spot.affiliate_links if link.platform == 'custom']
 
-    # デバッグログの追加
-    if rakuten_link:
-        print(f"テンプレートに渡す楽天アフィリエイトリンク: ID={rakuten_link.id}, URL={rakuten_link.url}")
-    else:
-        print("テンプレートに渡す楽天アフィリエイトリンク: なし")
-
-    return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True, rakuten_link=rakuten_link, custom_links=custom_links)
+    return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True, custom_links=custom_links)
 
 @bp.route('/toggle-spot/<int:spot_id>')
 @login_required

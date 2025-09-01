@@ -17,16 +17,27 @@ depends_on = None
 
 
 def upgrade():
-    # ImportProgressテーブルに保存ジョブ用のカラムを追加
-    op.add_column('import_progress', sa.Column('save_job_id', sa.String(36), nullable=True))
-    op.add_column('import_progress', sa.Column('save_status', sa.String(20), nullable=True))
-    op.add_column('import_progress', sa.Column('save_result_data', sa.Text(), nullable=True))
-    op.add_column('import_progress', sa.Column('save_error_info', sa.Text(), nullable=True))
+    # ImportProgressテーブルに保存ジョブ用のカラムを追加（存在チェック付き）
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    cols = [c['name'] for c in inspector.get_columns('import_progress')]
+
+    if 'save_job_id' not in cols:
+        op.add_column('import_progress', sa.Column('save_job_id', sa.String(36), nullable=True))
+    if 'save_status' not in cols:
+        op.add_column('import_progress', sa.Column('save_status', sa.String(20), nullable=True))
+    if 'save_result_data' not in cols:
+        op.add_column('import_progress', sa.Column('save_result_data', sa.Text(), nullable=True))
+    if 'save_error_info' not in cols:
+        op.add_column('import_progress', sa.Column('save_error_info', sa.Text(), nullable=True))
 
 
 def downgrade():
     # カラムを削除
-    op.drop_column('import_progress', 'save_error_info')
-    op.drop_column('import_progress', 'save_result_data')
-    op.drop_column('import_progress', 'save_status')
-    op.drop_column('import_progress', 'save_job_id')
+    try:
+        op.drop_column('import_progress', 'save_error_info')
+        op.drop_column('import_progress', 'save_result_data')
+        op.drop_column('import_progress', 'save_status')
+        op.drop_column('import_progress', 'save_job_id')
+    except Exception:
+        pass

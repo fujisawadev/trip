@@ -26,10 +26,15 @@ class Spot(db.Model):
     summary_location = db.Column(db.Text, nullable=True)  # サマリーロケーション（国、都道府県、市区町村）
     google_maps_url = db.Column(db.Text, nullable=True)  # Google Mapsへの直接リンク
     
+    
     # レビュー関連のフィールド
     rating = db.Column(db.Float, nullable=False, default=0.0)  # 評価の平均点（1.0-5.0）
     review_count = db.Column(db.Integer, default=0, nullable=False)  # レビュー数
     review_summary = db.Column(db.Text, nullable=True)  # Googleレビューの要約テキスト
+    
+    # カスタムリンク（任意の外部サイトを1件だけ持たせる）
+    custom_link_title = db.Column(db.Text, nullable=True)
+    custom_link_url = db.Column(db.Text, nullable=True)
     
     # リレーションシップ
     photos = db.relationship('Photo', backref='spot', lazy=True, cascade='all, delete-orphan')
