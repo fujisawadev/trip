@@ -5,7 +5,7 @@ bp = Blueprint('main', __name__)
 @bp.route('/')
 def index():
     """トップページ"""
-    return render_template('public/landing.html')
+    return render_template('public/new_lp.html')
 
 @bp.errorhandler(404)
 def page_not_found(e):
