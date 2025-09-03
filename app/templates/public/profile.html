@@ -4819,7 +4819,7 @@
                     </div>
                     <div class="flex-1 space-y-4">
                       <div>
-                        <h1>{{ user.username }}</h1>
+                        <h1>{{ user.display_name or user.username }}</h1>
                       </div>
                       {% if user.bio %}
                       <div class=space-y-2>
