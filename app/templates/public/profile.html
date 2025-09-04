@@ -5149,9 +5149,40 @@
       params.set('adults', '2');
       return params;
     }
+    // 価格のクライアントキャッシュ（localStorage, TTL）
+    const PRICE_CACHE_TTL_MS = 15*60*1000; // 15分
+    function cacheKeyForPrice(spotId, params){
+      return `min_price:v1:${spotId}:${params.get('checkIn')}:${params.get('checkOut')}:${params.get('adults')}`;
+    }
+    function cacheGet(key){
+      try{
+        const raw = localStorage.getItem(key);
+        if(!raw) return null;
+        const obj = JSON.parse(raw);
+        if(!obj || !obj.expiresAt || Date.now() > obj.expiresAt){
+          localStorage.removeItem(key);
+          return null;
+        }
+        return obj.value;
+      }catch(_){ return null; }
+    }
+    function cacheSet(key, value, ttlMs){
+      try{
+        const payload = { value, expiresAt: Date.now() + (ttlMs||PRICE_CACHE_TTL_MS) };
+        localStorage.setItem(key, JSON.stringify(payload));
+      }catch(_){ /* ignore quota errors */ }
+    }
     async function fetchMinPrice(spotId){
       const params = buildDefaultParams();
       params.set('summary','1');
+      const useCache = (typeof localStorage !== 'undefined');
+      const key = useCache ? cacheKeyForPrice(spotId, params) : null;
+      if(useCache){
+        const cached = cacheGet(key);
+        if(cached !== null && cached !== undefined){
+          return cached;
+        }
+      }
       const controller = new AbortController();
       const to = setTimeout(()=>controller.abort(), 12000);
       try{
@@ -5159,6 +5190,7 @@
         const res = await fetch(`/public/api/spots/${spotId}/hotel_offers?${params.toString()}`,{ signal: controller.signal });
         console.debug('[offers] status', spotId, res.status);
         if(!res.ok){
+          if(useCache) cacheSet(key, null, PRICE_CACHE_TTL_MS);
           return null;
         }
         let data = null;
@@ -5166,13 +5198,16 @@
           data = await res.json();
         }catch(parseErr){
           console.warn('[offers] json parse error', spotId, parseErr);
+          if(useCache) cacheSet(key, null, PRICE_CACHE_TTL_MS);
           return null;
         }
         const first = data && data.min_offer ? data.min_offer : null;
-        if(!first) return null;
+        if(!first){ if(useCache) cacheSet(key, null, PRICE_CACHE_TTL_MS); return null; }
         const price = parseFloat(first.price);
-        if(!isFinite(price)) return null;
-        return { price, currency: first.currency || 'JPY', provider: first.provider || '' };
+        if(!isFinite(price)){ if(useCache) cacheSet(key, null, PRICE_CACHE_TTL_MS); return null; }
+        const out = { price, currency: first.currency || 'JPY', provider: first.provider || '' };
+        if(useCache) cacheSet(key, out, PRICE_CACHE_TTL_MS);
+        return out;
       } finally {
         clearTimeout(to);
       }

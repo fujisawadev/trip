@@ -8,7 +8,7 @@ import json
 from flask_login import current_user
 
 # 新しいサービスをインポート
-from app.services.google_photos import get_google_photos_by_place_id
+from app.services.google_photos import get_google_photos_by_place_id, get_redis_client
 from app.services.agoda import build_deeplink as build_agoda_deeplink
 from app.services.agoda import fetch_price as fetch_agoda_price_by_hotel
 from app.services.dataforseo import fetch_hotel_offers as dfs_fetch_hotel_offers
@@ -382,6 +382,57 @@ def public_spot_hotel_offers(spot_id: int):
         check_in = d1.strftime('%Y-%m-%d')
         check_out = d2.strftime('%Y-%m-%d')
 
+    # まずRedisキャッシュを確認（10分TTL想定）
+    redis_client = get_redis_client()
+
+    def build_cache_key(spot_id: int, check_in: str, check_out: str, adults: int, children: int) -> str:
+        return f"hotel_offers:v1:{spot_id}:{check_in}:{check_out}:{adults}:{children}"
+
+    def compute_min_offer(offers_list):
+        def price_value(o):
+            try:
+                return float(o['price']) if o.get('price') is not None else float('inf')
+            except Exception:
+                return float('inf')
+        if not offers_list:
+            return None
+        # 最小価格の要素を選択
+        min_idx = None
+        min_val = float('inf')
+        for idx, o in enumerate(offers_list):
+            v = price_value(o)
+            if v < min_val:
+                min_val = v
+                min_idx = idx
+        if min_idx is None or min_val == float('inf'):
+            return None
+        # 返却用のdict（キャッシュ破壊を避けコピー）
+        mo = dict(offers_list[min_idx])
+        mo['is_min_price'] = True
+        return mo
+
+    children = int(request.args.get('children', '0'))
+    cache_key = build_cache_key(spot.id, check_in, check_out, adults, children)
+
+    if redis_client:
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                try:
+                    offers_cached = json.loads(cached)
+                except Exception:
+                    offers_cached = None
+                if isinstance(offers_cached, list):
+                    # キャッシュヒット: サマリー/フルに応じて返却
+                    summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
+                    if summary:
+                        return jsonify({'min_offer': compute_min_offer(offers_cached)})
+                    else:
+                        return jsonify({'offers': offers_cached, 'min_offer': compute_min_offer(offers_cached)})
+        except Exception:
+            # キャッシュ障害時はそのまま計算へフォールバック
+            pass
+
     offers = []
 
     # DataForSEOがあれば最優先（メタサーチとして複数OTAの価格・リンクを取得）
@@ -406,21 +457,25 @@ def public_spot_hotel_offers(spot_id: int):
             offers.append(rakuten_offer)
 
     if offers:
-        # 価格が数値のものを優先し昇順ソートし、最安にマーキング
+        # 価格が数値のものを優先し昇順ソート
         def price_value(o):
             try:
                 return float(o['price']) if o.get('price') is not None else float('inf')
             except Exception:
                 return float('inf')
         offers.sort(key=price_value)
-        # 最安マーク
-        if offers and price_value(offers[0]) != float('inf'):
-            offers[0]['is_min_price'] = True
-        # 一覧向けのサマリー応答（最安のみ）
+        # キャッシュ保存（10分）
+        if redis_client:
+            try:
+                redis_client.setex(cache_key, 600, json.dumps(offers))
+            except Exception:
+                pass
+        # 応答
         summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
+        min_offer = offers[0] if offers and price_value(offers[0]) != float('inf') else None
         if summary:
-            return jsonify({'min_offer': offers[0] if offers else None})
-        return jsonify({'offers': offers, 'min_offer': offers[0] if offers else None})
+            return jsonify({'min_offer': min_offer})
+        return jsonify({'offers': offers, 'min_offer': min_offer})
 
     # Agodaフォールバック: DataForSEOマッピングが無い場合のみ
     has_agoda_mapping = SpotProviderId.query.filter_by(spot_id=spot.id, provider='agoda').first() is not None
@@ -472,12 +527,24 @@ def public_spot_hotel_offers(spot_id: int):
             'deeplink': price_info.get('deeplink') if price_info and price_info.get('deeplink') else deeplink,
             'is_min_price': False,
         }
+        # キャッシュ保存（10分）
+        if redis_client:
+            try:
+                redis_client.setex(cache_key, 600, json.dumps([offer]))
+            except Exception:
+                pass
         summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
         if summary:
             return jsonify({'min_offer': offer})
         return jsonify({'offers': [offer], 'min_offer': offer})
     else:
         # Hotellook分岐は廃止
+        # キャッシュ保存（空でも短期キャッシュしてスパイク抑止）
+        if redis_client:
+            try:
+                redis_client.setex(cache_key, 600, json.dumps([]))
+            except Exception:
+                pass
         summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
         if summary:
             return jsonify({'min_offer': None})

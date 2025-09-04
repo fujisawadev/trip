@@ -200,17 +200,17 @@ try {
       const skeleton = document.createElement('div');
       skeleton.className = 'space-y-3';
       const item = () => `
-        <div class="flex items-center justify-between p-4 border rounded-lg border-border animate-pulse">
-          <div class="flex items-center gap-3 w-1/2">
+        <div class="flex items-center p-4 border rounded-lg border-border animate-pulse gap-4">
+          <div class="flex items-center gap-3 flex-1 min-w-0">
             <div class="h-4 w-24 bg-muted rounded"></div>
             <div class="h-4 w-12 bg-muted rounded"></div>
           </div>
-          <div class="flex items-center gap-4 w-1/2 justify-end">
-            <div class="text-right">
+          <div class="flex items-center gap-4 flex-1 min-w-0 justify-end">
+            <div class="text-right flex-1 min-w-0">
               <div class="h-6 w-24 bg-muted rounded mb-2 ml-auto"></div>
               <div class="h-3 w-16 bg-muted rounded ml-auto"></div>
             </div>
-            <div class="h-9 w-24 bg-muted rounded"></div>
+            <div class="h-9 w-24 bg-muted rounded flex-shrink-0"></div>
           </div>
         </div>`;
       skeleton.innerHTML = item() + item() + item();
