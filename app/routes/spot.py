@@ -9,7 +9,6 @@ from app import db
 from app.models.user import User
 from app.models.spot import Spot
 from app.models.photo import Photo
-from app.models.affiliate_link import AffiliateLink
 from app.models.social_post import SocialPost
 from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
 from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url
@@ -370,8 +369,8 @@ def add_spot():
 @login_required
 def edit_spot(spot_id):
     """スポット編集ページ"""
-    # アフィリエイトリンクを積極的に読み込む
-    spot = Spot.query.options(joinedload(Spot.affiliate_links)).filter_by(id=spot_id, user_id=current_user.id).first_or_404()
+    # スポット本体のみを取得
+    spot = Spot.query.filter_by(id=spot_id, user_id=current_user.id).first_or_404()
     
     # 旧: 手動楽天リンクのデバッグ表示は廃止
     
@@ -493,8 +492,8 @@ def edit_spot(spot_id):
     # ユーザーがアップロードした写真のみを取得（Google写真は除外）
     photos = Photo.query.filter_by(spot_id=spot_id, is_google_photo=False).all()
 
-    # カスタムプラットフォームのアフィリエイトリンクを辞書形式で取得
-    custom_links = [link.to_dict() for link in spot.affiliate_links if link.platform == 'custom']
+    # 旧 affiliate_links は廃止。テンプレート互換のため空配列を渡す
+    custom_links = []
 
     return render_template('spot_form.html', spot=spot, photos=photos, is_edit=True, custom_links=custom_links)
 
@@ -565,7 +564,6 @@ def delete_spot(spot_id):
                     print(f"ファイル削除エラー: {str(e)}")
         
         # スポットの削除（関連するオブジェクトはcascadeで削除されるが、明示的に削除）
-        AffiliateLink.query.filter_by(spot_id=spot.id).delete()
         SocialPost.query.filter_by(spot_id=spot.id).delete()
         Photo.query.filter_by(spot_id=spot.id).delete()
 

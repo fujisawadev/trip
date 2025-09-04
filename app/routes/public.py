@@ -13,6 +13,7 @@ from app.services.agoda import build_deeplink as build_agoda_deeplink
 from app.services.agoda import fetch_price as fetch_agoda_price_by_hotel
 from app.services.dataforseo import fetch_hotel_offers as dfs_fetch_hotel_offers
 from app.services.dataforseo import normalize_offers_from_hotel_info as dfs_normalize
+from app.services.affiliates import wrap_offers
 from app.services.rakuten_travel import build_offer_from_hotel_no as rakuten_build_offer
 from app.models.spot_provider_id import SpotProviderId
 
@@ -464,6 +465,11 @@ def public_spot_hotel_offers(spot_id: int):
             except Exception:
                 return float('inf')
         offers.sort(key=price_value)
+        # アフィリエイト包み（有効時）
+        try:
+            offers = wrap_offers(offers)
+        except Exception:
+            pass
         # キャッシュ保存（10分）
         if redis_client:
             try:
@@ -527,6 +533,13 @@ def public_spot_hotel_offers(spot_id: int):
             'deeplink': price_info.get('deeplink') if price_info and price_info.get('deeplink') else deeplink,
             'is_min_price': False,
         }
+        # アフィリエイト包み（有効時）
+        try:
+            wrapped_single = wrap_offers([offer])
+            if isinstance(wrapped_single, list) and wrapped_single:
+                offer = wrapped_single[0]
+        except Exception:
+            pass
         # キャッシュ保存（10分）
         if redis_client:
             try:

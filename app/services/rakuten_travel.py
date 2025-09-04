@@ -4,6 +4,7 @@ import requests
 from flask import current_app
 
 from app.utils.rakuten_api import generate_rakuten_affiliate_url
+from app.services.affiliates import wrap_rakuten
 
 
 def _cfg(key: str, default: Optional[str] = None) -> Optional[str]:
@@ -127,7 +128,9 @@ def fetch_vacant_price_by_hotel_no(hotel_no: str, check_in: str, check_out: str,
         if not deeplink and basic_info:
             url0 = basic_info.get('hotelInformationUrl')
             if url0:
-                deeplink = generate_rakuten_affiliate_url(url0, _affiliate_id())
+                # 旧実装互換: 一旦旧関数で安全に正規化した後、楽天公式ラッパーへ
+                aff0 = generate_rakuten_affiliate_url(url0, _affiliate_id())
+                deeplink = wrap_rakuten(aff0 or url0, _affiliate_id())
 
     price = best_total if best_total is not None else best_charge
     if price is None:
@@ -138,7 +141,8 @@ def fetch_vacant_price_by_hotel_no(hotel_no: str, check_in: str, check_out: str,
             if info:
                 price = info.get('hotelMinCharge') or info.get('hotelMinChargeForStay')
                 if not deeplink and info.get('hotelInformationUrl'):
-                    deeplink = generate_rakuten_affiliate_url(info.get('hotelInformationUrl'), _affiliate_id())
+                    aff1 = generate_rakuten_affiliate_url(info.get('hotelInformationUrl'), _affiliate_id())
+                    deeplink = wrap_rakuten(aff1 or info.get('hotelInformationUrl'), _affiliate_id())
         except Exception:
             pass
 
@@ -170,7 +174,9 @@ def build_offer_from_hotel_no(hotel_no: str, check_in: str, check_out: str, adul
                 f"&f_heya_su=1&f_otona_su={max(1, int(adults or 1))}&s_id=0"
             )
             url_with_params = f"{base}?{params}"
-            return generate_rakuten_affiliate_url(url_with_params, _affiliate_id())
+            # 旧実装互換: 安全に正規化→楽天公式ラッパー
+            aff2 = generate_rakuten_affiliate_url(url_with_params, _affiliate_id())
+            return wrap_rakuten(aff2 or url_with_params, _affiliate_id())
         except Exception:
             return None
 
