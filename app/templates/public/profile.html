@@ -4724,14 +4724,15 @@
     }
   </style>
 <!-- SEO meta start -->
-<link rel="canonical" href="{{ request.url }}">
+{% set canonical_url = (url_for('profile.display_name_profile', display_name=user.display_name, _external=True) if user.display_name else url_for('public.username_profile', username=user.username, _external=True)) %}
+<link rel="canonical" href="{{ canonical_url }}">
 
 <meta property="og:site_name" content="maplink">
 <meta property="og:locale" content="ja_JP">
 <meta property="og:title" content="{{ user.display_name or user.username }} | maplink">
 <meta property="og:description" content="{{ (user.bio or (user.username ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
 <meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
-<meta property="og:url" content="{{ request.url }}">
+<meta property="og:url" content="{{ canonical_url }}">
 <meta property="og:type" content="website">
 
 <meta name="twitter:card" content="summary_large_image">
@@ -4741,6 +4742,34 @@
 
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  "about": {
+    "@type": "Person",
+    "name": "{{ user.display_name or user.username }}",
+    {% if user.profile_pic_url %}
+    "image": "{{ user.profile_pic_url }}",
+    {% endif %}
+    {% if social_accounts %}
+    "sameAs": [
+      {% set links = [] %}
+      {% if social_accounts.instagram %}{% set _ = links.append(social_accounts.instagram if social_accounts.instagram.startswith('http') else 'https://www.instagram.com/' + social_accounts.instagram.lstrip('@')) %}{% endif %}
+      {% if social_accounts.twitter %}{% set _ = links.append(social_accounts.twitter if social_accounts.twitter.startswith('http') else 'https://x.com/' + social_accounts.twitter.lstrip('@')) %}{% endif %}
+      {% if social_accounts.tiktok %}{% set _ = links.append(social_accounts.tiktok if social_accounts.tiktok.startswith('http') else 'https://www.tiktok.com/@' + social_accounts.tiktok.lstrip('@')) %}{% endif %}
+      {% if social_accounts.youtube %}{% set _ = links.append(social_accounts.youtube if social_accounts.youtube.startswith('http') else social_accounts.youtube) %}{% endif %}
+      {{ links | tojson | safe }}
+    ],
+    {% endif %}
+    {% if user.bio %}
+    "description": {{ (user.bio | striptags | truncate(200, True, '')) | tojson }}
+    {% endif %}
+  },
+  "url": "{{ canonical_url }}",
+  "inLanguage": "ja"
+}
+</script>
 <!-- SEO meta end -->
 </noscript></head>
 

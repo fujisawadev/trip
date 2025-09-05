@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, abort, jsonify, redirect, Response
 from app.models import User, Spot, Photo, SocialAccount, SocialPost
 from app import db
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func
 import requests
 import os
 import json
@@ -360,6 +361,87 @@ def user_spot_detail(displayname, spot_id):
                           social_links=social_links,
                           has_offers=has_offers)
 
+
+@public_bp.route('/robots.txt')
+def robots_txt():
+    """robots.txt の提供。サイトマップの場所を通知。"""
+    sitemap_url = url_for('public.sitemap_index', _external=True)
+    content = f"""User-agent: *
+Allow: /
+Sitemap: {sitemap_url}
+"""
+    resp = Response(content, mimetype='text/plain')
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
+
+
+@public_bp.route('/sitemap.xml')
+def sitemap_index():
+    """サイトマップインデックス。将来の分割に備え1ファイルでもインデックス経由にする。"""
+    from datetime import datetime as _dt
+    now = _dt.utcnow().replace(microsecond=0).isoformat() + 'Z'
+    users_loc = url_for('public.sitemap_users', _external=True)
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>{users_loc}</loc>
+    <lastmod>{now}</lastmod>
+  </sitemap>
+</sitemapindex>"""
+    resp = Response(xml, mimetype='application/xml')
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
+
+
+@public_bp.route('/sitemaps/users.xml')
+def sitemap_users():
+    """公開プロフィールのサイトマップ。display_name があれば優先し、なければ username。"""
+    from datetime import datetime as _dt
+    # ユーザーごとの直近更新日時（ユーザー自身 or 直近アクティブスポット）を算出
+    last_spot_subq = (
+        db.session.query(Spot.user_id.label('user_id'), func.max(Spot.updated_at).label('last_spot_updated_at'))
+        .filter(Spot.is_active.is_(True))
+        .group_by(Spot.user_id)
+        .subquery()
+    )
+
+    rows = (
+        db.session.query(User, last_spot_subq.c.last_spot_updated_at)
+        .join(last_spot_subq, User.id == last_spot_subq.c.user_id)
+        .all()
+    )
+
+    # XML生成
+    def canonical_for(user: User) -> str:
+        if getattr(user, 'display_name', None):
+            try:
+                return url_for('profile.display_name_profile', display_name=user.display_name, _external=True)
+            except Exception:
+                pass
+        return url_for('public.username_profile', username=user.username, _external=True)
+
+    url_entries = []
+    for user, last_spot_updated_at in rows:
+        try:
+            last_user = user.updated_at or _dt.utcnow()
+            lm = max(last_user, last_spot_updated_at) if last_spot_updated_at else last_user
+        except Exception:
+            lm = user.updated_at or _dt.utcnow()
+        lastmod = lm.replace(microsecond=0).isoformat() + 'Z'
+        loc = canonical_for(user)
+        url_entries.append(f"""
+  <url>
+    <loc>{loc}</loc>
+    <lastmod>{lastmod}</lastmod>
+  </url>""")
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{''.join(url_entries)}
+</urlset>"""
+    resp = Response(xml, mimetype='application/xml')
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
 
 @public_bp.route('/public/api/spots/<int:spot_id>/hotel_offers')
 def public_spot_hotel_offers(spot_id: int):

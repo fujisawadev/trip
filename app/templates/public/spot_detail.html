@@ -5029,7 +5029,8 @@
     }
   </style>
 <!-- SEO meta start -->
-<link rel="canonical" href="{{ request.url }}">
+{% set canonical_url = url_for('public.user_spot_detail', displayname=(user.display_name or user.username), spot_id=spot.id, _external=True) %}
+<link rel="canonical" href="{{ canonical_url }}">
 
 {% set og_image = photos[0] if photos and photos|length > 0 else url_for('static', filename='images/ogp.png', _external=True) %}
 
@@ -5038,10 +5039,38 @@
 <meta property="og:title" content="{{ spot.name }} | {{ user.display_name or user.username }} | maplink">
 <meta property="og:description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
 <meta property="og:image" content="{{ og_image }}">
-<meta property="og:url" content="{{ request.url }}">
+<meta property="og:url" content="{{ canonical_url }}">
 <meta property="og:type" content="website">
 
 <meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(160, True, '') }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Place",
+  "name": {{ spot.name | tojson }},
+  {% if spot.description %}
+  "description": {{ (spot.description | striptags | truncate(200, True, '')) | tojson }},
+  {% endif %}
+  {% if spot.latitude and spot.longitude %}
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": {{ spot.latitude }},
+    "longitude": {{ spot.longitude }}
+  },
+  {% endif %}
+  {% if spot.formatted_address or spot.location %}
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": {{ (spot.formatted_address or spot.location) | tojson }}
+  },
+  {% endif %}
+  {% if photos and photos|length > 0 %}
+  "image": {{ photos[:5] | tojson }},
+  {% endif %}
+  "url": "{{ canonical_url }}"
+}
+</script>
 <meta name="twitter:title" content="{{ spot.name }} | {{ user.display_name or user.username }} | maplink">
 <meta name="twitter:description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
 <meta name="twitter:image" content="{{ og_image }}">
