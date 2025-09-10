@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from app import db
+from app.models import StripeAccount, Withdrawal, Transfer as WithdrawalTransfer, Payout as WithdrawalPayout, PayoutLedger
+import stripe
 from app.models.user import User
 from app.models.sent_message import SentMessage
 import os
@@ -48,6 +50,106 @@ def configure_webhook(app):
         print(f"Error configuring webhook: {str(e)}")
         import traceback
         traceback.print_exc()
+
+@webhook_bp.route('/stripe', methods=['POST'])
+def stripe_events():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature', '')
+    webhook_secret = current_app.config.get('STRIPE_WEBHOOK_SECRET')
+    if not webhook_secret:
+        return jsonify({'error': 'webhook_secret_not_configured'}), 500
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=webhook_secret
+        )
+    except Exception as e:
+        return jsonify({'error': 'invalid_signature', 'message': str(e)}), 400
+
+    et = event['type']
+    data = event['data']['object']
+
+    try:
+        if et == 'account.updated':
+            acct_id = data['id']
+            acct = StripeAccount.query.filter_by(stripe_account_id=acct_id).first()
+            if acct:
+                acct.payouts_enabled = bool(data.get('payouts_enabled'))
+                acct.charges_enabled = bool(data.get('charges_enabled'))
+                acct.requirements_json = data.get('requirements')
+                acct.status = 'verified' if acct.payouts_enabled else 'restricted'
+                db.session.commit()
+
+        elif et == 'transfer.created':
+            # ここでは特に状態遷移のみ（作成後はpayout_pendingへ）
+            tr_id = data['id']
+            tr = WithdrawalTransfer.query.filter_by(stripe_transfer_id=tr_id).first()
+            if tr:
+                w = Withdrawal.query.get(tr.withdrawal_id)
+                if w and w.status == 'transferring':
+                    w.status = 'payout_pending'
+                    db.session.commit()
+
+        elif et in ['payout.paid', 'payout.failed', 'payout.canceled']:
+            po_id = data['id']
+            po = WithdrawalPayout.query.filter_by(stripe_payout_id=po_id).first()
+            if po:
+                w = Withdrawal.query.get(po.withdrawal_id)
+                if et == 'payout.paid':
+                    po.status = 'paid'
+                    po.paid_at = datetime.utcnow()
+                    if w:
+                        w.status = 'paid'
+                        # payout_ledgerを更新（当該ユーザーの最古の未払い月から消し込むシンプル版）
+                        # 注意: 厳密な月次割当は将来精緻化
+                        remain = float(w.amount)
+                        ledgers = (PayoutLedger.query
+                                   .filter_by(user_id=w.user_id)
+                                   .order_by(PayoutLedger.month.asc())
+                                   .all())
+                        for lg in ledgers:
+                            if remain <= 0:
+                                break
+                            unpaid = float(lg.unpaid_balance)
+                            if unpaid <= 0:
+                                continue
+                            pay = min(unpaid, remain)
+                            lg.paid_amount = float(lg.paid_amount) + pay
+                            lg.unpaid_balance = unpaid - pay
+                            if lg.unpaid_balance <= 0:
+                                lg.status = 'paid'
+                            else:
+                                lg.status = 'partially_paid'
+                            remain -= pay
+                    # 既存UI維持用: payout_transactionsへブリッジ（着金済みのみ）
+                    try:
+                        from app.models import PayoutTransaction
+                        if w:
+                            db.session.add(PayoutTransaction(
+                                user_id=w.user_id,
+                                requested_at=w.requested_at,
+                                paid_at=po.paid_at,
+                                amount=w.amount,
+                                method='stripe',
+                                note=f'stripe_payout_id={po.stripe_payout_id}'
+                            ))
+                    except Exception:
+                        pass
+                    db.session.commit()
+                else:
+                    po.status = 'failed' if et == 'payout.failed' else 'canceled'
+                    if w:
+                        w.status = 'failed'
+                    db.session.commit()
+
+    except Exception as e:
+        current_app.logger.error(f"Stripe webhook handling error: {str(e)}")
+        db.session.rollback()
+
+    return jsonify({'received': True})
+
 
 @webhook_bp.route('/instagram', methods=['GET', 'POST'])
 def instagram():

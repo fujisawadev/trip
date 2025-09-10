@@ -31,6 +31,17 @@
     const s = await getJSON('/api/wallet/summary');
     if (s && typeof s.withdrawable_balance !== 'undefined') {
       setText('wallet-withdrawable', fmtYen(s.withdrawable_balance));
+      // 出金ボタンの活性/非活性をサーバー情報で制御
+      try{
+        const btn = document.querySelector('button[aria-haspopup="dialog"]');
+        if (btn){
+          const min = Number(s.minimum_payout_yen||1000);
+          const enough = Number(s.withdrawable_balance||0) >= min;
+          const kyc = !!s.payouts_enabled;
+          const notOnHold = Number(s.on_hold||0) <= 0;
+          btn.disabled = !(enough && kyc && notOnHold);
+        }
+      }catch(_e){}
     }
 
     // 2) 今月の実績（ビュー/クリック/収益）
@@ -98,13 +109,37 @@
     const p = await getJSON('/api/wallet/payouts');
     renderPayouts((p && Array.isArray(p.items)) ? p.items : []);
 
-    // 5) 「お金をもらう」ボタン: 未実装案内
+    // 5) 「お金をもらう」ボタン: 全額申請を実行
     try{
       const btn = document.querySelector('button[aria-haspopup="dialog"]');
       if (btn){
-        btn.addEventListener('click', (e)=>{
+        btn.addEventListener('click', async (e)=>{
           e.preventDefault();
-          showComingSoonToast();
+          btn.disabled = true;
+          btn.dataset.loading = 'true';
+          try{
+            const res = await fetch('/api/me/withdrawals', { method: 'POST', credentials: 'same-origin' });
+            const data = await res.json().catch(()=>({}));
+            if (res.status === 202){
+              toast('出金申請を受け付けました。72時間後に処理されます。');
+              // 使えるお金を再取得して反映（on_hold差し引き）
+              const s2 = await getJSON('/api/wallet/summary');
+              if (s2 && typeof s2.withdrawable_balance !== 'undefined') {
+                setText('wallet-withdrawable', fmtYen(s2.withdrawable_balance));
+              }
+            } else if (res.status === 400 && data && data.error === 'below_minimum'){
+              toast(`最小出金額に達していません（最小: ¥${Number(data.minimum||0).toLocaleString()}）。`);
+            } else if (res.status === 409 && data && data.error === 'payouts_not_enabled'){
+              toast('受取設定（本人確認/口座）が未完了です。設定ページから完了してください。');
+            } else {
+              toast('出金申請に失敗しました。時間をおいて再度お試しください。');
+            }
+          } catch(_err){
+            toast('ネットワークエラーが発生しました。時間をおいて再度お試しください。');
+          } finally {
+            btn.disabled = false;
+            delete btn.dataset.loading;
+          }
         }, { passive:false });
       }
     }catch(_e){}
@@ -213,8 +248,7 @@
     return a;
   }
 
-  function showComingSoonToast(){
-    const msg = 'この機能は近日リリース予定です。準備が整い次第ご案内します。\nいつもご利用ありがとうございます！';
+  function toast(msg){
     try{
       // 軽量トースト
       const toast = document.createElement('div');
@@ -235,9 +269,7 @@
       document.body.appendChild(toast);
       setTimeout(()=>{ toast.style.opacity='0'; toast.style.transition='opacity .3s'; }, 2200);
       setTimeout(()=>{ toast.remove(); }, 2600);
-    }catch(_e){
-      alert(msg);
-    }
+    }catch(_e){ alert(msg); }
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();

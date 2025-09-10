@@ -29,14 +29,17 @@ class Config:
     SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # PostgreSQL固有の設定
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 15,         # 10→15に増加（基本接続プールサイズ）
-        'pool_recycle': 1800,    # 3600→1800に短縮（30分でコネクションをリサイクル）
-        'pool_timeout': 20,      # 30→20に短縮（接続待ち時間を短縮）
-        'max_overflow': 5,       # 2→5に増加（ピーク時の追加接続数）
-        'pool_pre_ping': True,   # 接続前に軽量なクエリでチェック（変更なし）
-    }
+    # エンジンオプション（SQLiteではプール関連を外す）
+    if database_url and database_url.startswith('sqlite'):
+        SQLALCHEMY_ENGINE_OPTIONS = {}
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'pool_size': 15,
+            'pool_recycle': 1800,
+            'pool_timeout': 20,
+            'max_overflow': 5,
+            'pool_pre_ping': True,
+        }
     
     # メール設定
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.sendgrid.net')
@@ -117,6 +120,14 @@ class Config:
     WALLET_CREATOR_DAILY_CAP = float(os.environ.get('WALLET_CREATOR_DAILY_CAP', '20000'))
     WALLET_BURST_FACTOR = float(os.environ.get('WALLET_BURST_FACTOR', '3.0'))
     WALLET_BURST_CAP_REDUCTION = float(os.environ.get('WALLET_BURST_CAP_REDUCTION', '0.20'))  # 20%
+
+    # Stripe/Wallet Payout 設定
+    STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+    STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+    MIN_PAYOUT_YEN = int(os.environ.get('MIN_PAYOUT_YEN', '1000'))
+    LARGE_PAYOUT_YEN = int(os.environ.get('LARGE_PAYOUT_YEN', '100000'))
+    TARGET_FLOAT_FACTOR = float(os.environ.get('TARGET_FLOAT_FACTOR', '1.3'))
+    APP_BASE_URL = os.environ.get('APP_BASE_URL', os.environ.get('BASE_URL', 'http://localhost:5000'))
     
     @staticmethod
     def init_app(app):

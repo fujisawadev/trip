@@ -9,6 +9,8 @@ import traceback
 from app import db
 from app.models import ImportProgress, User, Spot, SocialPost, ImportHistory
 from app.models import CreatorDaily, CreatorMonthly, PayoutLedger, RateOverride
+from app.models import StripeAccount, Withdrawal, Transfer as WithdrawalTransfer, Payout as WithdrawalPayout, LedgerEntry
+import stripe
 from sqlalchemy import text
 from app.models.spot_provider_id import SpotProviderId
 from app.services.dataforseo import search_hotels as dfs_search_hotels
@@ -945,6 +947,75 @@ def _next_month_start(d: date) -> date:
 
 def _month_end(d: date) -> date:
     return _next_month_start(d) - timedelta(days=1)
+def run_withdrawal_cooldown_and_transfer(now_utc: datetime | None = None) -> None:
+    """72時間経過したwithdrawalsを対象に、ガードを再評価しTransferを作成。
+    - 大型出金(pending_review)は対象外（別途承認APIで実行）
+    - Stripe自動出金を前提に、Payoutの明示作成は行わない（将来拡張）
+    """
+    if now_utc is None:
+        now_utc = datetime.utcnow()
+
+    stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+    if not stripe.api_key:
+        logger.warning("STRIPE_SECRET_KEY not set; skipping transfer batch")
+        return
+
+    targets = (Withdrawal.query
+               .filter(Withdrawal.status == 'requested')
+               .filter(Withdrawal.cooldown_until_at <= now_utc)
+               .all())
+
+    for w in targets:
+        try:
+            # KYC/要件チェック
+            acct = StripeAccount.query.filter_by(user_id=w.user_id).first()
+            if not (acct and acct.payouts_enabled and acct.requirements_json is not None):
+                logger.info(f"withdrawal {w.id}: payouts not enabled -> keep on hold")
+                continue
+
+            # Transferを作成
+            w.status = 'transferring'
+            db.session.commit()
+
+            tr = stripe.Transfer.create(
+                amount=int(round(float(w.amount))),
+                currency='jpy',
+                destination=acct.stripe_account_id,
+                description=f"withdrawal:{w.id}",
+                idempotency_key=w.idempotency_key
+            )
+
+            # DB記録
+            db.session.add(WithdrawalTransfer(
+                withdrawal_id=w.id,
+                stripe_transfer_id=tr['id'],
+                amount=w.amount,
+                status='created'
+            ))
+            w.status = 'payout_pending'
+            db.session.commit()
+
+        except Exception as e:
+            logger.error(f"withdrawal {w.id} transfer error: {e}")
+            db.session.add(WithdrawalTransfer(
+                withdrawal_id=w.id,
+                stripe_transfer_id=None,
+                amount=w.amount,
+                status='failed',
+                error_message=str(e)
+            ))
+            w.status = 'failed'
+            # on_hold戻し
+            db.session.add(LedgerEntry(
+                user_id=w.user_id,
+                entry_type='withdrawal_release',
+                amount=w.amount,
+                dr_cr='CR',
+                ref_type='withdrawal',
+                ref_id=w.id
+            ))
+            db.session.commit()
+
 
 
 def run_daily_wallet_aggregation(target_day: date | None = None) -> None:

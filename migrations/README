@@ -1,1 +1,66 @@
-Single-database configuration for Flask.
+## Alembic/Flask-Migrate 運用ガイド
+
+このプロジェクトのマイグレーション運用ルール、背景、手順をまとめます。チーム全員が必ず目を通し、遵守してください。
+
+### 目的
+- 複数ヘッド（分岐）を恒常的に発生させない
+- どの環境でも `flask db upgrade head` が安定して通る状態を維持
+
+### 基本ルール（必読）
+1) migrate 前に必ず最新へ upgrade する
+- `git pull --rebase` → `flask db upgrade head` → そこから `flask db migrate -m "..."`
+
+2) スキーマ変更は担当を1名に限定（同期間の並行作業を避ける）
+- 並行ブランチで同時に `migrate` すると分岐の原因になります
+
+3) 複数ヘッド禁止（PR前に必ず確認）
+- 確認: `flask db heads -v`
+- 2つ以上ある場合は、`flask db merge -m "merge heads" <revA> <revB>` を作成して単一ヘッドに統合し、PRに含める
+
+4) ファイル名と revision ID の一致を徹底
+- `migrations/alembic.ini` の `file_template = %%(rev)s_%%(slug)s` を有効化済み
+- 生成後にIDを手で書き換えたり、別IDのままファイル名だけ変えないこと
+
+5) 破壊的変更は idempotent（存在チェック）で書く
+- 例: 既存テーブル/列/インデックスの有無を `sa.inspect()` で確認してから作成/削除
+
+6) モデル定義の変更を忘れずに反映
+- モデルとマイグレーションの不一致は将来の自動生成に悪影響
+
+### 背景（なぜ複数ヘッドが起きるのか）
+- 並行ブランチがそれぞれ `head` を親に新リビジョンを作ると、マージ時に別枝の先頭が複数残ります
+- さらにマージ統合（merge migration）を作成せずに先へ進むと、分岐が恒常化します
+- ファイル名と `revision` ヘッダー不一致も履歴参照を壊す代表例
+
+### 典型フロー
+- スキーマ変更を入れるとき
+  1. `git pull --rebase`
+  2. `flask db upgrade head`
+  3. 変更を実装 → `flask db migrate -m "<説明>"`
+  4. `flask db upgrade head`
+  5. `flask db heads -v` で単一ヘッドを確認
+
+- 複数ヘッドが発生しているとき
+  1. `flask db heads -v` で全ヘッドを確認
+  2. `flask db merge -m "merge heads" <revA> <revB>` を作成
+  3. `flask db upgrade head` で統合を適用
+
+### よく使うコマンド
+- 現在の適用位置: `flask db current -v`
+- 履歴: `flask db history`
+- ヘッド確認: `flask db heads -v`
+- 適用: `flask db upgrade head`
+- 初期化テスト: `flask db downgrade base && flask db upgrade head`
+
+### 環境変数と接続
+- アプリ起動時に `.env` を自動読込します（`DATABASE_URL` を記述）
+- 例: `DATABASE_URL=postgresql://air@localhost:5432/trip_db`
+
+### 落とし穴
+- リビジョンIDを手で変更／ファイル名とヘッダーの不一致
+- ローカルで `upgrade` 未適用のままマイグレーションをコミット
+- DB差異（SQLite と PostgreSQL）を前提にしない DDL
+
+### いまの状態（整流後）
+- 現在は単一ヘッドへ統合済み。`flask db upgrade head` が通る想定です
+

@@ -16,6 +16,7 @@ import hmac
 import json
 import traceback
 from app.services.google_photos import get_google_photos_by_place_id
+import stripe
 
 bp = Blueprint('profile', __name__)
 
@@ -224,6 +225,147 @@ def edit_profile():
 def settings():
     """設定ページ"""
     return render_template('settings.html')
+
+@bp.route('/settings/stripe')
+@login_required
+def stripe_settings():
+    """受取設定（Stripe）ページ"""
+    from app.models import StripeAccount
+    acct = StripeAccount.query.filter_by(user_id=current_user.id).first()
+    has_account = bool(acct)
+    payouts_enabled = bool(acct.payouts_enabled) if acct else False
+    requirements = (acct.requirements_json or {}) if acct else {}
+    currently_due = requirements.get('currently_due') or []
+    past_due = requirements.get('past_due') or []
+    needs_action = has_account and not payouts_enabled and (bool(currently_due) or bool(past_due))
+    pending = has_account and not payouts_enabled and not needs_action
+
+    return render_template(
+        'stripe_settings.html',
+        acct=acct,
+        has_account=has_account,
+        payouts_enabled=payouts_enabled,
+        needs_action=needs_action,
+        pending=pending,
+    )
+
+@bp.route('/settings/stripe/create_or_link', methods=['POST'])
+@login_required
+def stripe_create_or_link():
+    """Stripeアカウントを作成し、オンボーディングリンクを発行（既存なら継続リンク）。"""
+    try:
+        from app.models import StripeAccount
+        stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
+        if not stripe.api_key:
+            flash('Stripeの設定が未構成です（STRIPE_SECRET_KEY）', 'danger')
+            return redirect(url_for('profile.stripe_settings'))
+
+        acct = StripeAccount.query.filter_by(user_id=current_user.id).first()
+        if not acct:
+            acc = stripe.Account.create(type='express')
+            acct = StripeAccount(
+                user_id=current_user.id,
+                stripe_account_id=acc['id'],
+                status='created',
+                payouts_enabled=bool(acc.get('payouts_enabled')),
+                charges_enabled=bool(acc.get('charges_enabled')),
+                requirements_json=acc.get('requirements')
+            )
+            db.session.add(acct)
+            db.session.commit()
+        else:
+            # 最新状態を反映
+            acc = stripe.Account.retrieve(acct.stripe_account_id)
+            acct.payouts_enabled = bool(acc.get('payouts_enabled'))
+            acct.charges_enabled = bool(acc.get('charges_enabled'))
+            acct.requirements_json = acc.get('requirements')
+            acct.status = 'verified' if acct.payouts_enabled else 'restricted'
+            db.session.commit()
+
+        # リンク作成
+        refresh_url = url_for('profile.stripe_return', _external=True)
+        return_url = url_for('profile.stripe_return', _external=True)
+        link = stripe.AccountLink.create(
+            account=acct.stripe_account_id,
+            refresh_url=refresh_url,
+            return_url=return_url,
+            type='account_onboarding'
+        )
+        return redirect(link['url'])
+    except Exception as e:
+        current_app.logger.error(f"Stripe onboarding error: {e}")
+        flash('Stripeオンボーディングリンクの発行に失敗しました。', 'danger')
+        return redirect(url_for('profile.stripe_settings'))
+
+@bp.route('/settings/stripe/refresh', methods=['POST'])
+@login_required
+def stripe_refresh_link():
+    try:
+        from app.models import StripeAccount
+        stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
+        acct = StripeAccount.query.filter_by(user_id=current_user.id).first()
+        if not (acct and acct.stripe_account_id):
+            flash('先にアカウント作成が必要です。', 'warning')
+            return redirect(url_for('profile.stripe_settings'))
+        refresh_url = url_for('profile.stripe_return', _external=True)
+        return_url = url_for('profile.stripe_return', _external=True)
+        link = stripe.AccountLink.create(
+            account=acct.stripe_account_id,
+            refresh_url=refresh_url,
+            return_url=return_url,
+            type='account_onboarding'
+        )
+        return redirect(link['url'])
+    except Exception as e:
+        current_app.logger.error(f"Stripe link refresh error: {e}")
+        flash('リンク再発行に失敗しました。', 'danger')
+        return redirect(url_for('profile.stripe_settings'))
+
+@bp.route('/settings/stripe/return')
+@login_required
+def stripe_return():
+    """オンボーディング後の戻り先。最新の状態を取得して保存。"""
+    try:
+        from app.models import StripeAccount
+        stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
+        acct = StripeAccount.query.filter_by(user_id=current_user.id).first()
+        if acct and acct.stripe_account_id:
+            acc = stripe.Account.retrieve(acct.stripe_account_id)
+            acct.payouts_enabled = bool(acc.get('payouts_enabled'))
+            acct.charges_enabled = bool(acc.get('charges_enabled'))
+            acct.requirements_json = acc.get('requirements')
+            acct.status = 'verified' if acct.payouts_enabled else 'restricted'
+            db.session.commit()
+            flash('受取設定の状態を更新しました。', 'success')
+        else:
+            flash('アカウント情報が見つかりません。', 'warning')
+    except Exception as e:
+        current_app.logger.error(f"Stripe return error: {e}")
+        flash('受取設定の更新に失敗しました。', 'danger')
+    return redirect(url_for('profile.stripe_settings'))
+
+@bp.route('/settings/stripe/dashboard', methods=['POST'])
+@login_required
+def stripe_dashboard():
+    """Stripe Expressダッシュボードへのログインリンクを発行して遷移。口座・本人確認の変更用。"""
+    try:
+        from app.models import StripeAccount
+        stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
+        if not stripe.api_key:
+            flash('Stripeの設定が未構成です（STRIPE_SECRET_KEY）', 'danger')
+            return redirect(url_for('profile.stripe_settings'))
+
+        acct = StripeAccount.query.filter_by(user_id=current_user.id).first()
+        if not (acct and acct.stripe_account_id):
+            flash('先にアカウント作成が必要です。', 'warning')
+            return redirect(url_for('profile.stripe_settings'))
+
+        login_link = stripe.Account.create_login_link(acct.stripe_account_id)
+        return redirect(login_link['url'])
+    except Exception as e:
+        current_app.logger.error(f"Stripe dashboard link error: {e}")
+        flash('ダッシュボードへのリンク作成に失敗しました。', 'danger')
+        return redirect(url_for('profile.stripe_settings'))
 
 @bp.route('/settings/account')
 @login_required
@@ -1468,24 +1610,7 @@ def display_name_map(display_name):
     # 旧 new_map.html は廃止: プロフィールにリダイレクト
     return redirect(url_for('public.username_profile', username=user.username))
 
-@bp.route('/settings/affiliate')
-@login_required
-def affiliate_settings():
-    """アフィリエイト設定ページ"""
-    return render_template('affiliate_settings.html')
-
-@bp.route('/settings/affiliate', methods=['POST'])
-@login_required
-def update_affiliate_settings():
-    """アフィリエイト設定の更新"""
-    rakuten_affiliate_id = request.form.get('rakuten_affiliate_id', '').strip()
-    
-    # 更新して保存
-    current_user.rakuten_affiliate_id = rakuten_affiliate_id
-    db.session.commit()
-    
-    flash('アフィリエイト設定を保存しました', 'success')
-    return redirect(url_for('profile.affiliate_settings'))
+## アフィリエイト設定機能は廃止しました
 
 # ページのWebhookフィールドサブスクリプションを解除する
 def unsubscribe_page_webhook(page_id, page_access_token):

@@ -114,4 +114,5 @@ WTForms==3.2.1
 xxhash==3.5.0
 yarl==1.20.0
 zstandard==0.23.0
+stripe==10.11.0
 sentry-sdk[flask]

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex">
+    <title>口座・本人確認設定 | maplink</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background-color: white;
+        min-height: 100vh;
+      }
+      .page-container {
+        background-color: #f8fafc; /* slate-50 */
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="mx-auto w-full max-w-[480px]">
+      <div class="overflow-hidden w-full bg-slate-50 h-full page-container">
+        <nav class="flex justify-between items-center px-4 pt-5 pb-3 w-full bg-slate-50">
+          <a href="{{ url_for('profile.settings') }}" class="flex items-center self-stretch my-auto w-12 min-h-12" aria-label="戻る">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+          <h1 class="absolute left-0 right-0 mx-auto text-center text-lg font-bold text-neutral-900 w-full pointer-events-none">口座・本人確認設定</h1>
+          <div class="w-12"></div>
+        </nav>
+
+      <section class="px-4 py-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="space-y-2 mb-3">
+              {% for category, message in messages %}
+                <div class="text-sm px-3 py-2 rounded-xl {{ 'bg-emerald-50 text-emerald-700' if category=='success' else ('bg-amber-50 text-amber-700' if category=='warning' else ('bg-red-50 text-red-700' if category=='danger' else 'bg-slate-100 text-slate-700')) }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <div class="bg-white rounded-2xl p-4 shadow border">
+          <h2 class="font-bold text-base mb-2">受取アカウントの状態</h2>
+          <div class="text-sm text-slate-600 mb-4">
+            {% if acct %}
+            アカウントID: <code>{{ acct.stripe_account_id }}</code><br>
+            状態: 
+            {% if acct.payouts_enabled %}
+              <span class="font-medium text-emerald-700">手続き完了</span>
+            {% elif acct.status == 'restricted' %}
+              <span class="font-medium text-amber-700">手続きが必要</span>
+            {% else %}
+              <span class="font-medium text-slate-700">手続き中</span>
+            {% endif %}
+            <br>
+            収益の受け取り: 
+            {% if acct.payouts_enabled %}
+              <span class="font-medium text-emerald-700">有効</span>
+            {% else %}
+              <span class="font-medium text-slate-700">無効</span>
+            {% endif %}
+            {% else %}
+            まだStripeアカウントが作成されていません。
+            {% endif %}
+          </div>
+
+          <div class="space-y-2">
+            {# 完了: ダッシュボードのみ #}
+            {% if payouts_enabled %}
+              <form method="post" action="{{ url_for('profile.stripe_dashboard') }}">
+                <button class="w-full h-10 rounded-xl bg-white border text-sm font-medium">Stripeダッシュボードを開く（口座情報の変更）</button>
+                <p class="mt-1 text-xs text-slate-500">登録済みの口座や本人確認情報の更新・確認を行えます。</p>
+              </form>
+
+            {# 未作成: はじめる #}
+            {% elif not has_account %}
+              <form method="post" action="{{ url_for('profile.stripe_create_or_link') }}">
+                <button class="w-full h-10 rounded-xl bg-emerald-600 text-white text-sm font-medium">手続きをはじめる（本人確認・口座登録）</button>
+                <p class="mt-1 text-xs text-slate-500">本人確認と口座登録の手続きを開始します。Stripeアカウントを自動作成します。</p>
+              </form>
+
+            {# 不足項目あり: 続きをする + 再発行 #}
+            {% elif needs_action %}
+              <form method="post" action="{{ url_for('profile.stripe_create_or_link') }}">
+                <button class="w-full h-10 rounded-xl bg-emerald-600 text-white text-sm font-medium">手続きを続ける（不足項目の入力）</button>
+                <p class="mt-1 text-xs text-slate-500">不足している情報の入力を完了してください。</p>
+              </form>
+              <form method="post" action="{{ url_for('profile.stripe_refresh_link') }}">
+                <button class="w-full h-10 rounded-xl bg-white border text-sm font-medium">手続きリンクを再発行（期限切れ・閉じた場合）</button>
+                <p class="mt-1 text-xs text-slate-500">リンクが開けない・期限切れの場合に、新しいリンクを発行します。</p>
+              </form>
+
+            {# 審査中: ダッシュボードのみ #}
+            {% elif pending %}
+              <form method="post" action="{{ url_for('profile.stripe_dashboard') }}">
+                <button class="w-full h-10 rounded-xl bg-white border text-sm font-medium">Stripeダッシュボードを開く（編集・確認）</button>
+                <p class="mt-1 text-xs text-slate-500">提出済みの内容を確認・更新できます。</p>
+              </form>
+            {% endif %}
+          </div>
+
+          <div class="mt-3 text-xs text-slate-500 leading-relaxed">
+            {% if payouts_enabled %}
+              <p class="mb-1">出金の受け取りは有効です。登録済みの口座に振込が行われます。</p>
+              <p>口座・本人確認情報の変更は「Stripeダッシュボードを開く」から行えます。Stripeから追加確認の案内が来た場合も、ダッシュボードで手続きを進めてください。</p>
+            {% elif not has_account %}
+              <p class="mb-1">出金を受け取るには「本人確認」と「口座登録」が必要です。</p>
+            {% elif needs_action %}
+              <p class="mb-1">不足している情報の入力を完了してください。必要項目の入力が終わると審査に進みます。</p>
+              <p>リンクが開けない・期限切れの場合は「手続きリンクを再発行」を押してください。</p>
+            {% elif pending %}
+              <div class="mt-2 p-3 rounded-lg bg-amber-50 text-amber-800">
+                本人確認の審査中です。審査には数分〜数日かかる場合があります。完了するとStripeからメール通知が届き、出金が有効になります。
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        
+      </section>
+      </div>
+    </main>
+  </body>
+  </html>
+
+

@@ -1,3 +1,99 @@
+from flask import Blueprint, jsonify, current_app
+from flask_login import current_user, login_required
+from app import db
+from app.models import StripeAccount, Withdrawal, PayoutLedger, LedgerEntry
+from datetime import datetime, timedelta, timezone
+import uuid
+
+# 先にブループリントを定義（以降のデコレータ参照のため）
+api_bp = Blueprint('api_routes', __name__, url_prefix='/api')
+
+@api_bp.route('/me/withdrawals', methods=['POST'])
+@login_required
+def request_withdrawal_full_amount():
+    """おさいふの出金可能額を全額で申請。72時間クールダウンを設定。"""
+    user_id = current_user.id
+
+    # KYC/受取設定チェック
+    acct = StripeAccount.query.filter_by(user_id=user_id).first()
+    if not (acct and acct.payouts_enabled and acct.requirements_json is not None):
+        return jsonify({'error': 'payouts_not_enabled'}), 409
+
+    # 出金可能額（前月まで未払い − on_hold）
+    JST = timezone(timedelta(hours=9))
+    today_jst = datetime.now(JST).date()
+    this_month = _month_start(today_jst)
+
+    unpaid = db.session.query(db.func.coalesce(db.func.sum(PayoutLedger.unpaid_balance), 0)) \
+        .filter(PayoutLedger.user_id == user_id) \
+        .filter(PayoutLedger.month < this_month) \
+        .scalar() or 0
+
+    hold_statuses = ['requested', 'pending_review', 'approved', 'transferring', 'payout_pending']
+    on_hold = db.session.query(db.func.coalesce(db.func.sum(Withdrawal.amount), 0)) \
+        .filter(Withdrawal.user_id == user_id) \
+        .filter(Withdrawal.status.in_(hold_statuses)) \
+        .scalar() or 0
+
+    amount = float(unpaid) - float(on_hold)
+    if amount < 0:
+        amount = 0
+
+    # 最小額チェック
+    min_payout = current_app.config.get('MIN_PAYOUT_YEN', 1000)
+    if amount < min_payout:
+        return jsonify({'error': 'below_minimum', 'minimum': min_payout}), 400
+
+    # 大型出金は審査キュー
+    large_threshold = current_app.config.get('LARGE_PAYOUT_YEN', 100000)
+    review_required = amount >= large_threshold
+
+    # クールダウン72h
+    cooldown_until = datetime.utcnow() + timedelta(hours=72)
+
+    w = Withdrawal(
+        user_id=user_id,
+        amount=amount,
+        status='pending_review' if review_required else 'requested',
+        review_required=review_required,
+        cooldown_until_at=cooldown_until,
+        idempotency_key=f"payout:{user_id}:{datetime.utcnow().strftime('%Y%m%d')}:{uuid.uuid4().hex[:8]}"
+    )
+    db.session.add(w)
+
+    # on_hold仕訳
+    db.session.add(LedgerEntry(
+        user_id=user_id,
+        entry_type='withdrawal_hold',
+        amount=amount,
+        dr_cr='DR',
+        ref_type='withdrawal',
+        ref_id=None
+    ))
+
+    db.session.commit()
+    return jsonify({'withdrawal_id': w.id, 'status': w.status, 'cooldown_until_at': cooldown_until.isoformat()}), 202
+
+
+@api_bp.route('/me/withdrawals', methods=['GET'])
+@login_required
+def list_withdrawals():
+    user_id = current_user.id
+    items = (Withdrawal.query
+             .filter_by(user_id=user_id)
+             .order_by(Withdrawal.requested_at.desc())
+             .limit(50)
+             .all())
+    resp = []
+    for it in items:
+        resp.append({
+            'id': it.id,
+            'amount': float(it.amount),
+            'status': it.status,
+            'requested_at': it.requested_at.isoformat() if it.requested_at else None,
+            'cooldown_until_at': it.cooldown_until_at.isoformat() if it.cooldown_until_at else None,
+        })
+    return jsonify({'items': resp})
 import os
 import json
 import requests
@@ -5,6 +101,8 @@ import logging
 from flask import jsonify, request, abort, Blueprint, current_app, redirect
 from app.models import Spot, Photo, SocialPost, ImportHistory, ImportProgress, User
 from app.models import CreatorDaily, CreatorMonthly, PayoutLedger, PayoutTransaction
+from app.models import StripeAccount, Withdrawal, Transfer as WithdrawalTransfer, Payout as WithdrawalPayout, LedgerEntry
+import stripe
 from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required
 from sqlalchemy import distinct
@@ -18,9 +116,8 @@ from rq import Queue
 from redis import Redis
 from app.tasks import fetch_and_analyze_posts, save_spots_async
 import uuid
-
-# API用のブループリントを直接作成
-api_bp = Blueprint('api_routes', __name__, url_prefix='/api')
+ 
+ 
 
 # Google Places API Key
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
@@ -31,6 +128,71 @@ if not GOOGLE_MAPS_API_KEY:
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 if not OPENAI_API_KEY:
     print("Warning: OPENAI_API_KEY environment variable is not set. AI features will not work.")
+
+# Stripe setup
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
+else:
+    print("Warning: STRIPE_SECRET_KEY is not set. Payout features will not work.")
+
+
+@api_bp.route('/me/payout-settings/link', methods=['POST'])
+@login_required
+def create_payout_onboarding_link():
+    """Stripe Connect ExpressのHosted Onboardingリンクを発行（なければアカウント作成）。"""
+    if not STRIPE_SECRET_KEY:
+        return jsonify({ 'error': 'stripe_not_configured' }), 500
+
+    user = current_user
+
+    acct = StripeAccount.query.filter_by(user_id=user.id).first()
+    if not acct:
+        # アカウントを作成
+        try:
+            created = stripe.Account.create(type='express', country='JP')
+        except Exception as e:
+            return jsonify({ 'error': 'stripe_error', 'message': str(e) }), 502
+
+        acct = StripeAccount(
+            user_id=user.id,
+            stripe_account_id=created['id'],
+            status='created',
+            payouts_enabled=bool(created.get('payouts_enabled')),
+            charges_enabled=bool(created.get('charges_enabled')),
+            requirements_json=created.get('requirements')
+        )
+        db.session.add(acct)
+        db.session.commit()
+
+    # リンクを生成
+    base_url = current_app.config.get('APP_BASE_URL') or request.host_url.rstrip('/')
+    try:
+        link = stripe.AccountLink.create(
+            account=acct.stripe_account_id,
+            type='account_onboarding',
+            refresh_url=f"{base_url}/settings/monetization",
+            return_url=f"{base_url}/settings/monetization"
+        )
+        return jsonify({ 'url': link['url'] })
+    except Exception as e:
+        return jsonify({ 'error': 'stripe_error', 'message': str(e) }), 502
+
+
+@api_bp.route('/me/payout-settings/status', methods=['GET'])
+@login_required
+def get_payout_status():
+    """ユーザーの受取設定（KYC/要件）ステータスを返す。"""
+    acct = StripeAccount.query.filter_by(user_id=current_user.id).first()
+    if not acct:
+        return jsonify({ 'has_account': False, 'payouts_enabled': False, 'charges_enabled': False, 'requirements': None })
+    return jsonify({
+        'has_account': True,
+        'payouts_enabled': bool(acct.payouts_enabled),
+        'charges_enabled': bool(acct.charges_enabled),
+        'requirements': acct.requirements_json,
+        'stripe_account_id': acct.stripe_account_id
+    })
 
 def handle_instagram_api_error(response_text, status_code=None):
     """Instagram APIエラーを分析してユーザーフレンドリーなメッセージに変換"""
@@ -693,6 +855,21 @@ def wallet_summary():
         .filter(PayoutLedger.month < this_month) \
         .scalar() or 0
 
+    # on_hold: 申請中・処理中の拘束額（重複申請防止のため差し引く）
+    hold_statuses = ['requested', 'pending_review', 'approved', 'transferring', 'payout_pending']
+    on_hold = db.session.query(db.func.coalesce(db.func.sum(Withdrawal.amount), 0)) \
+        .filter(Withdrawal.user_id == user_id) \
+        .filter(Withdrawal.status.in_(hold_statuses)) \
+        .scalar() or 0
+
+    withdrawable = float(unpaid) - float(on_hold)
+    if withdrawable < 0:
+        withdrawable = 0
+
+    # 受取可フラグ（KYC/口座完了判定）
+    acct = StripeAccount.query.filter_by(user_id=user_id).first()
+    payouts_enabled = bool(acct.payouts_enabled) if acct else False
+
     # this_month_estimated: 当月の Σ payout_day
     estimated = db.session.query(db.func.coalesce(db.func.sum(CreatorDaily.payout_day), 0)) \
         .filter(CreatorDaily.user_id == user_id) \
@@ -707,8 +884,11 @@ def wallet_summary():
     next_payout_date = nm.replace(day=last_day)
 
     return jsonify({
-        'withdrawable_balance': round(float(unpaid), 0),
+        'withdrawable_balance': round(float(withdrawable), 0),
         'this_month_estimated': round(float(estimated), 0),
+        'minimum_payout_yen': int(current_app.config.get('MIN_PAYOUT_YEN', 1000)),
+        'payouts_enabled': payouts_enabled,
+        'on_hold': round(float(on_hold), 0),
         'next_payout_date': next_payout_date.isoformat(),
         'last_closed_month': this_month.isoformat()
     })
