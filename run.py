@@ -32,6 +32,16 @@ try:
     app.cli.add_command(wallet_daily)
     app.cli.add_command(wallet_monthly)
 
+    # Stripe Transfer バッチ（72時間クールダウン経過分の引き出しを処理）
+    @click.command('wallet-transfers')
+    @with_appcontext
+    def wallet_transfers():
+        from app.tasks import run_withdrawal_cooldown_and_transfer
+        run_withdrawal_cooldown_and_transfer()
+        click.echo('wallet transfers batch done')
+
+    app.cli.add_command(wallet_transfers)
+
     # ログ設定を強化
     logging.basicConfig(level=logging.DEBUG)
     
