@@ -42,6 +42,59 @@ try:
 
     app.cli.add_command(wallet_transfers)
 
+    # Instagram 長期トークンの定期リフレッシュ（Scheduler想定）
+    @click.command('ig-refresh')
+    @click.option('--dry-run', is_flag=True, default=False, help='実更新せず対象とログだけ出す')
+    @click.option('--days', default=14, help='有効期限までの閾値（日）')
+    @with_appcontext
+    def ig_refresh(dry_run: bool, days: int):
+        from datetime import datetime, timedelta
+        from app import db
+        from app.models.user import User
+        from app.utils.instagram_helpers import (
+            refresh_user_instagram_token_if_needed,
+            validate_instagram_token,
+        )
+
+        now = datetime.utcnow()
+        horizon = now + timedelta(days=days)
+
+        users = (User.query
+                 .filter(User.instagram_token.isnot(None))
+                 .filter((User.instagram_token_expires_at == None) | (User.instagram_token_expires_at <= horizon))
+                 .all())
+
+        success_count = 0
+        failed_count = 0
+
+        for user in users:
+            if dry_run:
+                exp = user.instagram_token_expires_at.isoformat() if user.instagram_token_expires_at else 'None'
+                app.logger.info(f"[IG DRY-RUN] user={user.id} ({user.username}) expires_at={exp}")
+                continue
+
+            ok, reason = validate_instagram_token(user)
+            if not ok and reason in ['invalid', 'expired', 'no_token']:
+                # 無効/期限切れはUIで再連携を促せるようにクリア
+                app.logger.info(f"[IG] invalid token -> clear fields user={user.id} reason={reason}")
+                user.instagram_token = None
+                user.instagram_token_expires_at = None
+                user.instagram_token_last_refreshed_at = None
+                user.instagram_connected_at = None
+                user.instagram_business_id = None
+                failed_count += 1
+                continue
+
+            if refresh_user_instagram_token_if_needed(user, threshold_days=days):
+                success_count += 1
+
+        if not dry_run:
+            db.session.commit()
+
+        click.echo(f"ig refresh done: success={success_count}, failed={failed_count}, targeted={len(users)}")
+
+    app.cli.add_command(ig_refresh)
+
     # ログ設定を強化
     logging.basicConfig(level=logging.DEBUG)
     
