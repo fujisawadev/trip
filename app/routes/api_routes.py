@@ -109,7 +109,7 @@ from sqlalchemy import distinct
 from app import db
 import re
 from datetime import datetime, timedelta
-from app.utils.instagram_helpers import extract_cursor_from_url
+from app.utils.instagram_helpers import extract_cursor_from_url, refresh_user_instagram_token_if_needed, validate_instagram_token
 from app.services.google_photos import get_google_photos_by_place_id
 from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url, select_best_hotel_with_evaluation, simple_hotel_search_for_manual, search_hotel_with_fallback
 from rq import Queue
@@ -2021,6 +2021,23 @@ def start_instagram_import():
         return jsonify({'error': 'Start date and end date are required.'}), 400
 
     try:
+        # 事前ヘルスチェック: 有効期限が近ければリフレッシュを試行
+        try:
+            user = User.query.get(user_id)
+            if user and user.instagram_token:
+                refresh_user_instagram_token_if_needed(user)
+                ok, reason = validate_instagram_token(user)
+                if not ok:
+                    # 期限切れ/無効は入口で返す（UX最適化）
+                    if reason in ['expired', 'invalid', 'no_token']:
+                        return jsonify({
+                            'success': False,
+                            'action': 'reauth_required',
+                            'action_url': '/profile/sns-settings',
+                            'error': 'Instagram連携の有効期限が切れています。SNS設定から再度連携してください。'
+                        }), 400
+        except Exception:
+            pass
         # Redis接続とキューのセットアップ（ローカル開発環境でのSSLエラーを回避）
         redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
         

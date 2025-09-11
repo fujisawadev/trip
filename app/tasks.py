@@ -13,6 +13,7 @@ from app.models import StripeAccount, Withdrawal, Transfer as WithdrawalTransfer
 import stripe
 from sqlalchemy import text
 from app.models.spot_provider_id import SpotProviderId
+from app.utils.instagram_helpers import refresh_user_instagram_token_if_needed
 from app.services.dataforseo import search_hotels as dfs_search_hotels
 from app.utils.rakuten_api import safe_decode_text, search_hotel as rakuten_search
 from app.services.rakuten_travel import fetch_detail_by_hotel_no as rakuten_fetch_detail
@@ -73,6 +74,15 @@ def fetch_and_analyze_posts(job_id, user_id, start_date_str, end_date_str):
         user = User.query.get(user_id)
         if not (user and user.instagram_token):
             raise ValueError("User not found or Instagram not connected.")
+
+        # --- 0. トークンの健全性チェック／必要ならリフレッシュ ---
+        try:
+            refreshed = refresh_user_instagram_token_if_needed(user)
+            if refreshed:
+                logger.info(f"[Job {job_id}] Instagram token refreshed for user {user_id}.")
+        except Exception as _:
+            # リフレッシュ失敗は致命ではない。後段APIで190が出たらUX対応へ
+            pass
 
         # --- 1. 全投稿を取得 ---
         check_if_cancelled()  # 投稿取得前にチェック
@@ -160,7 +170,10 @@ def _fetch_all_instagram_posts(job_id, token, start_date_str, end_date_str):
                     error_message = error_info.get('message', response.text)
                     
                     if error_code == 190:
-                        raise Exception(f"Instagram連携の有効期限が切れています。再度連携してください。 (Code: {error_code})")
+                        # 期限切れ: ジョブをUX向けの失敗状態で終了し、Sentryは送らない
+                        _update_job_status(job_id, 'failed', error_info='reauth_required: Instagram token expired or invalid (Code:190)')
+                        logger.info(f"[Job {job_id}] Token invalid/expired (190). Marked as reauth_required.")
+                        return []
                     elif error_code in [4, 17]:
                         raise Exception(f"Instagram APIの利用制限に達しました。時間をおいて再度お試しください。 (Code: {error_code})")
                     else:
@@ -709,14 +722,16 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
                                 best_dist_m = d_m
                                 chosen = it
                     if chosen and best_dist_m is not None and best_dist_m <= 100 and chosen.get('hotel_identifier'):
-                        exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='dataforseo').first()
-                        if not exists:
-                            mapping = SpotProviderId(
-                                spot_id=spot.id,
-                                provider='dataforseo',
-                                external_id=chosen['hotel_identifier']
-                            )
-                            db.session.add(mapping)
+                        if not getattr(spot, 'id', None):
+                            logger.warning(f"[SaveJob {save_job_id}] Skip DataForSEO mapping because spot.id is missing")
+                        else:
+                            exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='dataforseo').first()
+                            if not exists:
+                                db.session.add(SpotProviderId(
+                                    spot_id=spot.id,
+                                    provider='dataforseo',
+                                    external_id=chosen['hotel_identifier']
+                                ))
 
                 # review_summary のフォールバック取得
                 if spot.google_place_id and (not getattr(spot, 'review_summary', None) or not spot.review_summary):
@@ -740,7 +755,15 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
             }
             saved_spots.append(spot_info)
             db.session.add(spot)
-            db.session.flush()  # IDを取得するためのフラッシュ
+            # 先にSpotのIDを確定させる
+            try:
+                db.session.flush()
+            except Exception as e:
+                logger.error(f"[SaveJob {save_job_id}] Spot flush failed: {e}")
+                continue
+            if not getattr(spot, 'id', None):
+                logger.error(f"[SaveJob {save_job_id}] Spot ID not assigned after flush. Skipping candidate: {spot.name}")
+                continue
             logger.info(f"[SaveJob {save_job_id}] スポットID: {spot.id}")
             
             # Instagram投稿との紐付けを追加
@@ -845,9 +868,12 @@ def save_spots_async(save_job_id, user_id, spot_candidates):
                         except Exception:
                             continue
                     if best and best_d is not None and best_d <= 100 and best.get('hotelNo'):
-                        exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='rakuten').first()
-                        if not exists:
-                            db.session.add(SpotProviderId(spot_id=spot.id, provider='rakuten', external_id=str(best['hotelNo'])))
+                        if not getattr(spot, 'id', None):
+                            logger.warning(f"[SaveJob {save_job_id}] Skip Rakuten mapping because spot.id is missing")
+                        else:
+                            exists = SpotProviderId.query.filter_by(spot_id=spot.id, provider='rakuten').first()
+                            if not exists:
+                                db.session.add(SpotProviderId(spot_id=spot.id, provider='rakuten', external_id=str(best['hotelNo'])))
             except Exception:
                 pass
             # if user.rakuten_affiliate_id and spot.name:

@@ -494,6 +494,29 @@ def public_spot_hotel_offers(spot_id: int):
         mo['is_min_price'] = True
         return mo
 
+    def mark_min_flag(offers_list):
+        """与えられた offers の中で最安値に is_min_price=True を設定（非破壊）。"""
+        if not isinstance(offers_list, list) or not offers_list:
+            return offers_list
+        # 最安値のインデックスを特定
+        min_idx = None
+        min_val = float('inf')
+        for idx, o in enumerate(offers_list):
+            try:
+                v = float(o['price']) if o.get('price') is not None else float('inf')
+            except Exception:
+                v = float('inf')
+            if v < min_val:
+                min_val = v
+                min_idx = idx
+        # マークを付けて新しいリストを返す
+        out = []
+        for idx, o in enumerate(offers_list):
+            c = dict(o)
+            c['is_min_price'] = (idx == min_idx and min_val != float('inf'))
+            out.append(c)
+        return out
+
     children = int(request.args.get('children', '0'))
     cache_key = build_cache_key(spot.id, check_in, check_out, adults, children)
 
@@ -506,12 +529,18 @@ def public_spot_hotel_offers(spot_id: int):
                 except Exception:
                     offers_cached = None
                 if isinstance(offers_cached, list):
-                    # キャッシュヒット: サマリー/フルに応じて返却
+                    # キャッシュヒット: 最安値フラグを付けてから返却
+                    offers_cached_marked = mark_min_flag(offers_cached)
+                    # 可能なら更新（後続ヒットでもフラグ付きになるように）
+                    try:
+                        redis_client.setex(cache_key, 600, json.dumps(offers_cached_marked))
+                    except Exception:
+                        pass
                     summary = (request.args.get('summary') or '').lower() in ['1', 'true', 'yes']
                     if summary:
-                        return jsonify({'min_offer': compute_min_offer(offers_cached)})
+                        return jsonify({'min_offer': compute_min_offer(offers_cached_marked)})
                     else:
-                        return jsonify({'offers': offers_cached, 'min_offer': compute_min_offer(offers_cached)})
+                        return jsonify({'offers': offers_cached_marked, 'min_offer': compute_min_offer(offers_cached_marked)})
         except Exception:
             # キャッシュ障害時はそのまま計算へフォールバック
             pass
@@ -552,6 +581,8 @@ def public_spot_hotel_offers(spot_id: int):
             offers = wrap_offers(offers)
         except Exception:
             pass
+        # 最安値フラグ付与
+        offers = mark_min_flag(offers)
         # キャッシュ保存（10分）
         if redis_client:
             try:
@@ -613,7 +644,7 @@ def public_spot_hotel_offers(spot_id: int):
             'price': price_info.get('price') if price_info else None,
             'currency': price_info.get('currency') if price_info else agoda_currency,
             'deeplink': price_info.get('deeplink') if price_info and price_info.get('deeplink') else deeplink,
-            'is_min_price': False,
+            'is_min_price': True,
         }
         # アフィリエイト包み（有効時）
         try:

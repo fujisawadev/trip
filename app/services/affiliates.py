@@ -99,6 +99,23 @@ def wrap_valuecommerce(raw_url: str, sid: Optional[str], pid: Optional[str]) -> 
     return f"{base}?sid={sid}&pid={pid}&vc_url={vc_url}"
 
 
+def wrap_a8(raw_url: str, a8mat: Optional[str]) -> str:
+    """A8.net ラッパー。a8mat を使用して a8ejpredirect に生URLを渡す。
+    参考: https://px.a8.net/svt/ejp?a8mat=XXXX+YYYY+ZZZZ+WWWW&a8ejpredirect=<ENCODED_URL>
+    """
+    if not raw_url or not a8mat:
+        return raw_url
+    try:
+        parsed = urlparse(raw_url)
+        # Idempotency: 既にA8リンクならそのまま
+        if parsed.netloc.endswith("a8.net") or parsed.netloc.endswith("px.a8.net"):
+            return raw_url
+    except Exception:
+        pass
+    base = "https://px.a8.net/svt/ejp"
+    return f"{base}?a8mat={quote(a8mat, safe='')}&a8ejpredirect={quote(raw_url, safe='')}"
+
+
 def detect_platform_by_url(raw_url: str) -> Optional[str]:
     try:
         parsed = urlparse(raw_url)
@@ -114,6 +131,8 @@ def detect_platform_by_url(raw_url: str) -> Optional[str]:
             return "expedia"
         if "rakuten.co.jp" in host_l and ("hotel.travel.rakuten.co.jp" in host_l or "travel.rakuten.co.jp" in host_l):
             return "rakuten"
+        if "ikyu.com" in host_l:
+            return "ikyu"
         if "jalan.net" in host_l:
             return "jalan"
         if "travel.yahoo.co.jp" in host_l:
@@ -143,6 +162,8 @@ def apply_affiliate_wrapper(raw_url: str, provider_hint: Optional[str] = None) -
             platform = "expedia"
         elif "rakuten" in ph or "楽天" in ph:
             platform = "rakuten"
+        elif "ikyu" in ph or "一休" in ph:
+            platform = "ikyu"
         elif "jalan" in ph or "じゃらん" in ph:
             platform = "jalan"
         elif "yahoo" in ph:
@@ -156,6 +177,10 @@ def apply_affiliate_wrapper(raw_url: str, provider_hint: Optional[str] = None) -
     stay22_aid = _cfg("STAY22_AID")
     vc_sid = _cfg("VC_SID")
     vc_pid = _cfg("VC_PID")
+    # A8 per-advertiser a8mat
+    a8_ikyu = _cfg("A8_IKYU_A8MAT")
+    a8_jalan = _cfg("A8_JALAN_A8MAT")
+    a8_yahoo = _cfg("A8_YAHOO_TRAVEL_A8MAT")
 
     try:
         if platform == "booking":
@@ -166,8 +191,19 @@ def apply_affiliate_wrapper(raw_url: str, provider_hint: Optional[str] = None) -
             return wrap_expedia_creator(raw_url, expedia_creator)
         if platform == "rakuten":
             return wrap_rakuten(raw_url, rakuten_aff)
-        if platform in ("jalan", "yahoo_travel"):
-            # Apply only when credentials ready
+        if platform == "ikyu":
+            if a8_ikyu:
+                return wrap_a8(raw_url, a8_ikyu)
+            return raw_url
+        if platform == "jalan":
+            if a8_jalan:
+                return wrap_a8(raw_url, a8_jalan)
+            if vc_sid and vc_pid:
+                return wrap_valuecommerce(raw_url, vc_sid, vc_pid)
+            return raw_url
+        if platform == "yahoo_travel":
+            if a8_yahoo:
+                return wrap_a8(raw_url, a8_yahoo)
             if vc_sid and vc_pid:
                 return wrap_valuecommerce(raw_url, vc_sid, vc_pid)
             return raw_url

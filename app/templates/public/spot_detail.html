@@ -5507,39 +5507,6 @@
   <meta name=user-id content="{{ user.id }}">
   <script src="{{ url_for('static', filename='js/wallet-analytics.js') }}"></script>
   <script src="{{ url_for('static', filename='js/map-utils.js') }}"></script>
-  <script>
-    (function(){
-      const PRICE_CACHE_TTL_MS = 15*60*1000; // 15分
-      function fmtJPY(n){ try{ return new Intl.NumberFormat('ja-JP', { style:'currency', currency:'JPY', maximumFractionDigits:0 }).format(n); }catch(_){ return '¥'+Math.round(n); } }
-      function cacheGet(key){ try{ const raw=localStorage.getItem(key); if(!raw) return null; const obj=JSON.parse(raw); if(!obj||!obj.expiresAt||Date.now()>obj.expiresAt){ localStorage.removeItem(key); return null;} return obj.value; }catch(_){ return null; } }
-      function cacheSet(key, value, ttlMs){ try{ const payload={ value, expiresAt: Date.now() + (ttlMs||PRICE_CACHE_TTL_MS) }; localStorage.setItem(key, JSON.stringify(payload)); }catch(_){}}
-      function getSpotId(){ const m=document.querySelector('meta[name="spot-id"]'); return m? m.getAttribute('content'): '' }
-      function readInputs(){
-        const ciEl=document.getElementById('checkIn');
-        const coEl=document.getElementById('checkOut');
-        const adEl=document.getElementById('adults');
-        const toISO=(d)=>{ const dt=new Date(d); if(!isFinite(dt)) return ''; const y=dt.getFullYear(); const m=String(dt.getMonth()+1).padStart(2,'0'); const dd=String(dt.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; };
-        const ci=ciEl && ciEl.value ? toISO(ciEl.value) : '';
-        const co=coEl && coEl.value ? toISO(coEl.value) : '';
-        let adults=2; try{ if(adEl){ const m=(adEl.value||'').match(/\d+/); if(m) adults=parseInt(m[0],10); const dt=(adEl.getAttribute('data-total')||''); if(!m && dt) adults=parseInt(dt,10)||2; }}catch(_){ }
-        let children=0; try{ if(adEl){ children=parseInt(adEl.getAttribute('data-children')||'0',10)||0; }}catch(_){ }
-        // デフォルト日付（1週間後1泊）
-        let ciF=ci, coF=co; if(!ciF || !coF){ const today=new Date(); const d1=new Date(today.getFullYear(), today.getMonth(), today.getDate()+7); const d2=new Date(today.getFullYear(), today.getMonth(), today.getDate()+8); const iso=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; ciF=ciF||iso(d1); coF=coF||iso(d2); }
-        return { checkIn: ciF, checkOut: coF, adults, children };
-      }
-      function buildKey(spotId, p){ return `offers:v1:${spotId}:${p.checkIn}:${p.checkOut}:${p.adults}:${p.children}` }
-      function setLoading(){ const list=document.getElementById('offers-list'); if(!list) return; list.innerHTML=''; const sh=document.createElement('div'); sh.className='text-sm text-muted-foreground'; sh.textContent='価格を取得しています…'; list.appendChild(sh); }
-      function renderOffers(offers){ const list=document.getElementById('offers-list'); if(!list) return; list.innerHTML=''; if(!offers || offers.length===0){ const el=document.createElement('div'); el.className='text-sm text-muted-foreground'; el.textContent='価格情報なし'; list.appendChild(el); return; } offers.forEach((o)=>{ const row=document.createElement('div'); row.className='flex items-center justify-between border rounded-md p-3'; const left=document.createElement('div'); const name=document.createElement('div'); name.className='text-sm font-medium'; name.textContent=o.provider||'—'; const sub=document.createElement('div'); sub.className='text-xs text-muted-foreground'; sub.textContent=(o.currency||'JPY'); left.appendChild(name); left.appendChild(sub); const right=document.createElement('div'); right.className='flex items-center gap-3'; const price=document.createElement('div'); price.className='text-lg font-bold'; price.textContent=(o.price!=null && isFinite(Number(o.price)))? `${fmtJPY(Number(o.price))}〜` : '—'; const btn=document.createElement('a'); const hasLink=!!o.deeplink; btn.className='justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3 py-1.5'; if(hasLink){ btn.href=o.deeplink; btn.target='_blank'; btn.rel='noopener'; btn.textContent='予約する'; }else{ btn.textContent='詳細'; btn.setAttribute('aria-disabled','true'); btn.className+=' opacity-60 pointer-events-none'; }
-        right.appendChild(price); right.appendChild(btn); row.appendChild(left); row.appendChild(right); list.appendChild(row); }); }
-      async function fetchOffers(spotId, p){ const params=new URLSearchParams(); params.set('checkIn', p.checkIn); params.set('checkOut', p.checkOut); params.set('adults', String(p.adults)); if(p.children) params.set('children', String(p.children)); const controller=new AbortController(); const to=setTimeout(()=>controller.abort(), 15000); try{ const res=await fetch(`/public/api/spots/${spotId}/hotel_offers?${params.toString()}`, { signal: controller.signal }); if(!res.ok) return null; const data=await res.json(); return Array.isArray(data.offers)? data.offers: []; }catch(_){ return null; } finally { clearTimeout(to); } }
-      async function loadOffers(opts){ const spotId=getSpotId(); if(!spotId) return; const p=readInputs(); const key=buildKey(spotId, p); const useCache=typeof localStorage!=='undefined'; if(opts && opts.showLoading!==false) setLoading(); let rendered=false; if(useCache){ const cached=cacheGet(key); if(cached){ renderOffers(cached); rendered=true; if(!(opts && opts.networkOnly)) { // SWR
-            fetchOffers(spotId, p).then((fresh)=>{ if(fresh){ cacheSet(key, fresh); if(JSON.stringify(fresh)!==JSON.stringify(cached)) renderOffers(fresh);} }); return; } } }
-        const fresh=await fetchOffers(spotId, p); if(fresh){ if(useCache) cacheSet(key, fresh); renderOffers(fresh); } else { if(!rendered) renderOffers([]); }
-      }
-      function bind(){ const btn=document.getElementById('hotelSearchBtn'); if(btn){ btn.addEventListener('click', (e)=>{ e.preventDefault(); loadOffers({ showLoading:true, networkOnly:true }); }); } }
-      if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', ()=>{ bind(); loadOffers({ showLoading:true }); }); } else { bind(); loadOffers({ showLoading:true }); }
-    })();
-  </script>
   <noscript data-nosnippet>
     <main
       style="height: 100vh; width: 100vw; background-color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">

@@ -670,6 +670,12 @@ def instagram_callback():
         current_user.instagram_username = instagram_username
         current_user.instagram_business_id = instagram_business_id  # API用ID
         current_user.instagram_connected_at = datetime.utcnow()
+        # 期限情報を保存
+        try:
+            current_user.instagram_token_expires_at = datetime.utcnow() + timedelta(seconds=int(expires_in))
+            current_user.instagram_token_last_refreshed_at = datetime.utcnow()
+        except Exception:
+            pass
         db.session.commit()
         
         # Webhookの登録処理を追加 - Business IDを使用（従来通り）
@@ -854,14 +860,23 @@ def disconnect_instagram():
     # CSRFトークンの検証（Flask-WTF内でチェック）
     
     try:
-        # アクセストークンを失効させて、アプリ連携を解除
+        # アクセストークンを失効させて、アプリ連携を解除（無効トークンは成功扱い）
         access_token = current_user.instagram_token
-        if access_token:
-            revoke_meta_token(access_token)
-        
-        # Instagram Webhookサブスクリプションを解除
-        if current_user.instagram_business_id and current_user.instagram_token:
-            unsubscribe_instagram_webhook(current_user.instagram_business_id, current_user.instagram_token)
+        try:
+            if access_token:
+                ok = revoke_meta_token(access_token)
+                current_app.logger.info(f"revoke_meta_token result={ok}")
+        except Exception as _:
+            # 既に無効などは成功相当として扱う
+            pass
+
+        # Instagram Webhookサブスクリプションを解除（無効トークンでも成功扱い）
+        try:
+            if current_user.instagram_business_id and current_user.instagram_token:
+                ok2 = unsubscribe_instagram_webhook(current_user.instagram_business_id, current_user.instagram_token)
+                current_app.logger.info(f"unsubscribe_instagram_webhook result={ok2}")
+        except Exception as _:
+            pass
         
         # Instagram連携情報をクリア
         current_user.instagram_token = None
@@ -893,9 +908,9 @@ def disconnect_instagram():
         
         flash('Instagram連携を解除しました', 'success')
     except Exception as e:
-        print(f"Instagram連携解除中にエラーが発生しました: {str(e)}")
-        print(traceback.format_exc())
-        flash(f'Instagram連携解除中にエラーが発生しました: {str(e)}', 'danger')
+        # 基本は成功扱いにする（冪等）
+        current_app.logger.warning(f"disconnect_instagram non-fatal error: {str(e)}")
+        flash('Instagram連携を解除しました', 'success')
     
     return redirect(url_for('profile.sns_settings'))
 

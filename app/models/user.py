@@ -39,6 +39,9 @@ class User(UserMixin, db.Model):
     instagram_username = db.Column(db.String(64), nullable=True)
     instagram_connected_at = db.Column(db.DateTime, nullable=True)
     instagram_business_id = db.Column(db.String(64), nullable=True)  # InstagramビジネスアカウントID
+    # アクセストークンの有効期限・リフレッシュ管理
+    instagram_token_expires_at = db.Column(db.DateTime, nullable=True)
+    instagram_token_last_refreshed_at = db.Column(db.DateTime, nullable=True)
     
     # Facebook連携情報
     facebook_token = db.Column(db.String(255), nullable=True)  # Facebook認証トークン

@@ -217,11 +217,32 @@ try {
       offersList.appendChild(skeleton);
     };
 
+    const renderError = (message) => {
+      if (!offersList) return;
+      offersList.innerHTML = '';
+      const msg = document.createElement('div');
+      msg.className = 'text-sm text-muted-foreground';
+      msg.textContent = message || '取得できませんでした。少し時間をおいて再検索してみてください。';
+      offersList.appendChild(msg);
+    };
+
+    const renderEmpty = () => {
+      if (!offersList) return;
+      offersList.innerHTML = '';
+      const msg = document.createElement('div');
+      msg.className = 'text-sm text-muted-foreground';
+      msg.textContent = '空きが見つかりませんでした。日付や人数を変更して再検索してください。';
+      offersList.appendChild(msg);
+    };
+
     const renderOffers = (offers) => {
       if (!offersList) return;
       offersList.innerHTML = '';
-      if (!offers || offers.length === 0) return;
-      offers.forEach((o) => {
+      if (!offers || offers.length === 0) { renderEmpty(); return; }
+
+      const VISIBLE_LIMIT = 3;
+
+      const createItem = (o) => {
         const isMin = o.is_min_price === true;
         const badgeHtml = isMin ? '<span data-slot=badge class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 border-transparent bg-green-500 text-white">最安値</span>' : '';
         const hasPrice = o.price !== undefined && o.price !== null && o.price !== '';
@@ -252,8 +273,45 @@ try {
             </a>
           </div>
         `;
-        offersList.appendChild(wrapper);
+        return wrapper;
+      };
+
+      // 3件以下ならそのまま表示
+      if (offers.length <= VISIBLE_LIMIT) {
+        offers.forEach((o) => offersList.appendChild(createItem(o)));
+        return;
+      }
+
+      // 先頭3件を表示
+      offers.slice(0, VISIBLE_LIMIT).forEach((o) => offersList.appendChild(createItem(o)));
+
+      // 残りをアコーディオン（初期は閉）
+      const restCount = offers.length - VISIBLE_LIMIT;
+      const moreList = document.createElement('div');
+      moreList.className = 'space-y-3 hidden';
+      moreList.setAttribute('data-more-list', '1');
+      offers.slice(VISIBLE_LIMIT).forEach((o) => moreList.appendChild(createItem(o)));
+      offersList.appendChild(moreList);
+
+      // トグルボタン
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.className = 'w-full mt-2 text-sm text-primary hover:underline';
+      toggle.textContent = `他の${restCount}件を表示`;
+      toggle.addEventListener('click', () => {
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        if (expanded) {
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.textContent = `他の${restCount}件を表示`;
+          moreList.classList.add('hidden');
+        } else {
+          toggle.setAttribute('aria-expanded', 'true');
+          toggle.textContent = '閉じる';
+          moreList.classList.remove('hidden');
+        }
       });
+      offersList.appendChild(toggle);
     };
 
     const fetchOffers = async () => {
@@ -280,16 +338,13 @@ try {
         if (searchBtn) searchBtn.setAttribute('disabled', 'disabled');
         renderOffersLoading();
         const res = await fetch(`/public/api/spots/${spotId}/hotel_offers?${params.toString()}`);
-        const data = await res.json();
+        if (!res.ok) { renderError(); return; }
+        let data = null;
+        try { data = await res.json(); } catch(_jsonErr) { renderError(); return; }
+        if (!data || !Array.isArray(data.offers)) { renderEmpty(); return; }
         renderOffers(data.offers || []);
       } catch (e) {
-        if (offersList) {
-          offersList.innerHTML = '';
-          const msg = document.createElement('div');
-          msg.className = 'text-sm text-muted-foreground';
-          msg.textContent = '現在、料金を取得できませんでした';
-          offersList.appendChild(msg);
-        }
+        renderError();
       } finally {
         if (searchBtn) searchBtn.removeAttribute('disabled');
       }
@@ -298,11 +353,11 @@ try {
     if (searchBtn && spotId) {
       searchBtn.removeAttribute('disabled');
       searchBtn.addEventListener('click', function(e){ e.preventDefault(); fetchOffers(); });
-      // 変更時にも再検索（outのminも更新）
-      if (checkInEl) checkInEl.addEventListener('change', () => { ensureDateDefaults(); fetchOffers(); });
-      if (checkOutEl) checkOutEl.addEventListener('change', fetchOffers);
+      // 日付変更時はminや既定値だけ調整し、自動検索はしない
+      if (checkInEl) checkInEl.addEventListener('change', () => { ensureDateDefaults(); });
+      if (checkOutEl) checkOutEl.addEventListener('change', () => { ensureDateDefaults(); });
       const adultsEl2 = document.getElementById('adults');
-      if (adultsEl2) adultsEl2.addEventListener('change', fetchOffers);
+      if (adultsEl2) adultsEl2.addEventListener('change', () => {});
       fetchOffers();
     }
 
