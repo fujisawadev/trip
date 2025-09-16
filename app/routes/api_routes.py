@@ -19,23 +19,46 @@ def request_withdrawal_full_amount():
     if not (acct and acct.payouts_enabled and acct.requirements_json is not None):
         return jsonify({'error': 'payouts_not_enabled'}), 409
 
-    # 出金可能額（前月まで未払い − on_hold）
+    # 出金可能額（A案: 前月まで未払い + 当月(昨日まで) − on_hold − 当月支払済）
     JST = timezone(timedelta(hours=9))
     today_jst = datetime.now(JST).date()
     this_month = _month_start(today_jst)
+    from_date = this_month
+    to_date = today_jst - timedelta(days=1)
 
-    unpaid = db.session.query(db.func.coalesce(db.func.sum(PayoutLedger.unpaid_balance), 0)) \
+    # 前月までの未払い残
+    unpaid_prev = db.session.query(db.func.coalesce(db.func.sum(PayoutLedger.unpaid_balance), 0)) \
         .filter(PayoutLedger.user_id == user_id) \
         .filter(PayoutLedger.month < this_month) \
         .scalar() or 0
 
+    # 当月の昨日までの確定日次合計
+    current_month_ytd = 0
+    if to_date >= from_date:
+        current_month_ytd = db.session.query(db.func.coalesce(db.func.sum(CreatorDaily.payout_day), 0)) \
+            .filter(CreatorDaily.user_id == user_id) \
+            .filter(CreatorDaily.day >= from_date) \
+            .filter(CreatorDaily.day <= to_date) \
+            .scalar() or 0
+
+    # 申請中・処理中（拘束）
     hold_statuses = ['requested', 'pending_review', 'approved', 'transferring', 'payout_pending']
     on_hold = db.session.query(db.func.coalesce(db.func.sum(Withdrawal.amount), 0)) \
         .filter(Withdrawal.user_id == user_id) \
         .filter(Withdrawal.status.in_(hold_statuses)) \
         .scalar() or 0
 
-    amount = float(unpaid) - float(on_hold)
+    # 当月すでに支払済み（着金済み）
+    from app.models import PayoutTransaction
+    from_month = this_month
+    next_month = _next_month_start(this_month)
+    paid_this_month = db.session.query(db.func.coalesce(db.func.sum(PayoutTransaction.amount), 0)) \
+        .filter(PayoutTransaction.user_id == user_id) \
+        .filter(PayoutTransaction.paid_at >= from_month) \
+        .filter(PayoutTransaction.paid_at < next_month) \
+        .scalar() or 0
+
+    amount = float(unpaid_prev) + float(current_month_ytd) - float(on_hold) - float(paid_this_month)
     if amount < 0:
         amount = 0
 
@@ -301,7 +324,7 @@ def get_spot(spot_id):
         'longitude': spot.longitude,
         'rating': spot.rating,
         'review_count': spot.review_count,
-        'user_display_name': spot.user.display_name if spot.user else None,
+        'user_slug': spot.user.slug if spot.user else None,
         'google_maps_url': google_maps_url,
         'photos': [
             {
@@ -849,25 +872,44 @@ def wallet_summary():
     this_month = _month_start(today_jst)
     last_month = _month_start(this_month - timedelta(days=1))
 
-    # withdrawable_balance: 前月までの未払い合計
-    unpaid = db.session.query(db.func.coalesce(db.func.sum(PayoutLedger.unpaid_balance), 0)) \
+    # A案の式で申請可能額（=表示額）を算出
+    from_date = this_month
+    to_date = today_jst - timedelta(days=1)
+
+    unpaid_prev = db.session.query(db.func.coalesce(db.func.sum(PayoutLedger.unpaid_balance), 0)) \
         .filter(PayoutLedger.user_id == user_id) \
         .filter(PayoutLedger.month < this_month) \
         .scalar() or 0
 
-    # on_hold: 申請中・処理中の拘束額（重複申請防止のため差し引く）
+    current_month_ytd = 0
+    if to_date >= from_date:
+        current_month_ytd = db.session.query(db.func.coalesce(db.func.sum(CreatorDaily.payout_day), 0)) \
+            .filter(CreatorDaily.user_id == user_id) \
+            .filter(CreatorDaily.day >= from_date) \
+            .filter(CreatorDaily.day <= to_date) \
+            .scalar() or 0
+
     hold_statuses = ['requested', 'pending_review', 'approved', 'transferring', 'payout_pending']
     on_hold = db.session.query(db.func.coalesce(db.func.sum(Withdrawal.amount), 0)) \
         .filter(Withdrawal.user_id == user_id) \
         .filter(Withdrawal.status.in_(hold_statuses)) \
         .scalar() or 0
 
-    withdrawable = float(unpaid) - float(on_hold)
+    from app.models import PayoutTransaction
+    next_month = _next_month_start(this_month)
+    paid_this_month = db.session.query(db.func.coalesce(db.func.sum(PayoutTransaction.amount), 0)) \
+        .filter(PayoutTransaction.user_id == user_id) \
+        .filter(PayoutTransaction.paid_at >= this_month) \
+        .filter(PayoutTransaction.paid_at < next_month) \
+        .scalar() or 0
+
+    withdrawable = float(unpaid_prev) + float(current_month_ytd) - float(on_hold) - float(paid_this_month)
     if withdrawable < 0:
         withdrawable = 0
 
     # 受取可フラグ（KYC/口座完了判定）
     acct = StripeAccount.query.filter_by(user_id=user_id).first()
+    has_stripe_account = bool(acct) if acct else False
     payouts_enabled = bool(acct.payouts_enabled) if acct else False
 
     # this_month_estimated: 当月の Σ payout_day
@@ -888,9 +930,12 @@ def wallet_summary():
         'this_month_estimated': round(float(estimated), 0),
         'minimum_payout_yen': int(current_app.config.get('MIN_PAYOUT_YEN', 1000)),
         'payouts_enabled': payouts_enabled,
+        'has_stripe_account': has_stripe_account,
         'on_hold': round(float(on_hold), 0),
         'next_payout_date': next_payout_date.isoformat(),
-        'last_closed_month': this_month.isoformat()
+        'last_closed_month': this_month.isoformat(),
+        'as_of_date': (today_jst - timedelta(days=1)).isoformat(),
+        'as_of_label': '昨日までの額を反映'
     })
 
 
@@ -996,14 +1041,45 @@ def wallet_trends():
 @login_required
 def wallet_payouts():
     user_id = current_user.id
-    items = PayoutTransaction.query.filter_by(user_id=user_id).order_by(PayoutTransaction.paid_at.desc().nullslast()).all()
+    paid_items = (PayoutTransaction.query
+                  .filter_by(user_id=user_id)
+                  .order_by(PayoutTransaction.paid_at.desc().nullslast())
+                  .all())
+
+    hold_statuses = ['requested', 'pending_review', 'approved', 'transferring', 'payout_pending']
+    pending_withdrawals = (Withdrawal.query
+                           .filter(Withdrawal.user_id == user_id)
+                           .filter(Withdrawal.status.in_(hold_statuses))
+                           .order_by(Withdrawal.requested_at.desc())
+                           .all())
+
     resp = []
-    for it in items:
+    # 支払済み
+    for it in paid_items:
         resp.append({
+            'type': 'payout',
+            'status': 'paid',
             'paid_at': it.paid_at.isoformat() if it.paid_at else None,
+            'requested_at': None,
             'amount': float(it.amount),
-            'month': None  # 将来: 紐づく締め月を保存する場合に設定
+            'month': None
         })
+    # 申請中（待機中含む）
+    for w in pending_withdrawals:
+        resp.append({
+            'type': 'withdrawal',
+            'status': w.status,
+            'paid_at': None,
+            'requested_at': w.requested_at.isoformat() if w.requested_at else None,
+            'amount': float(w.amount),
+            'month': None
+        })
+
+    # 日付で降順（paid_at優先、なければrequested_at）
+    def _dt_key(x):
+        return x.get('paid_at') or x.get('requested_at') or ''
+    resp.sort(key=_dt_key, reverse=True)
+
     return jsonify({'items': resp})
 
 @api_bp.route('/import/instagram/fetch', methods=['POST'])

@@ -22,7 +22,7 @@ class User(UserMixin, db.Model):
     bio = db.Column(db.String(500), nullable=True)
     profile_pic_url = db.Column(db.String(500), nullable=True)
     spots_heading = db.Column(db.String(100), nullable=True, default='おすすめスポット')
-    display_name = db.Column(db.String(100), unique=True, nullable=True)
+    slug = db.Column(db.String(100), unique=True, nullable=True)
     
     # アカウント検証
     is_verified = db.Column(db.Boolean, default=False)
@@ -61,13 +61,13 @@ class User(UserMixin, db.Model):
     spots = db.relationship('Spot', back_populates='user', lazy=True, cascade='all, delete-orphan')
     social_accounts = db.relationship('SocialAccount', back_populates='user', lazy=True, cascade='all, delete-orphan')
     
-    def __init__(self, username, email, password=None, bio=None, profile_pic_url=None, spots_heading='おすすめスポット', display_name=None):
+    def __init__(self, username, email, password=None, bio=None, profile_pic_url=None, spots_heading='おすすめスポット', slug=None):
         self.username = username
         self.email = email
         self.bio = bio
         self.profile_pic_url = profile_pic_url
         self.spots_heading = spots_heading
-        self.display_name = display_name
+        self.slug = slug
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
         # 自動返信のデフォルトテンプレートを設定
@@ -116,34 +116,34 @@ class User(UserMixin, db.Model):
         return user 
     
     @staticmethod
-    def validate_display_name(display_name):
-        """表示名（URL）の検証
+    def validate_slug(slug):
+        """slug（URL）の検証
         - 英数字、ハイフン、アンダースコアのみ許可
         - 3~30文字の長さ制限
         - 予約語との衝突チェック
         """
-        if not display_name or len(display_name) < 3 or len(display_name) > 30:
-            return False, "表示名は3〜30文字にしてください"
+        if not slug or len(slug) < 3 or len(slug) > 30:
+            return False, "slugは3〜30文字にしてください"
             
         # 英数字、ハイフン、アンダースコアのみ許可
-        if not re.match(r'^[a-zA-Z0-9_-]+$', display_name):
-            return False, "表示名に使用できるのは英数字、ハイフン(-)、アンダースコア(_)のみです"
+        if not re.match(r'^[a-zA-Z0-9_-]+$', slug):
+            return False, "slugに使用できるのは英数字、ハイフン(-)、アンダースコア(_)のみです"
             
         # 予約語チェック
         reserved_words = ['login', 'logout', 'signup', 'auth', 'admin', 'settings', 
                          'mypage', 'import', 'spot', 'api', 'static', 'upload', 
                          'profile', 'user', 'users', 'search', 'map', 'maps']
-        if display_name.lower() in reserved_words:
-            return False, "この表示名は使用できません"
+        if slug.lower() in reserved_words:
+            return False, "このslugは使用できません"
             
         # 重複チェック
-        if User.query.filter_by(display_name=display_name).first():
-            return False, "この表示名は既に使用されています"
+        if User.query.filter_by(slug=slug).first():
+            return False, "このslugは既に使用されています"
             
         return True, "有効な表示名です"
     
     def get_public_url(self):
         """ユーザーの公開プロフィールURLを取得"""
-        if self.display_name:
-            return f"/{self.display_name}"
-        return f"/user/{self.username}" 
+        if self.slug:
+            return f"/{self.slug}"
+        return f"/{self.username}"

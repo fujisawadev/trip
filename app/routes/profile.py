@@ -1459,7 +1459,7 @@ def url_settings():
 @login_required
 def update_url():
     """URLの更新処理"""
-    display_name = request.form.get('display_name')
+    slug = request.form.get('slug') or request.form.get('display_name')
     password = request.form.get('password')
     
     # パスワード確認
@@ -1468,18 +1468,18 @@ def update_url():
         return redirect(url_for('profile.url_settings'))
     
     # 変更がない場合
-    if current_user.display_name == display_name:
+    if current_user.slug == slug:
         flash('URLに変更はありません。', 'info')
         return redirect(url_for('profile.url_settings'))
     
-    # 表示名の検証
-    is_valid, message = User.validate_display_name(display_name)
+    # slug の検証
+    is_valid, message = User.validate_slug(slug)
     if not is_valid:
         flash(message, 'danger')
         return redirect(url_for('profile.url_settings'))
     
-    # 表示名の更新
-    current_user.display_name = display_name
+    # slug の更新
+    current_user.slug = slug
     db.session.commit()
     
     flash('URLが更新されました。', 'success')
@@ -1491,17 +1491,17 @@ def analytics():
     """簡易アナリティクスページ（お財布）"""
     return render_template('new_analytics.html', user=current_user)
 
-@bp.route('/<display_name>')
-def display_name_profile(display_name):
-    """表示名によるユーザープロファイル表示"""
+@bp.route('/<slug>')
+def slug_profile(slug):
+    """slug によるユーザープロファイル表示"""
     # 予約語チェック（システムで使用されるパスの場合はエラー）
     reserved_words = ['login', 'logout', 'signup', 'auth', 'admin', 'settings', 
                     'mypage', 'import', 'spot', 'api', 'static', 'upload', 
                     'profile', 'user', 'users', 'search', 'map', 'maps']
-    if display_name.lower() in reserved_words:
+    if slug.lower() in reserved_words:
         abort(404)
     
-    user = User.query.filter_by(display_name=display_name).first_or_404()
+    user = User.query.filter_by(slug=slug).first_or_404()
     # アクティブなスポットのみを取得し、更新日時の新しい順に並べ替え
     spots = Spot.query.filter_by(user_id=user.id, is_active=True).order_by(Spot.updated_at.desc()).all()
     
@@ -1570,17 +1570,17 @@ def display_name_profile(display_name):
                           social_accounts=social_accounts,
                           config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 
-@bp.route('/<display_name>/map')
-def display_name_map(display_name):
-    """表示名によるユーザーマップページ表示"""
+@bp.route('/<slug>/map')
+def slug_map(slug):
+    """slug によるユーザーマップページ表示"""
     # 予約語チェック（システムで使用されるパスの場合はエラー）
     reserved_words = ['login', 'logout', 'signup', 'auth', 'admin', 'settings', 
                     'mypage', 'import', 'spot', 'api', 'static', 'upload', 
                     'profile', 'user', 'users', 'search', 'map', 'maps']
-    if display_name.lower() in reserved_words:
+    if slug.lower() in reserved_words:
         abort(404)
     
-    user = User.query.filter_by(display_name=display_name).first_or_404()
+    user = User.query.filter_by(slug=slug).first_or_404()
     
     # アクティブなスポットを取得
     spots = Spot.query.filter_by(user_id=user.id, is_active=True).all()
@@ -1623,7 +1623,7 @@ def display_name_map(display_name):
     from app.routes.public import GOOGLE_MAPS_API_KEY
     
     # 旧 new_map.html は廃止: プロフィールにリダイレクト
-    return redirect(url_for('public.username_profile', username=user.username))
+    return redirect(url_for('profile.slug_profile', slug=user.slug))
 
 ## アフィリエイト設定機能は廃止しました
 

@@ -37,7 +37,7 @@
 <meta name="description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
 <meta name="robots" content="index,follow">
 <meta name="agd-partner-manual-verification" />
-<title>{{ spot.name }} | {{ user.display_name or user.username }} | maplink</title>
+<title>{{ spot.name }} | {{ user.username }} | maplink</title>
 <script data-noptimize="1" data-cfasync="false" data-wpfc-render="false">
   (function () {
       var script = document.createElement("script");
@@ -5029,14 +5029,14 @@
     }
   </style>
 <!-- SEO meta start -->
-{% set canonical_url = url_for('public.user_spot_detail', displayname=(user.display_name or user.username), spot_id=spot.id, _external=True) %}
+{% set canonical_url = url_for('public.user_spot_detail', slug=user.slug, spot_id=spot.id, _external=True) %}
 <link rel="canonical" href="{{ canonical_url }}">
 
 {% set og_image = photos[0] if photos and photos|length > 0 else url_for('static', filename='images/ogp.png', _external=True) %}
 
 <meta property="og:site_name" content="maplink">
 <meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="{{ spot.name }} | {{ user.display_name or user.username }} | maplink">
+<meta property="og:title" content="{{ spot.name }} | {{ user.slug }} | maplink">
 <meta property="og:description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
 <meta property="og:image" content="{{ og_image }}">
 <meta property="og:url" content="{{ canonical_url }}">
@@ -5071,7 +5071,7 @@
   "url": "{{ canonical_url }}"
 }
 </script>
-<meta name="twitter:title" content="{{ spot.name }} | {{ user.display_name or user.username }} | maplink">
+<meta name="twitter:title" content="{{ spot.name }} | {{ user.slug }} | maplink">
 <meta name="twitter:description" content="{{ (spot.description or (spot.name + ' - ' + (spot.location or ''))) | striptags | truncate(120, True, '') }}">
 <meta name="twitter:image" content="{{ og_image }}">
 
@@ -5165,7 +5165,7 @@
                     if (backBtn) {
                       backBtn.addEventListener('click', function(){
                         if (window.history.length > 1) { window.history.back(); }
-                        else { window.location.href = '/{{ user.display_name or user.username }}'; }
+                        else { window.location.href = "{{ url_for('profile.slug_profile', slug=user.slug) }}"; }
                       });
                     }
                     const shareBtn = document.getElementById('share-button');
@@ -5306,14 +5306,14 @@
                       </svg>インフルエンサーのおすすめ</h4>
                   </div>
                   <div data-slot=card-content class="px-6 [&:last-child]:pb-6">
-                    <div class="flex items-start gap-4"><a href="/{{ user.display_name or user.username }}" class="inline-block" aria-label="プロフィールへ"><span data-slot=avatar
+                    <div class="flex items-start gap-4"><a href="{{ url_for('profile.slug_profile', slug=user.slug) }}" class="inline-block" aria-label="プロフィールへ"><span data-slot=avatar
                         class="relative flex size-10 shrink-0 overflow-hidden rounded-full w-12 h-12"><img
                           data-slot=avatar-image class="aspect-square size-full"
-                          alt="{{ user.display_name or user.username }}"
+                          alt="{{ user.username }}"
                           src="{{ user.profile_pic_url if user.profile_pic_url else url_for('static', filename='images/default_profile.png') }}"></span></a>
                       <div class="flex-1 space-y-2">
                         <div class="flex items-center gap-2">
-                          <a href="/{{ user.display_name or user.username }}" class="hover:underline"><h4>{{ user.display_name or user.username }}</h4></a>
+                          <a href="{{ url_for('profile.slug_profile', slug=user.slug) }}" class="hover:underline"><h4>{{ user.slug }}</h4></a>
                         </div>
                         <div class="flex items-center gap-1">
                           {% if spot.rating %}
@@ -5440,8 +5440,8 @@
                           <path
                             d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5">
                           </path>
-                        </svg><span class="font-medium text-foreground">{{ (user.display_name or user.username) ~ 'さんを応援しよう！' }}</span></div>
-                      <p class="text-sm text-muted-foreground leading-relaxed">こちらのページから予約すると、{{ user.display_name or user.username }}さんの収益になります。</p>
+                        </svg><span class="font-medium text-foreground">{{ user.username ~ 'さんを応援しよう！' }}</span></div>
+                      <p class="text-sm text-muted-foreground leading-relaxed">こちらのページから予約すると、{{ user.username }}さんの収益になります。</p>
                     </div>
                     <div class="bg-card border rounded-lg p-4 shadow-sm">
                       <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">

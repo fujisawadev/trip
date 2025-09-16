@@ -73,53 +73,7 @@ def test_photo_cdn(photo_reference):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@public_bp.route('/u/<int:user_id>')
-def profile(user_id):
-    """公開プロフィールページを表示する（ユーザー名ベースのURLにリダイレクト）"""
-    user = User.query.get_or_404(user_id)
-    # ユーザー名ベースのURLにリダイレクト
-    return redirect(url_for('public.username_profile', username=user.username))
-
-# 新しいユーザー名ベースのルートを追加
-@public_bp.route('/<username>')
-def username_profile(username):
-    """ユーザー名ベースの公開プロフィールページを表示する"""
-    user = User.query.filter_by(username=username).first_or_404()
     
-    # ユーザーが作成したスポットを取得（更新日時の新しい順）
-    spots = Spot.query.filter_by(user_id=user.id, is_active=True).order_by(Spot.updated_at.desc()).all()
-    
-    # スポットをJSONシリアライズ可能な形式に変換
-    spots_data = []
-    categories = set()
-    locations = set()
-    prices = set()
-    for spot in spots:
-        d = spot.to_dict()
-        # external_id（provider_ids）があるスポットのみ価格取得対象にする
-        providers = [p.provider for p in getattr(spot, 'provider_ids', [])]
-        d['has_offers'] = any(p in ['dataforseo', 'rakuten', 'agoda'] for p in providers)
-        spots_data.append(d)
-        if d.get('category'):
-            categories.add(d['category'])
-        loc = d.get('summary_location') or d.get('location')
-        if loc:
-            locations.add(loc)
-        pr = d.get('price_range')
-        if pr:
-            prices.add(pr)
-
-    # ソーシャルアカウント情報を取得
-    social_accounts = SocialAccount.query.filter_by(user_id=user.id).first()
-    
-    return render_template('public/profile.html', 
-                          user=user, 
-                          spots=spots_data,
-                          filter_categories=sorted(categories),
-                          filter_locations=sorted(locations),
-                          filter_prices=sorted(prices),
-                          social_accounts=social_accounts,
-                          config={'GOOGLE_MAPS_API_KEY': GOOGLE_MAPS_API_KEY})
 
 @public_bp.route('/test_koshien_photo')
 def test_koshien_photo():
@@ -252,11 +206,15 @@ def photo_proxy(photo_reference):
     # すべての方法が失敗した場合、404エラーを返す（デフォルト画像へのリダイレクトを削除）
     return jsonify({'error': '画像の取得に失敗しました'}), 404 
 
-@public_bp.route('/<displayname>/map')
-def displayname_map(displayname):
+@public_bp.route('/<slug>/map')
+def slug_map_redirect(slug):
     """旧 new_map.html は廃止済み。プロフィールにリダイレクト。"""
-    user = User.query.filter((User.display_name == displayname) | (User.username == displayname)).first_or_404()
-    return redirect(url_for('public.username_profile', username=user.username))
+    user = User.query.filter((User.slug == slug) | (User.username == slug)).first_or_404()
+    if getattr(user, 'slug', None):
+        return redirect(url_for('profile.slug_profile', slug=user.slug), 301)
+    if getattr(user, 'slug', None):
+        return redirect(url_for('profile.slug_profile', slug=user.slug), 301)
+    abort(404)
 
 @public_bp.route('/api/spots/<int:spot_id>')
 def spot_api(spot_id):
@@ -323,11 +281,11 @@ def commerce_law():
     """特定商取引法に基づく表記ページを表示する"""
     return render_template('public/commerce_law.html')
 
-@public_bp.route('/<displayname>/<int:spot_id>')
-def user_spot_detail(displayname, spot_id):
+@public_bp.route('/<slug>/<int:spot_id>')
+def user_spot_detail(slug, spot_id):
     """ユーザーの公開スポット詳細ページを表示"""
     # ユーザーとスポットを取得（存在しない場合は404）
-    user = User.query.filter((User.username == displayname) | (User.display_name == displayname)).first_or_404()
+    user = User.query.filter((User.username == slug) | (User.slug == slug)).first_or_404()
     spot = Spot.query.filter_by(id=spot_id, user_id=user.id, is_active=True).first_or_404()
 
     # ユーザーがアップロードした写真とGoogle Photosを結合
@@ -395,7 +353,7 @@ def sitemap_index():
 
 @public_bp.route('/sitemaps/users.xml')
 def sitemap_users():
-    """公開プロフィールのサイトマップ。display_name があれば優先し、なければ username。"""
+    """公開プロフィールのサイトマップ。slug のみを正とする。"""
     from datetime import datetime as _dt
     # ユーザーごとの直近更新日時（ユーザー自身 or 直近アクティブスポット）を算出
     last_spot_subq = (
@@ -413,12 +371,7 @@ def sitemap_users():
 
     # XML生成
     def canonical_for(user: User) -> str:
-        if getattr(user, 'display_name', None):
-            try:
-                return url_for('profile.display_name_profile', display_name=user.display_name, _external=True)
-            except Exception:
-                pass
-        return url_for('public.username_profile', username=user.username, _external=True)
+        return url_for('profile.slug_profile', slug=user.slug, _external=True)
 
     url_entries = []
     for user, last_spot_updated_at in rows:

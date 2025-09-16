@@ -104,8 +104,8 @@ def _auto_enrich_spot_info(spot: Spot) -> dict:
             "description": spot.description or "",
             "category": spot.category or "",
             "location": spot.summary_location or spot.location or spot.formatted_address,
-            "detail_url": f"/{getattr(spot.user, 'display_name', None) or getattr(spot.user, 'username', 'unknown')}/{spot.id}" if spot.user else f"/unknown/{spot.id}",
-            "creator_name": getattr(spot.user, 'display_name', None) or getattr(spot.user, 'username', 'unknown') if spot.user else "unknown",
+            "detail_url": f"/{getattr(spot.user, 'slug', None) or getattr(spot.user, 'username', 'unknown')}/{spot.id}" if spot.user else f"/unknown/{spot.id}",
+            "creator_name": getattr(spot.user, 'slug', None) or getattr(spot.user, 'username', 'unknown') if spot.user else "unknown",
             "created_at": spot.created_at.isoformat() if spot.created_at else None,
             "coordinates": {
                 "lat": _safe_float_conversion(spot.latitude),

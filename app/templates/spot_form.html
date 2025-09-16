@@ -410,12 +410,13 @@
                     <label for="{{ platform }}_url" class="text-sm font-medium text-neutral-600">{{ platform|title }}</label>
                     <div class="relative">
                       <input
-                        type="url"
+                        type="text"
+                        inputmode="url"
                         id="{{ platform }}_url"
                         name="{{ platform }}_url"
-                        value="{{ spot_social_links.get(platform, '') }}"
+                        value="{{ spot_social_links.get(platform) or '' }}"
                         placeholder="{{ placeholder }}"
-                        class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 url-input"
                       />
                       <button
                         type="button"
@@ -438,12 +439,12 @@
                   <div class="flex flex-col gap-3 p-3 bg-white rounded-lg border border-slate-200">
                     <div class="flex flex-col gap-1.5">
                       <label for="other_link_title" class="text-sm font-medium text-neutral-600">サイト名</label>
-                      <input type="text" id="other_link_title" name="other_link_title" value="{{ spot.custom_link_title if is_edit else '' }}" placeholder="例: 公式サイト" class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <input type="text" id="other_link_title" name="other_link_title" value="{{ (spot.custom_link_title or '') if is_edit else '' }}" placeholder="例: 公式サイト" class="px-4 py-2.5 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="flex flex-col gap-1.5">
                       <label for="other_link_url" class="text-sm font-medium text-neutral-600">URL</label>
                       <div class="relative">
-                        <input type="url" id="other_link_url" name="other_link_url" value="{{ spot.custom_link_url if is_edit else '' }}" placeholder="https://..." class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" inputmode="url" id="other_link_url" name="other_link_url" value="{{ (spot.custom_link_url or '') if is_edit else '' }}" placeholder="https://..." class="px-4 py-2.5 pr-10 w-full text-base bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 url-input">
                         <button type="button" class="link-preview-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500 transition-colors" onclick="(function(){ var v=document.getElementById('other_link_url').value.trim(); if(v){ window.open(v, '_blank'); } })()" title="リンクを開く">
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                         </button>
@@ -908,7 +909,7 @@
 
         // リンクプレビューボタンの制御
         function setupLinkPreviewButtons() {
-          const linkInputs = document.querySelectorAll('input[type="url"]');
+          const linkInputs = document.querySelectorAll('.url-input');
           
           linkInputs.forEach(input => {
             const container = input.closest('.relative');
@@ -960,8 +961,39 @@
           }
         }
         
+        // 編集時に既存のURL値がスキーム無しで無効扱いとなり送信不可になるのを防ぐ
+        function normalizeExistingUrlValues() {
+          const urlInputs = document.querySelectorAll('.url-input');
+          urlInputs.forEach(input => {
+            let value = input.value ? input.value.trim() : '';
+            if (!value) return;
+            if (isValidUrl(value)) return;
+            // スキームが無いがドメイン形式に見える場合は https:// を補完
+            if (/^[\w.-]+\.[a-z]{2,}([\/\?#].*)?$/i.test(value)) {
+              input.value = 'https://' + value;
+            }
+          });
+        }
+        
+        // 入力中にドメインのみの値にもスキームを補完
+        function attachUrlInputNormalizers() {
+          const urlInputs = document.querySelectorAll('.url-input');
+          urlInputs.forEach(input => {
+            input.addEventListener('blur', () => {
+              let value = input.value ? input.value.trim() : '';
+              if (!value) return;
+              if (isValidUrl(value)) return;
+              if (/^[\w.-]+\.[a-z]{2,}([\/\?#].*)?$/i.test(value)) {
+                input.value = 'https://' + value;
+              }
+            });
+          });
+        }
+        
         // 初期化
+        normalizeExistingUrlValues();
         setupLinkPreviewButtons();
+        attachUrlInputNormalizers();
         
         // ページロード後に再度実行（Alpine.jsの動的コンテンツ用）
         setTimeout(setupLinkPreviewButtons, 1000);

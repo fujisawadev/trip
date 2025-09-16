@@ -211,7 +211,7 @@ class AgentManagerV3:
         
         if context.get("page_type") == "profile" and context.get("influencer_info"):
             influencer = context["influencer_info"]
-            context_parts.append(f"クリエイター: {influencer.get('display_name', 'Unknown')}")
+            context_parts.append(f"クリエイター: {influencer.get('slug', 'Unknown')}")
             if influencer.get("bio"):
                 context_parts.append(f"プロフィール: {influencer['bio']}")
             
@@ -278,9 +278,9 @@ class AgentManagerV3:
 
                         # 詳細URLをコンテキストに追加
                         user_info = spot.get('user', {})
-                        display_name = user_info.get('display_name') or user_info.get('username')
-                        if display_name and spot.get('id'):
-                             details.append(f"URL: /{display_name}/{spot.get('id')}")
+                        slug = user_info.get('slug') or user_info.get('username')
+                        if slug and spot.get('id'):
+                             details.append(f"URL: /{slug}/{spot.get('id')}")
                         
                         if details:
                             spot_detail += f" | " + " | ".join(details)

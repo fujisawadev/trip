@@ -38,7 +38,7 @@
 <meta name="description" content="{{ (user.bio or (user.username ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
 <meta name="robots" content="index,follow">
 <meta name="agd-partner-manual-verification" />
-<title>{{ user.display_name or user.username }} | maplink</title>
+<title>{{ user.username }} | maplink</title>
 <script data-noptimize="1" data-cfasync="false" data-wpfc-render="false">
   (function () {
       var script = document.createElement("script");
@@ -4724,20 +4724,20 @@
     }
   </style>
 <!-- SEO meta start -->
-{% set canonical_url = (url_for('profile.display_name_profile', display_name=user.display_name, _external=True) if user.display_name else url_for('public.username_profile', username=user.username, _external=True)) %}
+{% set canonical_url = url_for('profile.slug_profile', slug=user.slug, _external=True) %}
 <link rel="canonical" href="{{ canonical_url }}">
 
 <meta property="og:site_name" content="maplink">
 <meta property="og:locale" content="ja_JP">
-<meta property="og:title" content="{{ user.display_name or user.username }} | maplink">
-<meta property="og:description" content="{{ (user.bio or (user.username ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
+<meta property="og:title" content="{{ user.slug }} | maplink">
+<meta property="og:description" content="{{ (user.bio or (user.slug ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
 <meta property="og:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
 <meta property="og:url" content="{{ canonical_url }}">
 <meta property="og:type" content="website">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ user.display_name or user.username }} | maplink">
-<meta name="twitter:description" content="{{ (user.bio or (user.username ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
+<meta name="twitter:title" content="{{ user.slug }} | maplink">
+<meta name="twitter:description" content="{{ (user.bio or (user.slug ~ 'のおすすめスポット')) | striptags | truncate(120, True, '') }}">
 <meta name="twitter:image" content="{{ url_for('static', filename='images/ogp.png', _external=True) }}">
 
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
@@ -4748,7 +4748,7 @@
   "@type": "ProfilePage",
   "about": {
     "@type": "Person",
-    "name": "{{ user.display_name or user.username }}",
+    "name": "{{ user.slug }}",
     {% if user.profile_pic_url %}
     "image": "{{ user.profile_pic_url }}",
     {% endif %}
@@ -4774,7 +4774,14 @@
 </noscript></head>
 
 <body>
-
+{% if current_user.is_authenticated and current_user.id == user.id %}
+<div class="w-full text-sm">
+  <div class="relative mx-auto max-w-6xl px-4 py-3 text-center" style="background:#FEFCE8;">
+    <span class="font-medium">プレビュー中</span>
+    <a href="{{ url_for('profile.mypage') }}" class="absolute right-4 top-1/2 -translate-y-1/2 text-blue-600 hover:underline">マイページに戻る</a>
+  </div>
+</div>
+{% endif %}
 
 
 
@@ -4848,7 +4855,7 @@
                     </div>
                     <div class="flex-1 space-y-4">
                       <div>
-                        <h1>{{ user.display_name or user.username }}</h1>
+                        <h1>{{ user.username }}</h1>
                       </div>
                       {% if user.bio %}
                       <div class=space-y-2>
@@ -5037,7 +5044,7 @@
                   {% for spot in spots %}
                   <div data-spot-card data-has-offers="{{ '1' if spot.has_offers else '0' }}" data-spot-id="{{ spot.id }}" data-name="{{ spot.name }}" data-desc="{{ (spot.description or '')[:120] }}" data-category="{{ spot.category or '' }}" data-location="{{ spot.summary_location or spot.location or '' }}" data-price="{{ spot.price_range or '' }}"
                     class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                    onclick="window.location.href='/{{ user.display_name or user.username }}/{{ spot.id }}'">
+                    onclick="window.location.href='{{ url_for('public.user_spot_detail', slug=user.slug, spot_id=spot.id) }}'">
                     <div class=relative>
                       <div class="aspect-video overflow-hidden">
                         {% if spot.photos and spot.photos|length > 0 %}
@@ -5100,7 +5107,7 @@
                           </div>
                         </div>
                         <button data-slot=button
-                          onclick="event.stopPropagation(); window.location.href='/{{ user.display_name or user.username }}/{{ spot.id }}'"
+                          onclick="event.stopPropagation(); window.location.href='{{ url_for('public.user_spot_detail', slug=user.slug, spot_id=spot.id) }}'"
                           class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5">詳細を見る</button>
                       </div>
                       {% endif %}

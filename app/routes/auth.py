@@ -79,21 +79,21 @@ def signup_url():
         return redirect(url_for('auth.signup'))
     
     if request.method == 'POST':
-        display_name = request.form.get('display_name')
+        slug = request.form.get('slug') or request.form.get('display_name')
         
         # セッションからユーザー情報を取得
         username = session.get('signup_username')
         email = session.get('signup_email')
         password = session.get('signup_password')
         
-        # 表示名の検証
-        is_valid, message = User.validate_display_name(display_name)
+        # slug の検証
+        is_valid, message = User.validate_slug(slug)
         if not is_valid:
             flash(message, 'danger')
             return render_template('public/signup_url.html')
         
         # ユーザー作成
-        user = User(username=username, email=email, password=password, display_name=display_name)
+        user = User(username=username, email=email, password=password, slug=slug)
         db.session.add(user)
         db.session.commit()
         

@@ -27,19 +27,48 @@
       setText('wallet-clicks-percent', '0%'); setCircle('wallet-clicks-circle', 0);
       setText('wallet-revenue-percent', '0%'); setCircle('wallet-revenue-circle', 0);
     } catch(_e) {}
-    // 1) 使えるお金（withdrawable_balance）
+    // 1) もらえるお金（withdrawable_balance）
     const s = await getJSON('/api/wallet/summary');
     if (s && typeof s.withdrawable_balance !== 'undefined') {
       setText('wallet-withdrawable', fmtYen(s.withdrawable_balance));
+      // 昨日まで反映のas-of表示
+      try{
+        const asofEl = document.getElementById('wallet-asof');
+        if (asofEl && s.as_of_date){
+          const d = new Date(s.as_of_date);
+          asofEl.textContent = `(更新日時: ${d.getMonth()+1}/${d.getDate()})`;
+        }
+      }catch(_e){}
       // 出金ボタンの活性/非活性をサーバー情報で制御
       try{
         const btn = document.querySelector('button[aria-haspopup="dialog"]');
+        const reason = document.getElementById('wallet-withdraw-reason');
         if (btn){
           const min = Number(s.minimum_payout_yen||1000);
           const enough = Number(s.withdrawable_balance||0) >= min;
           const kyc = !!s.payouts_enabled;
           const notOnHold = Number(s.on_hold||0) <= 0;
-          btn.disabled = !(enough && kyc && notOnHold);
+          const active = (enough && kyc && notOnHold);
+          btn.disabled = !active;
+          if (reason){
+            if (!active){
+              if (!enough){
+                // 最低額未達のときはアラート非表示
+                reason.textContent = '';
+                reason.style.display = 'none';
+              } else {
+                // 最低額は満たすが、他要因で非活性な場合のみ表示
+                const msgs = [];
+                if (!kyc) msgs.push('受取設定（本人確認・口座登録）が未完了です');
+                if (!notOnHold) msgs.push('処理中の出金申請があります');
+                reason.textContent = msgs.join('／');
+                reason.style.display = msgs.length ? '' : 'none';
+              }
+            } else {
+              reason.textContent = '';
+              reason.style.display = 'none';
+            }
+          }
         }
       }catch(_e){}
     }
@@ -122,7 +151,7 @@
             const data = await res.json().catch(()=>({}));
             if (res.status === 202){
               toast('出金申請を受け付けました。72時間後に処理されます。');
-              // 使えるお金を再取得して反映（on_hold差し引き）
+              // もらえるお金を再取得して反映（on_hold差し引き）
               const s2 = await getJSON('/api/wallet/summary');
               if (s2 && typeof s2.withdrawable_balance !== 'undefined') {
                 setText('wallet-withdrawable', fmtYen(s2.withdrawable_balance));
@@ -222,11 +251,19 @@
     const root = document.getElementById('wallet-payouts');
     if (!root) return;
     const html = items.map(it=>{
-      const paid = !!it.paid_at;
-      const dateStr = it.paid_at ? new Date(it.paid_at).toISOString().slice(0,10) : '-';
+      const isPaid = it.type === 'payout' && !!it.paid_at;
+      const dateRaw = it.paid_at || it.requested_at;
+      const dateStr = dateRaw ? new Date(dateRaw).toISOString().slice(0,10) : '-';
       const amount = fmtYen(it.amount);
-      const badge = paid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      const badgeText = paid ? '✅' : '⏳';
+      const badge = isPaid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      const statusMap = {
+        requested: '⏳ 申請中',
+        pending_review: '🕵️ 審査中',
+        approved: '✅ 承認済',
+        transferring: '🚚 送金中',
+        payout_pending: '🏦 着金待ち'
+      };
+      const badgeText = isPaid ? '✅ 着金済み' : (statusMap[it.status] || '⏳ 申請中');
       return `
       <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl">
         <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center"><span class="text-lg">💰</span></div>

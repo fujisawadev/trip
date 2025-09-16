@@ -130,7 +130,7 @@
             <h2 class="px-4 pt-4 pb-2 w-full text-lg font-bold leading-none whitespace-nowrap text-neutral-900">収益化</h2>
             <ul>
               <li>
-                <a href="{{ url_for('profile.stripe_settings') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                <a id="link-stripe-settings" href="{{ url_for('profile.stripe_settings') }}" class="flex justify-between items-center p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
                   <div class="flex items-center">
                     <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center mr-4">
                       <span class="material-icons-outlined text-emerald-600">account_balance_wallet</span>
@@ -144,6 +144,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                 </a>
+                <div id="stripe-link-reason" class="px-4 pb-2 text-xs text-gray-500" style="display:none"></div>
               </li>
               
             </ul>
@@ -312,4 +313,32 @@
       </a>
     </nav>
   </body>
+  <script>
+    (async function(){
+      try{
+        const res = await fetch('/api/wallet/summary', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const s = await res.json();
+        const min = Number(s.minimum_payout_yen||1000);
+        const enough = Number(s.withdrawable_balance||0) >= min;
+        const hasStripe = !!s.has_stripe_account;
+        const link = document.getElementById('link-stripe-settings');
+        const msg = document.getElementById('stripe-link-reason');
+        if (link && msg){
+          // 非活性にするのは「最低額未達 かつ まだStripe口座未作成」のときのみ
+          if (!enough && !hasStripe){
+            // 最低額未達: リンクを視覚的に非活性に（クリック不可）
+            link.classList.add('pointer-events-none','opacity-50');
+            msg.textContent = `まずは最低出金額（¥${min.toLocaleString()}）を達成してください。`;
+            msg.style.display = '';
+          } else {
+            // 達成済: 通常表示（KYCはおさいふ側で促す）
+            link.classList.remove('pointer-events-none','opacity-50');
+            msg.textContent = '';
+            msg.style.display = 'none';
+          }
+        }
+      }catch(_e){}
+    })();
+  </script>
 </html>

@@ -78,8 +78,8 @@
                 <span class="text-gray-500 whitespace-nowrap text-sm sm:text-base">https://my-map.link/</span>
                 <input
                   type="text"
-                  id="displayName"
-                  name="display_name"
+                  id="slug"
+                  name="slug"
                   placeholder="あなたのURL"
                   class="overflow-hidden p-3 sm:p-4 w-full rounded-r-xl bg-slate-100 min-h-12 sm:min-h-14 text-slate-700 border-l border-slate-200 ml-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
@@ -164,7 +164,7 @@
         }
         
         // サーバーサイドで重複チェック
-        fetch(`/api/check-display-name?display_name=${encodeURIComponent(displayName)}`)
+        fetch(`/api/check-slug?slug=${encodeURIComponent(displayName)}`)
           .then(response => response.json())
           .then(data => {
             if (data.available) {

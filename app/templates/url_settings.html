@@ -79,7 +79,7 @@
             <div class="mb-6">
               <p class="text-gray-600 mb-2">現在のURL:</p>
               <div class="flex items-center mb-4">
-                <span class="text-gray-800 font-medium">https://my-map.link/{{ current_user.display_name or 'user/' + current_user.username }}</span>
+                <span class="text-gray-800 font-medium">https://my-map.link/{{ current_user.slug }}</span>
                 <button type="button" id="copy-url-btn" class="ml-2 text-blue-500 hover:text-blue-700">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -92,16 +92,16 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               
               <div class="mb-4">
-                <label for="display_name" class="block text-gray-700 font-medium mb-2">新しいURL</label>
+                <label for="slug" class="block text-gray-700 font-medium mb-2">新しいURL</label>
                 <div class="flex items-center bg-slate-100 rounded-xl pl-3 pr-0 w-full border border-slate-200">
                   <span class="text-gray-500 whitespace-nowrap text-sm sm:text-base">https://my-map.link/</span>
                   <input
                     type="text"
-                    id="display_name"
-                    name="display_name"
+                    id="slug"
+                    name="slug"
                     placeholder="あなたのURL"
                     class="overflow-hidden p-3 sm:p-4 w-full rounded-r-xl bg-slate-100 min-h-12 sm:min-h-14 text-slate-700 border-l border-slate-200 ml-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value="{{ current_user.display_name or '' }}"
+                    value="{{ current_user.slug or '' }}"
                     required
                     pattern="[a-zA-Z0-9_-]+"
                     minlength="3"
@@ -169,7 +169,7 @@
     <script>
       // URLのコピー機能
       document.getElementById('copy-url-btn').addEventListener('click', function() {
-        const url = "https://my-map.link/" + "{{ current_user.display_name or 'user/' + current_user.username }}";
+        const url = "https://my-map.link/" + "{{ current_user.slug }}";
         navigator.clipboard.writeText(url).then(function() {
           // フィードバック表示
           const toast = document.createElement('div');
@@ -185,10 +185,10 @@
       });
       
       // 表示名のリアルタイム検証
-      const displayNameInput = document.getElementById('display_name');
+      const displayNameInput = document.getElementById('slug');
       const feedbackElement = document.getElementById('display-name-feedback');
       const submitButton = document.getElementById('submit-button');
-      const currentDisplayName = "{{ current_user.display_name or '' }}";
+      const currentDisplayName = "{{ current_user.slug or '' }}";
       
       displayNameInput.addEventListener('input', validateDisplayName);
       
@@ -239,7 +239,7 @@
         }
         
         // サーバーサイドで重複チェック
-        fetch(`/api/check-display-name?display_name=${encodeURIComponent(displayName)}`)
+        fetch(`/api/check-slug?slug=${encodeURIComponent(displayName)}`)
           .then(response => response.json())
           .then(data => {
             if (data.available) {

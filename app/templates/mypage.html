@@ -199,7 +199,7 @@
           </h1>
           <div class="w-[90px] min-h-12 flex justify-end items-center">
             <a
-              href="{{ url_for('profile.display_name_profile', display_name=user.display_name) if user.display_name else url_for('public.username_profile', username=user.username) }}"
+              href="{{ url_for('profile.slug_profile', slug=user.slug) }}"
               class="text-blue-500 hover:text-blue-700"
             >
               プレビュー

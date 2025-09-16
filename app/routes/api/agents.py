@@ -166,7 +166,7 @@ def _serialize_user(user: User) -> dict:
     return {
         'id': user.id,
         'username': user.username,
-        'display_name': user.display_name,
+        'slug': user.slug,
         'bio': user.bio,
         'profile_pic_url': user.profile_pic_url
     }
@@ -186,6 +186,6 @@ def _serialize_spot(spot: Spot) -> dict:
         'user': {
             'id': spot.user.id,
             'username': spot.user.username,
-            'display_name': spot.user.display_name
+            'slug': spot.user.slug
         }
     } 
