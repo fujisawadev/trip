@@ -5,6 +5,7 @@
 ## ドキュメント
 
 - 支払い/おさいふの仕様書: `docs/wallet_and_payments.md`
+- QAテストケース: `docs/wallet_qa_testcases.md`
 
 ## 機能
 

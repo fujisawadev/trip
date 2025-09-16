@@ -41,7 +41,7 @@
       }catch(_e){}
       // 出金ボタンの活性/非活性をサーバー情報で制御
       try{
-        const btn = document.querySelector('button[aria-haspopup="dialog"]');
+        const btn = document.getElementById('wallet-withdraw-btn');
         const reason = document.getElementById('wallet-withdraw-reason');
         if (btn){
           const min = Number(s.minimum_payout_yen||1000);
@@ -140,7 +140,7 @@
 
     // 5) 「お金をもらう」ボタン: 全額申請を実行
     try{
-      const btn = document.querySelector('button[aria-haspopup="dialog"]');
+      const btn = document.getElementById('wallet-withdraw-btn');
       if (btn){
         btn.addEventListener('click', async (e)=>{
           e.preventDefault();
@@ -170,6 +170,23 @@
             delete btn.dataset.loading;
           }
         }, { passive:false });
+      }
+    }catch(_e){}
+
+    // 6) ヒントモーダル開閉（オーバーレイ）
+    try{
+      const btn = document.getElementById('wallet-hint-btn');
+      const overlay = document.getElementById('wallet-hint-overlay');
+      const overlayBg = document.getElementById('wallet-hint-overlay-bg');
+      const close = document.getElementById('wallet-hint-close');
+      const ok = document.getElementById('wallet-hint-ok');
+      if (btn && overlay){
+        const open = ()=>{ overlay.classList.remove('hidden'); };
+        const hide = ()=>{ overlay.classList.add('hidden'); };
+        btn.addEventListener('click', open);
+        if (overlayBg) overlayBg.addEventListener('click', hide);
+        if (close) close.addEventListener('click', hide);
+        if (ok) ok.addEventListener('click', hide);
       }
     }catch(_e){}
   }
