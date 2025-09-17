@@ -366,9 +366,19 @@
                   </div>
                 </div>
               </div>
+              {% if is_edit and photos %}
+              <div id="existing-photo-container" class="flex flex-wrap gap-2">
+                {% for photo in photos %}
+                <div class="preview-item">
+                  <img src="{{ photo.photo_url }}" alt="既存写真 {{ loop.index }}">
+                  <div class="remove-btn" data-photo-id="{{ photo.id }}">×</div>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
               <div
                 id="photo-preview-container"
-                class="grid grid-cols-3 gap-4"
+                class="flex flex-wrap gap-2"
               ></div>
             </div>
           </div>
@@ -574,10 +584,21 @@
       </div>
     </div>
 
+    <!-- 保存中オーバーレイ -->
+    <div id="saving-overlay" class="fixed inset-0 bg-black bg-opacity-40 hidden z-[10000] flex items-center justify-center">
+      <div class="bg-white rounded-xl px-5 py-4 shadow flex items-center gap-3">
+        <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+        <span class="text-sm text-neutral-800">保存中...</span>
+      </div>
+    </div>
+
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- <script src="{{ url_for('static', filename='js/rakuten-manual-search.js') }}"></script> -->
     <script>
-      // グローバルエラーハンドリング
+        // グローバルエラーハンドリング
       window.addEventListener('error', function(event) {
         console.error('Global error caught:', event.error);
         alert('ページの読み込み中にエラーが発生しました。ページをリロードしてください。');
@@ -587,6 +608,52 @@
         // グローバル変数として地図とマーカーを定義
         let globalMap = null;
         let globalMarker = null;
+
+        // フォーム送信時の保存中オーバーレイ/二重送信防止
+        try {
+          const form = document.querySelector('form');
+          const savingOverlay = document.getElementById('saving-overlay');
+          const overlayLabel = savingOverlay ? savingOverlay.querySelector('span') : null;
+          const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+          let submitting = false;
+          if (form && savingOverlay && submitBtn) {
+            form.addEventListener('submit', function(e) {
+              if (submitting) {
+                e.preventDefault();
+                return false;
+              }
+              submitting = true;
+              // オーバーレイ表示
+              savingOverlay.classList.remove('hidden');
+              document.body.classList.add('modal-open');
+              // ボタン無効化とラベル変更
+              submitBtn.disabled = true;
+              const originalText = submitBtn.textContent;
+              submitBtn.dataset.originalText = originalText;
+              submitBtn.textContent = '保存中...';
+              if (overlayLabel) overlayLabel.textContent = '保存中...';
+            }, { capture: true });
+          }
+        } catch(e) { console.warn('saving overlay setup failed', e); }
+
+        // 削除フォーム送信時のオーバーレイ/二重送信防止
+        try {
+          const deleteForm = document.getElementById('delete-spot-form');
+          const savingOverlay = document.getElementById('saving-overlay');
+          const overlayLabel = savingOverlay ? savingOverlay.querySelector('span') : null;
+          const deleteBtn = deleteForm ? deleteForm.querySelector('button[type="submit"]') : null;
+          let deleting = false;
+          if (deleteForm && savingOverlay) {
+            deleteForm.addEventListener('submit', function(e) {
+              if (deleting) { e.preventDefault(); return false; }
+              deleting = true;
+              if (overlayLabel) overlayLabel.textContent = '削除中...';
+              savingOverlay.classList.remove('hidden');
+              document.body.classList.add('modal-open');
+              if (deleteBtn) deleteBtn.disabled = true;
+            }, { capture: true });
+          }
+        } catch(e) { console.warn('delete overlay setup failed', e); }
 
         // トグルスイッチの挙動を設定
         const isActiveToggleSwitch = document.getElementById('is_active');

@@ -5,6 +5,7 @@ from flask import current_app
 from botocore.exceptions import ClientError
 import logging
 from werkzeug.utils import secure_filename
+from boto3.s3.transfer import TransferConfig
 
 def get_s3_client():
     """S3クライアントを取得する"""
@@ -49,9 +50,15 @@ def upload_file_to_s3(file, filename=None, content_type=None, acl=None, folder='
     if content_type is None and hasattr(file, 'content_type'):
         content_type = file.content_type
     
-    # S3クライアントを取得
+    # S3クライアントと転送設定を取得
     s3_client = get_s3_client()
     bucket_name = current_app.config['AWS_S3_BUCKET_NAME']
+    transfer_config = TransferConfig(
+        multipart_threshold=8 * 1024 * 1024,  # 8MB 以上でマルチパート
+        multipart_chunksize=8 * 1024 * 1024,  # 8MB チャンク
+        max_concurrency=8,                    # 並列数
+        use_threads=True
+    )
     
     try:
         # ExtraArgsの設定
@@ -64,11 +71,17 @@ def upload_file_to_s3(file, filename=None, content_type=None, acl=None, folder='
         # ACL設定は使用しません
         
         # S3にアップロード
+        if hasattr(file, 'seek'):
+            try:
+                file.seek(0)
+            except Exception:
+                pass
         s3_client.upload_fileobj(
             file,
             bucket_name,
             key,
-            ExtraArgs=extra_args
+            ExtraArgs=extra_args,
+            Config=transfer_config
         )
         
         # URLを生成して返す

@@ -8,6 +8,7 @@ from app.models.social_account import SocialAccount
 from app.models.spot import Spot
 from app.models.import_progress import ImportProgress
 from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
+from app.utils.image_utils import process_image_for_upload
 import uuid
 import requests
 from datetime import datetime, timedelta
@@ -155,31 +156,60 @@ def edit_profile():
             existing_social_accounts = SocialAccount.query.filter_by(user_id=current_user.id).first()
             return render_template('edit_profile.html', user=current_user, social_accounts=existing_social_accounts)
         
-        # プロフィール画像のアップロード処理
+        # プロフィール画像のアップロード処理（圧縮・サイズ制限）
         if 'profile_pic' in request.files:
             file = request.files['profile_pic']
             if file and file.filename != '' and allowed_file(file.filename):
-                # S3が有効かチェック
+                # ファイルサイズチェック（最大 5MB）
+                try:
+                    file.seek(0, 2)
+                    file_size = file.tell()
+                    file.seek(0)
+                except Exception:
+                    file_size = None
+                max_size = current_app.config.get('PROFILE_IMAGE_MAX_SIZE', 5 * 1024 * 1024)
+                if file_size is not None and file_size > max_size:
+                    size_mb = file_size / (1024 * 1024)
+                    flash(f'プロフィール画像のサイズが大きすぎます（{size_mb:.1f}MB）。5MB以下の画像をご利用ください。', 'danger')
+                    existing_social_accounts = SocialAccount.query.filter_by(user_id=current_user.id).first()
+                    return render_template('edit_profile.html', user=current_user, social_accounts=existing_social_accounts)
+
+                # 画像を圧縮・リサイズしてから保存
+                try:
+                    buf, fname, ctype = process_image_for_upload(file, max_dimension=1200, jpeg_quality=85)
+                except Exception:
+                    flash('プロフィール画像の処理に失敗しました。別の画像でお試しください。', 'danger')
+                    existing_social_accounts = SocialAccount.query.filter_by(user_id=current_user.id).first()
+                    return render_template('edit_profile.html', user=current_user, social_accounts=existing_social_accounts)
+
                 if current_app.config.get('USE_S3', False):
-                    # S3にアップロード (profile_imgフォルダに保存)
-                    photo_url = upload_file_to_s3(file, folder='profile_img')
-                    
-                    # アップロードに成功した場合のみ処理
+                    # File-like wrapper
+                    buf.name = fname
+                    class _Wrapper:
+                        def __init__(self, b, filename, content_type):
+                            self._b = b
+                            self.filename = filename
+                            self.content_type = content_type
+                        def read(self, *args, **kwargs):
+                            return self._b.read(*args, **kwargs)
+                        def seek(self, *args, **kwargs):
+                            return self._b.seek(*args, **kwargs)
+                    wrapped = _Wrapper(buf, fname, ctype)
+                    photo_url = upload_file_to_s3(wrapped, filename=fname, content_type=ctype, folder='profile_img')
                     if photo_url:
                         current_user.profile_pic_url = photo_url
                     else:
                         flash('プロフィール画像のアップロードに失敗しました。', 'danger')
                 else:
-                    # ローカルに保存
-                    filename = secure_filename(file.filename)
-                    # ユーザーIDをファイル名に含める
-                    filename = f"{current_user.id}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                    file.save(file_path)
-                    
-                    # データベースに保存するパスは相対パス
-                    relative_path = os.path.join('uploads', filename)
-                    current_user.profile_pic_url = relative_path
+                    # ローカル保存（圧縮済みJPEG）
+                    unique_filename = f"{uuid.uuid4().hex}_{fname}"
+                    try:
+                        with open(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename), 'wb') as f:
+                            f.write(buf.read())
+                        relative_path = os.path.join('uploads', unique_filename)
+                        current_user.profile_pic_url = relative_path
+                    except Exception:
+                        flash('プロフィール画像の保存に失敗しました。', 'danger')
         
         # ユーザー情報の更新
         current_user.username = username

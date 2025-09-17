@@ -2,6 +2,8 @@ import os
 import uuid
 import json
 import requests
+import io
+import threading
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -10,11 +12,13 @@ from app.models.user import User
 from app.models.spot import Spot
 from app.models.photo import Photo
 from app.models.social_post import SocialPost
+from app.models.event_log import EventLog
 from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
 from app.utils.rakuten_api import search_hotel, generate_rakuten_affiliate_url
 from sqlalchemy.orm import joinedload
 from app.services.google_photos import get_google_photos_by_place_id
 from app.services.google_places import get_place_review_summary
+from PIL import Image, ImageOps
 from app.models.spot_provider_id import SpotProviderId
 from app.services.dataforseo import search_hotels as dfs_search_hotels
 from app.utils.rakuten_api import search_hotel as rakuten_search
@@ -33,6 +37,43 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _process_image_for_upload(file_storage, max_dimension: int = 2000, jpeg_quality: int = 85) -> tuple[io.BytesIO, str, str]:
+    """アップロード前に画像をリサイズ・圧縮し、JPEGに正規化して返す。
+    Returns: (buffer, filename_ext, content_type)
+    """
+    # 安全な拡張子は固定で.jpgに統一
+    unique_name = f"{uuid.uuid4().hex}.jpg"
+    out = io.BytesIO()
+
+    # 画像を開き、EXIFの向きを補正
+    img = Image.open(file_storage)
+    try:
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass
+
+    # 透過は白背景で合成しつつRGBへ変換
+    if img.mode in ('RGBA', 'LA'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[-1])
+        img = background
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    # 長辺がmax_dimensionを超える場合は等比縮小
+    w, h = img.size
+    max_side = max(w, h)
+    if max_side > max_dimension:
+        scale = max_dimension / float(max_side)
+        new_size = (int(w * scale), int(h * scale))
+        img = img.resize(new_size, Image.LANCZOS)
+
+    # JPEGで圧縮保存
+    img.save(out, format='JPEG', quality=jpeg_quality, optimize=True, progressive=True)
+    out.seek(0)
+    return out, unique_name, 'image/jpeg'
 
 def _update_social_links(spot_id, form_data):
     """SNSリンクを更新または作成/削除するヘルパー関数"""
@@ -293,13 +334,13 @@ def add_spot():
         except Exception:
             pass
 
-        # サーバ側フォールバック: hiddenが空で、place_id があればAPIから取得
+        # サーバ側フォールバック: 実行は最小限・短時間に制限
         try:
             if (not review_summary or review_summary.strip() == '') and google_place_id:
-                fetched = get_place_review_summary(google_place_id)
+                fetched = get_place_review_summary(google_place_id, timeout_seconds=2)
                 if fetched:
                     spot.review_summary = fetched
-        except Exception as _:
+        except Exception:
             pass
         
         # 写真のアップロード処理 (ユーザーがアップロードした写真はこちらで処理される)
@@ -322,8 +363,24 @@ def add_spot():
                     continue
                 # S3が有効かチェック
                 if current_app.config.get('USE_S3', False):
-                    # S3にアップロード (spot_photoフォルダに保存)
-                    photo_url = upload_file_to_s3(photo, folder='spot_photo')
+                    # 画像を圧縮・リサイズしてからS3にアップロード
+                    try:
+                        buf, fname, ctype = _process_image_for_upload(photo)
+                        # FileStorage風に渡すため BytesIO に一時的にfilename/content_type属性を付与
+                        buf.name = fname
+                        class _Wrapper:
+                            def __init__(self, b, filename, content_type):
+                                self._b = b
+                                self.filename = filename
+                                self.content_type = content_type
+                            def read(self, *args, **kwargs):
+                                return self._b.read(*args, **kwargs)
+                            def seek(self, *args, **kwargs):
+                                return self._b.seek(*args, **kwargs)
+                        wrapped = _Wrapper(buf, fname, ctype)
+                        photo_url = upload_file_to_s3(wrapped, filename=fname, content_type=ctype, folder='spot_photo')
+                    except Exception:
+                        photo_url = None
                     
                     # アップロードに成功した場合のみ処理
                     if photo_url:
@@ -336,14 +393,17 @@ def add_spot():
                     else:
                         flash(f'写真「{photo.filename}」のアップロードに失敗しました。', 'danger')
                 else:
-                    # 従来のローカルストレージにアップロード
-                    filename = secure_filename(photo.filename)
-                    # ユニークなファイル名を生成
-                    unique_filename = f"{uuid.uuid4().hex}_{filename}"
-                    photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                    # 従来のローカルストレージにアップロード（圧縮後）
+                    try:
+                        buf, fname, _ctype = _process_image_for_upload(photo)
+                        unique_filename = f"{uuid.uuid4().hex}_{fname}"
+                        with open(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename), 'wb') as f:
+                            f.write(buf.read())
+                    except Exception:
+                        unique_filename = None
                     
                     # 写真情報をデータベースに保存
-                    photo_url = url_for('static', filename=f'uploads/{unique_filename}')
+                    photo_url = url_for('static', filename=f'uploads/{unique_filename}') if unique_filename else None
                     photo_obj = Photo(
                         spot_id=spot.id,
                         photo_url=photo_url,
@@ -401,10 +461,10 @@ def edit_spot(spot_id):
         spot.review_summary = form_review_summary or spot.review_summary
         if (not spot.review_summary or spot.review_summary.strip() == '') and new_place_id:
             try:
-                fetched = get_place_review_summary(new_place_id)
+                fetched = get_place_review_summary(new_place_id, timeout_seconds=2)
                 if fetched:
                     spot.review_summary = fetched
-            except Exception as _:
+            except Exception:
                 pass
         
         # 評価データを更新
@@ -416,17 +476,25 @@ def edit_spot(spot_id):
             # 既存のGoogle提供の写真を削除
             Photo.query.filter_by(spot_id=spot.id, is_google_photo=True).delete()
         
-        # 削除する写真の処理
+        # 削除する写真の処理（S3削除は非同期化）
         if 'delete_photos' in request.form:
             photo_ids = request.form.getlist('delete_photos')
             for photo_id in photo_ids:
                 photo = Photo.query.get(photo_id)
                 if photo and photo.spot_id == spot.id:
-                    # S3が有効で、ユーザーアップロード写真の場合、S3からも削除
-                    if current_app.config.get('USE_S3', False) and not photo.is_google_photo:
-                        delete_file_from_s3(photo.photo_url)
-                    # データベースから削除
+                    s3_url = photo.photo_url if (current_app.config.get('USE_S3', False) and not photo.is_google_photo) else None
+                    # 先にDBから削除
                     db.session.delete(photo)
+                    # S3削除はレスポンス体感改善のためバックグラウンドスレッドで実行
+                    if s3_url:
+                        try:
+                            app_obj = current_app._get_current_object()
+                            def _bg_delete(url):
+                                with app_obj.app_context():
+                                    delete_file_from_s3(url)
+                            threading.Thread(target=_bg_delete, args=(s3_url,), daemon=True).start()
+                        except Exception:
+                            pass
         
         # 新しい写真のアップロード処理
         photos = request.files.getlist('photos')
@@ -448,8 +516,23 @@ def edit_spot(spot_id):
                     continue
                 # S3が有効かチェック
                 if current_app.config.get('USE_S3', False):
-                    # S3にアップロード (spot_photoフォルダに保存)
-                    photo_url = upload_file_to_s3(photo, folder='spot_photo')
+                    # 画像を圧縮・リサイズしてからS3にアップロード
+                    try:
+                        buf, fname, ctype = _process_image_for_upload(photo)
+                        buf.name = fname
+                        class _Wrapper:
+                            def __init__(self, b, filename, content_type):
+                                self._b = b
+                                self.filename = filename
+                                self.content_type = content_type
+                            def read(self, *args, **kwargs):
+                                return self._b.read(*args, **kwargs)
+                            def seek(self, *args, **kwargs):
+                                return self._b.seek(*args, **kwargs)
+                        wrapped = _Wrapper(buf, fname, ctype)
+                        photo_url = upload_file_to_s3(wrapped, filename=fname, content_type=ctype, folder='spot_photo')
+                    except Exception:
+                        photo_url = None
                     
                     # アップロードに成功した場合のみ処理
                     if photo_url:
@@ -462,14 +545,17 @@ def edit_spot(spot_id):
                     else:
                         flash(f'写真「{photo.filename}」のアップロードに失敗しました。', 'danger')
                 else:
-                    # 従来のローカルストレージにアップロード
-                    filename = secure_filename(photo.filename)
-                    # ユニークなファイル名を生成
-                    unique_filename = f"{uuid.uuid4().hex}_{filename}"
-                    photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
+                    # 従来のローカルストレージにアップロード（圧縮後）
+                    try:
+                        buf, fname, _ctype = _process_image_for_upload(photo)
+                        unique_filename = f"{uuid.uuid4().hex}_{fname}"
+                        with open(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename), 'wb') as f:
+                            f.write(buf.read())
+                    except Exception:
+                        unique_filename = None
                     
                     # 写真情報をデータベースに保存
-                    photo_url = url_for('static', filename=f'uploads/{unique_filename}')
+                    photo_url = url_for('static', filename=f'uploads/{unique_filename}') if unique_filename else None
                     photo_obj = Photo(
                         spot_id=spot.id,
                         photo_url=photo_url,
@@ -544,31 +630,42 @@ def delete_spot(spot_id):
         return redirect(url_for('profile.mypage'))
     
     try:
-        # 関連する写真の削除処理
+        # 関連する写真の削除処理（S3は非同期）
         photos = Photo.query.filter_by(spot_id=spot.id).all()
+        s3_urls = []
         for photo in photos:
-            # S3が有効で、ユーザーアップロード写真の場合、S3からも削除
             if current_app.config.get('USE_S3', False) and not photo.is_google_photo and photo.photo_url:
-                delete_file_from_s3(photo.photo_url)
+                s3_urls.append(photo.photo_url)
             elif not photo.is_google_photo and photo.photo_url:
-                # ローカルファイルの場合は静的ファイルから削除（コメント部分のユースケースのため残しています）
                 try:
-                    # ファイルパスを取得（/static/uploads/filename.jpg形式）
                     filename = photo.photo_url.split('/')[-1]
                     file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                    
-                    # ファイルが存在するかチェック
                     if os.path.exists(file_path):
                         os.remove(file_path)
                 except Exception as e:
                     print(f"ファイル削除エラー: {str(e)}")
-        
-        # スポットの削除（関連するオブジェクトはcascadeで削除されるが、明示的に削除）
+        # 先に event_log の参照はFKの ON DELETE SET NULL に任せる（以降のマイグレーション適用後に有効）
+
+        # DB側を先に削除してレスポンスを早める
         SocialPost.query.filter_by(spot_id=spot.id).delete()
         Photo.query.filter_by(spot_id=spot.id).delete()
-
         db.session.delete(spot)
         db.session.commit()
+
+        # S3削除はアプリコンテキスト付きのバックグラウンドで実行
+        if s3_urls:
+            try:
+                app_obj = current_app._get_current_object()
+                def _bg_batch_delete(urls):
+                    with app_obj.app_context():
+                        for u in urls:
+                            try:
+                                delete_file_from_s3(u)
+                            except Exception:
+                                pass
+                threading.Thread(target=_bg_batch_delete, args=(s3_urls,), daemon=True).start()
+            except Exception:
+                pass
         
         flash('スポットを削除しました。', 'success')
     except Exception as e:

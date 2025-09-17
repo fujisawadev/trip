@@ -19,6 +19,7 @@ from app.utils.rakuten_api import safe_decode_text, search_hotel as rakuten_sear
 from app.services.rakuten_travel import fetch_detail_by_hotel_no as rakuten_fetch_detail
 from app.services.rakuten_travel import simple_hotel_search_by_geo as rakuten_simple_geo
 from app.services.google_places import get_place_review_summary
+from app.utils.s3_utils import delete_file_from_s3
 
 # ロガーの設定
 logging.basicConfig(level=logging.INFO)
@@ -1260,3 +1261,17 @@ def run_monthly_wallet_close(target_month_start: date | None = None) -> None:
     )
     db.session.execute(sql_ledger, {'m_start': target_month_start})
     db.session.commit()
+
+
+# ============================
+# Async Utilities
+# ============================
+
+def async_delete_s3_file(file_url: str) -> bool:
+    """S3上のファイルを非同期で削除するためのタスク。
+    ワーカーはアプリケーションコンテキスト内で動作するため、delete_file_from_s3が利用可能。
+    """
+    try:
+        return delete_file_from_s3(file_url)
+    except Exception:
+        return False

@@ -12,7 +12,7 @@ class EventLog(db.Model):
 
     # クリエイター（=既存ユーザー）と対象ページ（v1はスポット詳細のみ）
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False, index=True)
-    page_id = db.Column(db.BigInteger, db.ForeignKey('spots.id'), nullable=False, index=True)
+    page_id = db.Column(db.BigInteger, db.ForeignKey('spots.id', ondelete='SET NULL'), nullable=True, index=True)
 
     # OTA プラットフォーム識別（例: 'rakuten', 'jalan', 'booking', 'agoda', 'expedia', 'yahoo'）
     ota = db.Column(db.Text, nullable=True)
@@ -39,7 +39,7 @@ class EventLog(db.Model):
 
     # リレーション（必要最小限。backref は既存側未定義なので宣言のみ）
     user = db.relationship('User', primaryjoin='EventLog.user_id == User.id', lazy=True)
-    page = db.relationship('Spot', primaryjoin='EventLog.page_id == Spot.id', lazy=True)
+    page = db.relationship('Spot', primaryjoin='EventLog.page_id == Spot.id', lazy=True, passive_deletes=True)
 
     __table_args__ = (
         # event_type の簡易チェック

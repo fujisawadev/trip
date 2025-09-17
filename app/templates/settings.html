@@ -137,14 +137,13 @@
                     </div>
                     <div>
                       <h3 class="text-base font-medium text-gray-800">口座・本人確認設定</h3>
-                      <p class="text-sm text-gray-500">口座登録・本人確認のセットアップ</p>
+                    <p id="stripe-settings-desc" class="text-sm text-gray-500">口座登録・本人確認のセットアップ</p>
                     </div>
                   </div>
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                   </svg>
                 </a>
-                <div id="stripe-link-reason" class="px-4 pb-2 text-xs text-gray-500" style="display:none"></div>
               </li>
               
             </ul>
@@ -323,19 +322,17 @@
         const enough = Number(s.withdrawable_balance||0) >= min;
         const hasStripe = !!s.has_stripe_account;
         const link = document.getElementById('link-stripe-settings');
-        const msg = document.getElementById('stripe-link-reason');
-        if (link && msg){
+        const desc = document.getElementById('stripe-settings-desc');
+        if (link && desc){
           // 非活性にするのは「最低額未達 かつ まだStripe口座未作成」のときのみ
           if (!enough && !hasStripe){
             // 最低額未達: リンクを視覚的に非活性に（クリック不可）
             link.classList.add('pointer-events-none','opacity-50');
-            msg.textContent = `まずは最低出金額（¥${min.toLocaleString()}）を達成してください。`;
-            msg.style.display = '';
+            desc.textContent = 'おさいふに3000円以上が必要です';
           } else {
             // 達成済: 通常表示（KYCはおさいふ側で促す）
             link.classList.remove('pointer-events-none','opacity-50');
-            msg.textContent = '';
-            msg.style.display = 'none';
+            desc.textContent = '口座登録・本人確認のセットアップ';
           }
         }
       }catch(_e){}

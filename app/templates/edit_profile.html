@@ -213,6 +213,17 @@
       </div>
     </div>
 
+    <!-- 保存中オーバーレイ（スポット画面と同様） -->
+    <div id="saving-overlay" class="fixed inset-0 bg-black bg-opacity-40 hidden z-[10000] flex items-center justify-center">
+      <div class="bg-white rounded-xl px-5 py-4 shadow flex items-center gap-3">
+        <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+        <span class="text-sm text-neutral-800">保存中...</span>
+      </div>
+    </div>
+
     <script>
       // Profile picture preview
       const profileInput = document.getElementById('profile_pic');
@@ -228,6 +239,30 @@
           
           reader.readAsDataURL(this.files[0]);
         }
+      });
+      
+      // フォーム送信時の保存中オーバーレイ/二重送信防止
+      document.addEventListener('DOMContentLoaded', function() {
+        try {
+          const form = document.querySelector('form');
+          const savingOverlay = document.getElementById('saving-overlay');
+          const overlayLabel = savingOverlay ? savingOverlay.querySelector('span') : null;
+          const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+          let submitting = false;
+          if (form && savingOverlay && submitBtn) {
+            form.addEventListener('submit', function(e) {
+              if (submitting) { e.preventDefault(); return false; }
+              submitting = true;
+              savingOverlay.classList.remove('hidden');
+              document.body.classList.add('modal-open');
+              submitBtn.disabled = true;
+              const originalText = submitBtn.textContent;
+              submitBtn.dataset.originalText = originalText;
+              submitBtn.textContent = '保存中...';
+              if (overlayLabel) overlayLabel.textContent = '保存中...';
+            }, { capture: true });
+          }
+        } catch(e) { console.warn('saving overlay setup failed', e); }
       });
     </script>
   </body>
