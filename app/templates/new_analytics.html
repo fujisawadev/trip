@@ -5106,6 +5106,8 @@
     }
   </style>
 </noscript>
+<!-- 引き出し確認モーダル（初期は非表示） -->
+<!-- NOTE: body内に配置する必要があるため、ここでは一旦削除。下の<body>直後に再配置。 -->
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
 <!-- SEO/Meta start -->
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon_32x32.png') }}">
@@ -5127,6 +5129,41 @@
 </head>
 
 <body>
+  <!-- 引き出し確認モーダル（初期は非表示） -->
+  <div id="withdraw-confirm-overlay" class="fixed inset-0 z-[10000] hidden">
+    <div id="withdraw-confirm-overlay-bg" class="absolute inset-0 bg-black/50 backdrop-blur-sm md:backdrop-blur-md"></div>
+    <div id="withdraw-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="withdraw-confirm-title"
+         class="absolute z-10 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl p-6"
+         style="width:min(560px, 92vw)">
+      <button id="withdraw-confirm-close" type="button" aria-label="閉じる"
+              class="absolute right-3 top-3 text-slate-400 hover:text-slate-600">✕</button>
+      <div class="flex items-center gap-2 mb-2">
+        <span>💰</span>
+        <h2 id="withdraw-confirm-title" class="text-lg font-bold">お金をもらう</h2>
+      </div>
+      <p class="text-sm text-slate-600 mb-5" style="margin-bottom:16px">お疲れさまでした！</p>
+      <div class="rounded-2xl p-6 mb-6 text-center" style="background:#ecfdf5;">
+        <div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3 mx-auto">🪙</div>
+        <p class="text-xs text-slate-500 mb-1">引き出し予定金額</p>
+        <p id="withdraw-confirm-amount" class="text-3xl font-bold text-emerald-600">¥0</p>
+        <p class="text-xs text-slate-500 mt-1">※振り込み手数料が引かれます</p>
+      </div>
+      <div class="rounded-2xl px-5 py-4 text-xs font-medium text-blue-700 text-center mt-5 mb-7 flex items-center justify-center gap-2" style="background:#eff6ff; margin-top:16px; margin-bottom:16px;">
+        <span>💡</span>
+        <span>お金は7日前後で指定口座に振り込まれます</span>
+      </div>
+      <div class="flex items-center gap-3 mt-1">
+        <button id="withdraw-cancel-btn" type="button"
+                class="flex-1 basis-1/2 rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50">キャンセル</button>
+        <button id="withdraw-submit-btn" type="button"
+                class="flex-1 basis-1/2 rounded-3xl px-4 py-3 text-sm font-semibold text-white shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                style="background:linear-gradient(90deg,#34d399 0%,#22c55e 100%);">
+          <span>🚀</span>
+          <span class="whitespace-nowrap">引き出し申請</span>
+        </button>
+      </div>
+    </div>
+  </div>
   <div id=container>
     <div>
       <div>
@@ -5267,7 +5304,7 @@
                           <ul class="space-y-3">
                             <li class="flex items-start gap-2"><span class="w-5 text-center">🗺️</span><span>新しい場所を見つけたら<strong>スポットを追加してシェア</strong>しよう。良い発見は<strong>収益</strong>に変わるよ。</span></li>
                             <li class="flex items-start gap-2"><span class="w-5 text-center">💸</span><span><strong>引き出し条件</strong>: <strong>3,000円以上</strong> ＋ <strong>受取設定（本人確認・口座）完了</strong></span></li>
-                            <li class="flex items-start gap-2"><span class="w-5 text-center">⏳</span><span><strong>着金までの目安</strong>: 約<strong>5日</strong></span></li>
+                            <li class="flex items-start gap-2"><span class="w-5 text-center">⏳</span><span><strong>着金までの目安</strong>: 約<strong>7日</strong></span></li>
                             <li class="flex items-start gap-2"><span class="w-5 text-center">🧾</span><span><strong>振込手数料</strong>が差し引かれます</span></li>
                           </ul>
                         </div>
@@ -5369,7 +5406,7 @@
                   <h3 class="font-bold text-lg mb-4 flex items-center gap-2">🏦 出金の履歴</h3>
                   <div id="wallet-payouts" class=space-y-3></div>
                   <div class="mt-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl text-center sf-hidden">
-                    <p class="text-xs text-blue-700">💡 お金は1-3日で届くよ！</p>
+                    <p class="text-xs text-blue-700">💡 お金は7日前後で届くよ！</p>
                   </div>
                 </div>
                 <div class="text-center py-6">

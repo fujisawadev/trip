@@ -20,6 +20,103 @@
     return await res.json();
   }
 
+  let walletWithdrawableCached = 0;
+
+      function showWithdrawConfirm(){
+      try{
+      const overlay = document.getElementById('withdraw-confirm-overlay');
+      const amountEl = document.getElementById('withdraw-confirm-amount');
+      if (!overlay) return;
+      if (amountEl) amountEl.textContent = fmtYen(walletWithdrawableCached);
+      // 申請ボタンの活性/非活性は現状の資格判定に追従
+      const submit = document.getElementById('withdraw-submit-btn');
+      const trigger = document.getElementById('wallet-withdraw-btn');
+      const eligible = trigger && trigger.dataset && trigger.dataset.eligible === '1';
+      if (submit) submit.disabled = !eligible;
+      // オーバーレイが背面に隠れないようz-indexを直接設定
+      overlay.style.zIndex = '10000';
+      const dialog = overlay.querySelector('[role="dialog"]');
+      if (dialog) dialog.style.zIndex = '10001';
+      overlay.classList.remove('hidden');
+      overlay.style.display = 'block';
+      if (submit) submit.focus();
+      // 背面スクロールをロック
+      try{ document.body.style.overflow = 'hidden'; }catch(_e){}
+      }catch(_e){}
+      }
+
+  function hideWithdrawConfirm(){
+    try{
+      const overlay = document.getElementById('withdraw-confirm-overlay');
+      if (overlay){
+        overlay.classList.add('hidden');
+        overlay.style.display = 'none';
+        overlay.style.zIndex = '';
+        const dialog = overlay.querySelector('[role="dialog"]');
+        if (dialog) dialog.style.zIndex = '';
+      }
+      // スクロールロック解除
+      try{ document.body.style.overflow = ''; }catch(_e){}
+    }catch(_e){}
+  }
+
+  async function submitWithdrawal(){
+    const submit = document.getElementById('withdraw-submit-btn');
+    try{
+      if (submit){ submit.disabled = true; submit.dataset.loading = 'true'; }
+      const res = await fetch('/api/me/withdrawals', { method: 'POST', credentials: 'same-origin' });
+      const data = await res.json().catch(()=>({}));
+      if (res.status === 202){
+        toast('出金申請を受け付けました。');
+        // 残高を再取得して反映
+        const s2 = await getJSON('/api/wallet/summary');
+        if (s2 && typeof s2.withdrawable_balance !== 'undefined') {
+          walletWithdrawableCached = Number(s2.withdrawable_balance)||0;
+          setText('wallet-withdrawable', fmtYen(walletWithdrawableCached));
+          // ボタン状態と理由を即時反映
+          try{
+            const btn = document.getElementById('wallet-withdraw-btn');
+            const reason = document.getElementById('wallet-withdraw-reason');
+            if (btn){
+              const min = Number(s2.minimum_payout_yen||1000);
+              const enough = Number(s2.withdrawable_balance||0) >= min;
+              const kyc = !!s2.payouts_enabled;
+              const notOnHold = Number(s2.on_hold||0) <= 0;
+              const active = (enough && kyc && notOnHold);
+              btn.disabled = !active;
+              btn.dataset.eligible = active ? '1' : '0';
+              if (reason){
+                let text = '';
+                if (!notOnHold) text = '処理中の出金申請があります';
+                else if (!kyc) text = '受取設定（本人確認・口座登録）が未完了です';
+                else if (!enough) text = `最小出金額（¥${min.toLocaleString()}）に達していません`;
+                reason.textContent = text;
+                reason.style.display = text ? '' : 'none';
+              }
+            }
+          }catch(_e){}
+        }
+        // 履歴も即時更新
+        try{
+          const p2 = await getJSON('/api/wallet/payouts');
+          renderPayouts((p2 && Array.isArray(p2.items)) ? p2.items : []);
+        }catch(_e){}
+        hideWithdrawConfirm();
+      } else if (res.status === 400 && data && data.error === 'below_minimum'){
+        toast(`最小出金額に達していません（最小: ¥${Number(data.minimum||0).toLocaleString()}）。`);
+      } else if (res.status === 409 && data && data.error === 'payouts_not_enabled'){
+        toast('受取設定（本人確認/口座）が未完了です。設定ページから完了してください。');
+      } else {
+        toast('出金申請に失敗しました。時間をおいて再度お試しください。');
+      }
+    }catch(_err){
+      toast('ネットワークエラーが発生しました。時間をおいて再度お試しください。');
+    } finally {
+      const submit = document.getElementById('withdraw-submit-btn');
+      if (submit){ submit.disabled = false; delete submit.dataset.loading; }
+    }
+  }
+
   async function init(){
     // 初期表示: 0%のスリバーを必ず描画（API失敗時でもグラフは見える）
     try {
@@ -30,7 +127,8 @@
     // 1) もらえるお金（withdrawable_balance）
     const s = await getJSON('/api/wallet/summary');
     if (s && typeof s.withdrawable_balance !== 'undefined') {
-      setText('wallet-withdrawable', fmtYen(s.withdrawable_balance));
+      walletWithdrawableCached = Number(s.withdrawable_balance)||0;
+      setText('wallet-withdrawable', fmtYen(walletWithdrawableCached));
       // 昨日まで反映のas-of表示
       try{
         const asofEl = document.getElementById('wallet-asof');
@@ -48,26 +146,19 @@
           const enough = Number(s.withdrawable_balance||0) >= min;
           const kyc = !!s.payouts_enabled;
           const notOnHold = Number(s.on_hold||0) <= 0;
+          // 有効条件
           const active = (enough && kyc && notOnHold);
+          // 処理中(on_hold>0)はメインボタンを必ず無効化
           btn.disabled = !active;
+          btn.dataset.eligible = active ? '1' : '0';
           if (reason){
-            if (!active){
-              if (!enough){
-                // 最低額未達のときはアラート非表示
-                reason.textContent = '';
-                reason.style.display = 'none';
-              } else {
-                // 最低額は満たすが、他要因で非活性な場合のみ表示
-                const msgs = [];
-                if (!kyc) msgs.push('受取設定（本人確認・口座登録）が未完了です');
-                if (!notOnHold) msgs.push('処理中の出金申請があります');
-                reason.textContent = msgs.join('／');
-                reason.style.display = msgs.length ? '' : 'none';
-              }
-            } else {
-              reason.textContent = '';
-              reason.style.display = 'none';
-            }
+            // 表示優先度: 処理中 > 受取設定未完了
+            // 最低額未達の文言は表示しない（ボタン非活性のみ）
+            let text = '';
+            if (!notOnHold) text = '処理中の出金申請があります';
+            else if (!kyc) text = '受取設定（本人確認・口座登録）が未完了です';
+            reason.textContent = text;
+            reason.style.display = text ? '' : 'none';
           }
         }
       }catch(_e){}
@@ -138,38 +229,27 @@
     const p = await getJSON('/api/wallet/payouts');
     renderPayouts((p && Array.isArray(p.items)) ? p.items : []);
 
-    // 5) 「お金をもらう」ボタン: 全額申請を実行
+    // 5) 「お金をもらう」ボタン: 確認モーダル→申請実行
     try{
       const btn = document.getElementById('wallet-withdraw-btn');
+      const overlay = document.getElementById('withdraw-confirm-overlay');
+      const cancel = document.getElementById('withdraw-cancel-btn');
+      const close = document.getElementById('withdraw-confirm-close');
+      const bg = document.getElementById('withdraw-confirm-overlay-bg');
+      const submit = document.getElementById('withdraw-submit-btn');
       if (btn){
-        btn.addEventListener('click', async (e)=>{
-          e.preventDefault();
-          btn.disabled = true;
-          btn.dataset.loading = 'true';
-          try{
-            const res = await fetch('/api/me/withdrawals', { method: 'POST', credentials: 'same-origin' });
-            const data = await res.json().catch(()=>({}));
-            if (res.status === 202){
-              toast('出金申請を受け付けました。72時間後に処理されます。');
-              // もらえるお金を再取得して反映（on_hold差し引き）
-              const s2 = await getJSON('/api/wallet/summary');
-              if (s2 && typeof s2.withdrawable_balance !== 'undefined') {
-                setText('wallet-withdrawable', fmtYen(s2.withdrawable_balance));
-              }
-            } else if (res.status === 400 && data && data.error === 'below_minimum'){
-              toast(`最小出金額に達していません（最小: ¥${Number(data.minimum||0).toLocaleString()}）。`);
-            } else if (res.status === 409 && data && data.error === 'payouts_not_enabled'){
-              toast('受取設定（本人確認/口座）が未完了です。設定ページから完了してください。');
-            } else {
-              toast('出金申請に失敗しました。時間をおいて再度お試しください。');
-            }
-          } catch(_err){
-            toast('ネットワークエラーが発生しました。時間をおいて再度お試しください。');
-          } finally {
-            btn.disabled = false;
-            delete btn.dataset.loading;
-          }
-        }, { passive:false });
+        btn.addEventListener('click', (e)=>{ e.preventDefault(); showWithdrawConfirm(); }, { passive:false });
+      }
+      if (overlay){
+        const hide = ()=> hideWithdrawConfirm();
+        if (cancel) cancel.addEventListener('click', hide);
+        if (close) close.addEventListener('click', hide);
+        if (bg) bg.addEventListener('click', hide);
+        if (submit) submit.addEventListener('click', (e)=>{ e.preventDefault(); submitWithdrawal(); }, { passive:false });
+        document.addEventListener('keydown', (ev)=>{
+          if (overlay.classList.contains('hidden')) return;
+          if (ev.key === 'Escape') hideWithdrawConfirm();
+        });
       }
     }catch(_e){}
 
@@ -325,6 +405,21 @@
       setTimeout(()=>{ toast.remove(); }, 2600);
     }catch(_e){ alert(msg); }
   }
+
+  // フォールバック: 初期化が途中で失敗してもモーダルを開けるように、
+  // ドキュメント委任でクリックを拾う（重複openは無害）
+  document.addEventListener('click', function(ev){
+    try{
+      const trigger = ev.target && (ev.target.closest ? ev.target.closest('#wallet-withdraw-btn') : null);
+      if (trigger){
+        ev.preventDefault();
+        showWithdrawConfirm();
+      }
+    }catch(_e){}
+  }, { passive:false });
+
+  // デバッグ用エクスポート（必要時のみ参照）
+  try{ if (typeof window !== 'undefined') window.__walletDebug = { showWithdrawConfirm, hideWithdrawConfirm }; }catch(_e){}
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();
   else window.addEventListener('DOMContentLoaded', init);
