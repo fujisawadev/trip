@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from urllib.parse import urlparse, urlunparse, urlencode, parse_qsl, quote
 
 
@@ -20,6 +20,87 @@ def _append_params(url: str, params: Dict[str, Optional[str]]) -> str:
         return urlunparse(parsed._replace(query=new_query))
     except Exception:
         return url
+
+
+def build_stay22_allez_for_booking(lat: Optional[float], lng: Optional[float], hotel_name: Optional[str], address: Optional[str], check_in: Optional[str], check_out: Optional[str]) -> Optional[str]:
+    """Stay22 Allez 方式のリンクを生成（Booking向け）。
+    優先度: lat/lng > (hotelname + address)。
+    日付は任意（指定あれば付与）。
+    """
+    aid = _cfg('STAY22_AID')
+    if not aid:
+        return None
+    # Booking専用エンドポイントに固定
+    base = 'https://www.stay22.com/allez/booking'
+    params: Dict[str, Optional[str]] = {
+        'aid': aid,
+    }
+    try:
+        if lat is not None and lng is not None:
+            params['lat'] = str(lat)
+            params['lng'] = str(lng)
+        else:
+            # lat/lngが無い場合も、補助的に hotelname/address を付与（無視される場合あり）
+            if hotel_name:
+                params['hotelname'] = hotel_name
+            if address:
+                params['address'] = address
+        if check_in:
+            params['checkin'] = check_in
+        if check_out:
+            params['checkout'] = check_out
+        q = urlencode({ k:v for k,v in params.items() if v }, doseq=True)
+        return f"{base}?{q}"
+    except Exception:
+        return None
+
+def _normalize_booking_url(raw_url: str) -> str:
+    """Booking.com のURLを STAY22 互換の安定した形式に正規化する。
+    - ホストは booking.com のまま（サブドメイン許容）
+    - 不要/短命なクエリ（utm/aid/label/メタGHA系）を除外
+    - 主要な滞在条件のみを残す
+    """
+    try:
+        parsed = urlparse(raw_url)
+        host = (parsed.netloc or '').lower()
+        if 'booking.com' not in host:
+            return raw_url
+
+        # 主要パラメータのみホワイトリスト
+        allowed_keys = set([
+            'checkin', 'checkout',
+            'group_adults',
+            'group_children',
+            'no_rooms',
+            'lang', 'selected_currency'
+        ])
+
+        # 除外したい接頭辞/キー
+        blocked_prefixes = ('utm_',)
+        blocked_keys = set([
+            'aid', 'label', 'exrt', 'ext_price_total', 'ext_price_tax', 'xfc', 'hca',
+            'edgtid', 'efpc', 'ts', 'efp', 'from_wishlist', 'dist', 'sb_price_type', 'srpvid',
+            'req_adults', 'req_children', 'show_room'
+        ])
+
+        q_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+        kept: list[tuple[str, str]] = []
+        for k, v in q_pairs:
+            kl = k.lower()
+            if kl in allowed_keys:
+                kept.append((k, v))
+                continue
+            if kl.startswith(blocked_prefixes) or kl in blocked_keys:
+                continue
+            # それ以外は捨てる（短命/計測系の可能性が高い）
+            continue
+
+        new_query = urlencode(kept, doseq=True)
+        # スキームはhttps固定
+        scheme = 'https'
+        return urlunparse(parsed._replace(scheme=scheme, query=new_query))
+    except Exception:
+        return raw_url
 
 
 def wrap_rakuten(raw_url: str, affiliate_id: Optional[str]) -> str:
@@ -84,19 +165,7 @@ def wrap_stay22(raw_url: str, aid: Optional[str]) -> str:
     return f"https://www.stay22.com/l/{aid}?url={quote(raw_url, safe='')}"
 
 
-def wrap_valuecommerce(raw_url: str, sid: Optional[str], pid: Optional[str]) -> str:
-    if not raw_url or not sid or not pid:
-        return raw_url
-    # Idempotency: already vc referral
-    try:
-        parsed = urlparse(raw_url)
-        if parsed.netloc.endswith("ck.jp.ap.valuecommerce.com"):
-            return raw_url
-    except Exception:
-        pass
-    base = "https://ck.jp.ap.valuecommerce.com/servlet/referral"
-    vc_url = quote(raw_url, safe="")
-    return f"{base}?sid={sid}&pid={pid}&vc_url={vc_url}"
+# ValueCommerce は不使用（審査不承認のため無効化）
 
 
 def wrap_a8(raw_url: str, a8mat: Optional[str]) -> str:
@@ -113,7 +182,9 @@ def wrap_a8(raw_url: str, a8mat: Optional[str]) -> str:
     except Exception:
         pass
     base = "https://px.a8.net/svt/ejp"
-    return f"{base}?a8mat={quote(a8mat, safe='')}&a8ejpredirect={quote(raw_url, safe='')}"
+    # a8mat は '+' を含むフォーマットのため、エンコードせずそのまま渡す
+    # a8ejpredirect のみURLエンコード（1回）
+    return f"{base}?a8mat={a8mat}&a8ejpredirect={quote(raw_url, safe='')}"
 
 
 def detect_platform_by_url(raw_url: str) -> Optional[str]:
@@ -175,8 +246,13 @@ def apply_affiliate_wrapper(raw_url: str, provider_hint: Optional[str] = None) -
     expedia_creator = _cfg("EXPEDIA_CREATOR_ID")
     agoda_cid = _cfg("AGODA_CID") or _cfg("AGODA_PARTNER_ID")  # backward compat
     stay22_aid = _cfg("STAY22_AID")
-    vc_sid = _cfg("VC_SID")
-    vc_pid = _cfg("VC_PID")
+    # ValueCommerce は不使用
+    vc_sid = None
+    vc_pid = None
+    vc_jalan_sid = None
+    vc_jalan_pid = None
+    vc_yahoo_sid = None
+    vc_yahoo_pid = None
     # A8 per-advertiser a8mat
     a8_ikyu = _cfg("A8_IKYU_A8MAT")
     a8_jalan = _cfg("A8_JALAN_A8MAT")
@@ -184,7 +260,10 @@ def apply_affiliate_wrapper(raw_url: str, provider_hint: Optional[str] = None) -
 
     try:
         if platform == "booking":
-            return wrap_stay22(raw_url, stay22_aid)
+            # まずAllez方式で生成（lat/lng or hotelname/address は上位層からは渡ってこないため、URLからは抽出せず、単純化してSRPとして扱う）
+            # URLからの厳密抽出は難しいため、当面は既存のBooking直URLをSTAY22パススルーにフォールバック
+            normalized = _normalize_booking_url(raw_url)
+            return wrap_stay22(normalized, stay22_aid)
         if platform == "agoda":
             return wrap_agoda(raw_url, agoda_cid)
         if platform == "expedia":
@@ -196,16 +275,14 @@ def apply_affiliate_wrapper(raw_url: str, provider_hint: Optional[str] = None) -
                 return wrap_a8(raw_url, a8_ikyu)
             return raw_url
         if platform == "jalan":
+            # A8のみ適用
             if a8_jalan:
                 return wrap_a8(raw_url, a8_jalan)
-            if vc_sid and vc_pid:
-                return wrap_valuecommerce(raw_url, vc_sid, vc_pid)
             return raw_url
         if platform == "yahoo_travel":
+            # A8のみ適用
             if a8_yahoo:
                 return wrap_a8(raw_url, a8_yahoo)
-            if vc_sid and vc_pid:
-                return wrap_valuecommerce(raw_url, vc_sid, vc_pid)
             return raw_url
         # Unknown platform: leave as is
         return raw_url
@@ -222,6 +299,48 @@ def wrap_offers(offers: List[Dict]) -> List[Dict]:
         provider = o.get('provider')
         new_url = apply_affiliate_wrapper(deeplink, provider)
         nofollow_provider = provider  # unchanged
+        new_item = dict(o)
+        if new_url:
+            new_item['deeplink'] = new_url
+        wrapped.append(new_item)
+    return wrapped
+
+
+def apply_affiliate_wrapper_with_context(raw_url: str, provider_hint: Optional[str], spot: Optional[Any]) -> str:
+    """コンテキスト（spot）を使ってより良いアフィリエイトリンクを生成。
+    Booking.com は Allez を優先（lat/lng or hotelname+address, checkin/checkout）。
+    """
+    provider_hint_l = (provider_hint or '').lower() if provider_hint else ''
+    is_booking = 'booking' in provider_hint_l or 'booking.com' in (urlparse(raw_url).netloc or '').lower()
+    if is_booking:
+        # クエリから日付抽出
+        try:
+            q = dict(parse_qsl(urlparse(raw_url).query, keep_blank_values=True))
+            ci = q.get('checkin')
+            co = q.get('checkout')
+        except Exception:
+            ci = None; co = None
+        lat = getattr(spot, 'latitude', None) if spot is not None else None
+        lng = getattr(spot, 'longitude', None) if spot is not None else None
+        hotel_name = getattr(spot, 'name', None) if spot is not None else None
+        address = None
+        if spot is not None:
+            address = getattr(spot, 'summary_location', None) or getattr(spot, 'location', None)
+        allez = build_stay22_allez_for_booking(lat, lng, hotel_name, address, ci, co)
+        if allez:
+            return allez
+    # フォールバック: 既存ロジック
+    return apply_affiliate_wrapper(raw_url, provider_hint)
+
+
+def wrap_offers_with_context(offers: List[Dict], spot: Any) -> List[Dict]:
+    wrapped: List[Dict] = []
+    for o in offers:
+        if not isinstance(o, dict):
+            continue
+        deeplink = o.get('deeplink')
+        provider = o.get('provider')
+        new_url = apply_affiliate_wrapper_with_context(deeplink, provider, spot)
         new_item = dict(o)
         if new_url:
             new_item['deeplink'] = new_url

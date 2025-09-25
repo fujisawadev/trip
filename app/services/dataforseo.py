@@ -141,11 +141,10 @@ def normalize_offers_from_hotel_info(result: Dict[str, Any]) -> List[Dict[str, A
         return 'google.' in domain
 
     def is_whitelisted_provider(it: Dict[str, Any]) -> bool:
-        title = (it.get('title') or '').strip()
+        # 許可は「ドメイン/URLが正規のOTAドメインに一致する」場合のみ
         domain = (it.get('domain') or '').strip().lower()
         url = (it.get('url') or '').strip().lower()
 
-        # 許可ドメイン（部分一致）
         allowed_domains = [
             'travel.yahoo.co.jp',  # Yahoo!トラベル
             'ikyu.com',            # 一休.com
@@ -157,32 +156,9 @@ def normalize_offers_from_hotel_info(result: Dict[str, Any]) -> List[Dict[str, A
             'trivago.jp',          # trivago.jp
         ]
 
-        # 許可タイトル（部分一致/大小無視は英字のみ）
-        allowed_titles = [
-            'Yahoo!トラベル',
-            '一休',
-            'Booking.com',
-            'Agoda',
-            'Expedia',
-            'じゃらん',
-            'るるぶトラベル',
-            'trivago',
-        ]
-
-        # ドメインで判定
         for d in allowed_domains:
-            if domain.find(d) != -1 or url.find(d) != -1:
+            if (d in domain) or (d in url):
                 return True
-
-        # タイトルで判定（日本語はそのまま、英字は小文字比較）
-        lt = title.lower()
-        for t in allowed_titles:
-            if t.isascii():
-                if lt.find(t.lower()) != -1:
-                    return True
-            else:
-                if title.find(t) != -1:
-                    return True
         return False
 
     def is_blocked_provider(it: Dict[str, Any]) -> bool:
@@ -191,7 +167,12 @@ def normalize_offers_from_hotel_info(result: Dict[str, Any]) -> List[Dict[str, A
         url = ((it.get('url') or '').strip()).lower()
         # 明示的に除外したいプロバイダ
         blocked_keywords = [
-            'wego',            # Wego Marketplace など
+            'wego',                # Wego Marketplace など
+            'coreda.jp',           # アフィリエイト中間
+            'a-trade.jp',
+            'moshimo.com',
+            'valuecommerce.com',
+            'ck.jp.ap.valuecommerce.com',
         ]
         for k in blocked_keywords:
             if k in title or k in domain or k in url:

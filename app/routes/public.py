@@ -531,7 +531,9 @@ def public_spot_hotel_offers(spot_id: int):
         offers.sort(key=price_value)
         # アフィリエイト包み（有効時）
         try:
-            offers = wrap_offers(offers)
+            # コンテキスト付きでラップ（BookingはAllez優先）
+            from app.services.affiliates import wrap_offers_with_context
+            offers = wrap_offers_with_context(offers, spot)
         except Exception:
             pass
         # 最安値フラグ付与

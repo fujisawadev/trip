@@ -151,31 +151,38 @@ try {
     const today = new Date();
     const fmt = (d)=> `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const ensureDateDefaults = () => {
-      const d1 = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-      const d2 = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 8);
+      // 今日を00:00に正規化
+      const today0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const defaultIn = new Date(today0.getFullYear(), today0.getMonth(), today0.getDate() + 7);
+      const defaultOut = new Date(defaultIn.getFullYear(), defaultIn.getMonth(), defaultIn.getDate() + 1);
+
       if (checkInEl) {
-        checkInEl.min = fmt(today);
-        if (!checkInEl.value) {
-          const storedCi = localStorage.getItem(LS_KEY_CI);
-          checkInEl.value = storedCi || fmt(d1);
+        checkInEl.min = fmt(today0);
+        const storedCi = localStorage.getItem(LS_KEY_CI);
+        let ciStr = checkInEl.value || storedCi || '';
+        let ci = ciStr ? new Date(ciStr) : null;
+        if (!ci || isNaN(ci.getTime()) || ci < today0) {
+          ci = defaultIn;
         }
+        checkInEl.value = fmt(ci);
       }
+
       if (checkOutEl) {
-        if (checkInEl && checkInEl.value) {
-          const inDate = new Date(checkInEl.value);
-          const outMin = new Date(inDate.getFullYear(), inDate.getMonth(), inDate.getDate() + 1);
-          checkOutEl.min = fmt(outMin);
-          if (!checkOutEl.value || new Date(checkOutEl.value) <= inDate) {
-            const storedCo = localStorage.getItem(LS_KEY_CO);
-            checkOutEl.value = storedCo && new Date(storedCo) > inDate ? storedCo : fmt(outMin);
-          }
-        } else {
-          checkOutEl.min = fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
-          if (!checkOutEl.value) {
-            const storedCo2 = localStorage.getItem(LS_KEY_CO);
-            checkOutEl.value = storedCo2 || fmt(d2);
-          }
+        // 入力済みチェックインを前提に、最低チェックアウトは+1日
+        let inDate = (checkInEl && checkInEl.value) ? new Date(checkInEl.value) : null;
+        if (!inDate || isNaN(inDate.getTime()) || inDate < new Date(today0)) {
+          inDate = defaultIn;
         }
+        const outMin = new Date(inDate.getFullYear(), inDate.getMonth(), inDate.getDate() + 1);
+        checkOutEl.min = fmt(outMin);
+
+        const storedCo = localStorage.getItem(LS_KEY_CO);
+        let coStr = checkOutEl.value || storedCo || '';
+        let co = coStr ? new Date(coStr) : null;
+        if (!co || isNaN(co.getTime()) || co <= inDate) {
+          co = new Date(outMin);
+        }
+        checkOutEl.value = fmt(co);
       }
     };
 
