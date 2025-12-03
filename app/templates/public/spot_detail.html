@@ -33,6 +33,16 @@
     }
   }
 </style>
+<script>
+  try{
+    if (typeof gtag === 'function') {
+      gtag('event','spot_view', {
+        page_id: {{ spot.id }},
+        creator_id: {{ user.id }}
+      });
+    }
+  }catch(_e){}
+  </script>
 <style id=body-background-color>
   body:has([data-breakpoint-id="node-0_4"]) {
     background-color: #FFF
