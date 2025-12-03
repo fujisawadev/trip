@@ -292,7 +292,9 @@ try {
                 const params = {
                   ota: String(provider).toLowerCase(),
                   page_id: ids && ids.pageId ? Number(ids.pageId) : undefined,
-                  user_id: ids && ids.userId ? Number(ids.userId) : undefined,
+                  // GA4では 'user_id' は予約語のためイベントパラメータとして使用不可。
+                  // 代わりに creator_id を送る。
+                  creator_id: ids && ids.userId ? Number(ids.userId) : undefined,
                   has_price: hasPrice ? 1 : 0
                 };
                 if (hasPrice) { params.price = Number(o.price); params.currency = 'JPY'; }
