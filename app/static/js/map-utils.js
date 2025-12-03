@@ -280,6 +280,27 @@ try {
             </a>
           </div>
         `;
+        // GA4: OTAクリックイベント送信（ターゲットは新規タブ遷移のため送信猶予あり）
+        try {
+          const btn = wrapper.querySelector('a[data-slot=button]');
+          if (btn && typeof gtag === 'function') {
+            btn.addEventListener('click', () => {
+              try {
+                const ids = (window.walletAnalytics && typeof window.walletAnalytics.getIds === 'function')
+                  ? window.walletAnalytics.getIds()
+                  : {};
+                const params = {
+                  ota: String(provider).toLowerCase(),
+                  page_id: ids && ids.pageId ? Number(ids.pageId) : undefined,
+                  user_id: ids && ids.userId ? Number(ids.userId) : undefined,
+                  has_price: hasPrice ? 1 : 0
+                };
+                if (hasPrice) { params.price = Number(o.price); params.currency = 'JPY'; }
+                gtag('event', 'ota_click', params);
+              } catch (_e) {}
+            }, { passive: true });
+          }
+        } catch (_e) {}
         return wrapper;
       };
 
